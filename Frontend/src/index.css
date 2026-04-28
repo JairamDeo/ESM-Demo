@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 5% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 5% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 5% 15%;
+    --primary: 255 60% 69%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 93%;
+    --secondary-foreground: 240 5% 15%;
+    --muted: 240 5% 93%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 255 60% 69%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 255 60% 69%;
+    --radius: 0.75rem;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 5% 15%;
+    --sidebar-primary: 255 60% 69%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 255 60% 96%;
+    --sidebar-accent-foreground: 255 60% 50%;
+    --sidebar-border: 240 6% 90%;
+    --sidebar-ring: 255 60% 69%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --chart-1: 255 60% 69%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+  }
+
+  .dark {
+    --background: 240 3% 9%;
+    --foreground: 0 0% 92%;
+    --card: 240 3% 12%;
+    --card-foreground: 0 0% 92%;
+    --popover: 240 3% 12%;
+    --popover-foreground: 0 0% 92%;
+    --primary: 255 60% 69%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3% 18%;
+    --secondary-foreground: 0 0% 92%;
+    --muted: 240 3% 18%;
+    --muted-foreground: 240 3% 55%;
+    --accent: 255 60% 69%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 3% 20%;
+    --input: 240 3% 20%;
+    --ring: 255 60% 69%;
+    --sidebar-background: 240 3% 7%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 255 60% 69%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 255 60% 15%;
+    --sidebar-accent-foreground: 255 60% 80%;
+    --sidebar-border: 240 3% 18%;
+    --sidebar-ring: 255 60% 69%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --chart-1: 255 60% 69%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: hsl(240 3% 12%);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(240 3% 25%);
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(255 60% 69%);
+}
