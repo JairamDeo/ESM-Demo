@@ -1,0 +1,142 @@
+import { useState, memo, useCallback, useMemo } from "react";
+import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus } from "lucide-react";
+import { useStations, useCreateStation } from "@/hooks/useApi";
+
+const STATES = ["Maharashtra", "Gujarat", "Karnataka", "Rajasthan", "Madhya Pradesh", "Uttar Pradesh", "Punjab", "Haryana", "Delhi", "Telangana"];
+
+export default memo(function Stations() {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterState, setFilterState] = useState("");
+  const [form, setForm] = useState({ name: "", city: "", state: "Maharashtra", officers: "4", address: "" });
+
+  const { data, isLoading } = useStations({ search, state: filterState || undefined });
+  const createStation = useCreateStation();
+
+  const stations = useMemo(() => data?.data || [], [data]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!form.city.trim() || !form.state) return;
+    const name = form.name.trim() || `${form.city.trim()} Station HQ`;
+    await createStation.mutateAsync({ name, city: form.city.trim(), state: form.state, officerCount: Number(form.officers) || 0, address: form.address });
+    setForm({ name: "", city: "", state: "Maharashtra", officers: "4", address: "" });
+    setOpen(false);
+  }, [form, createStation]);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Station Headquarters</h1>
+          <p className="text-muted-foreground text-sm mt-1">{stations.length} Station HQs across Maharashtra & Gujarat</p>
+        </div>
+        <button onClick={() => setOpen(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 self-start sm:self-auto">
+          <Building2 className="w-4 h-4" /> Add Station
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 flex-1 max-w-sm">
+          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search stations..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full" />
+        </div>
+        <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
+          <option value="">All States</option>
+          {STATES.map((s) => <option key={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {/* Modal */}
+      {open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Add Station HQ</h2>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">City / Location *</label>
+                <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="e.g. Amravati" className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary" />
+                {form.city && <p className="text-xs text-muted-foreground mt-1">Name: <span className="text-foreground">{form.city} Station HQ</span></p>}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">State *</label>
+                <select value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary">
+                  {STATES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Number of Officers</label>
+                <input type="number" min="0" value={form.officers} onChange={(e) => setForm({ ...form, officers: e.target.value })} className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Address (optional)</label>
+                <textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} rows={2} className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary resize-none placeholder:text-muted-foreground" placeholder="Full postal address..." />
+              </div>
+              <button onClick={handleSubmit} disabled={createStation.isPending || !form.city} className="w-full mt-2 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2">
+                {createStation.isPending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
+                Add Station
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array(6).fill(0).map((_, i) => <div key={i} className="h-48 bg-card rounded-xl border border-border animate-pulse" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {stations.map((s: any) => {
+            const resRate = s.totalCases > 0 ? Math.round((s.resolvedCases / s.totalCases) * 100) : 0;
+            return (
+              <div key={s._id || s.name} className="bg-card rounded-xl border border-border p-5 hover:border-primary/30 transition-all cursor-pointer">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{s.name}</h3>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                        <MapPin className="w-3 h-3" /> {s.state}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${s.qrActive ? "bg-success" : "bg-muted-foreground"}`} />
+                    <span className="text-xs text-muted-foreground">{s.qrActive ? "QR Active" : "QR Inactive"}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { icon: Users, val: s.officerCount, label: "Officers", color: "text-primary" },
+                    { icon: FileText, val: s.totalCases, label: "Cases", color: "text-info" },
+                    { icon: CheckCircle2, val: s.resolvedCases, label: "Resolved", color: "text-success" },
+                    { icon: QrCode, val: `${resRate}%`, label: "Rate", color: "text-warning" },
+                  ].map(({ icon: Icon, val, label, color }) => (
+                    <div key={label} className="text-center p-2 rounded-lg bg-secondary/50">
+                      <Icon className={`w-4 h-4 ${color} mx-auto mb-1`} />
+                      <p className="text-sm font-bold text-foreground">{val}</p>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 w-full bg-secondary rounded-full h-1.5">
+                  <div className="bg-primary rounded-full h-1.5 transition-all" style={{ width: `${resRate}%` }} />
+                </div>
+              </div>
+            );
+          })}
+          {stations.length === 0 && (
+            <div className="col-span-2 py-16 text-center text-muted-foreground">No stations found.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
