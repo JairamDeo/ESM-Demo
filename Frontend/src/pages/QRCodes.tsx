@@ -1,3 +1,4 @@
+import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
 import { QrCode, Download, Eye, RefreshCw, X, Plus, Search } from "lucide-react";
 import QRCode from "react-qr-code";
