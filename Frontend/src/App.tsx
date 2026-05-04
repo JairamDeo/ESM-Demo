@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useRBACStore } from "@/stores/rbac";
 
 const AdminLayout   = lazy(() => import("@/components/AdminLayout"));
 const UserLayout    = lazy(() => import("@/components/UserLayout"));
@@ -67,20 +68,28 @@ const AdminGuard = memo(() => {
   );
 });
 
-const UserRoutes = memo(() => (
-  <S><UserLayout>
-    <Routes>
-      <Route path="/"                element={<S><UserHome /></S>} />
-      <Route path="/services"        element={<S><Services /></S>} />
-      <Route path="/raise-grievance" element={<S><RaiseGrievance /></S>} />
-      <Route path="/complaints"      element={<S><MyComplaints /></S>} />
-      <Route path="/track-case"      element={<S><TrackCase /></S>} />
-      <Route path="/profile"         element={<S><UserProfile /></S>} />
-      <Route path="/notifications"   element={<S><Notifications /></S>} />
-      <Route path="/settings"        element={<S><UserSettings /></S>} />
-    </Routes>
-  </UserLayout></S>
-));
+const UserRoutes = memo(() => {
+  const { isAuthenticated, user } = useAuth();
+  // Allow access: user role OR officers with loginAsVeteran permission
+  const rbacPerms = useRBACStore.getState().permissions;
+  const role = user?.role as any;
+  const canAccessVeteranPortal = role === "user" || (isAuthenticated && rbacPerms[role]?.loginAsVeteran);
+  if (!isAuthenticated || !canAccessVeteranPortal) return <Navigate to="/user/login" replace />;
+  return (
+    <S><UserLayout>
+      <Routes>
+        <Route path="/"                element={<S><UserHome /></S>} />
+        <Route path="/services"        element={<S><Services /></S>} />
+        <Route path="/raise-grievance" element={<S><RaiseGrievance /></S>} />
+        <Route path="/complaints"      element={<S><MyComplaints /></S>} />
+        <Route path="/track-case"      element={<S><TrackCase /></S>} />
+        <Route path="/profile"         element={<S><UserProfile /></S>} />
+        <Route path="/notifications"   element={<S><Notifications /></S>} />
+        <Route path="/settings"        element={<S><UserSettings /></S>} />
+      </Routes>
+    </UserLayout></S>
+  );
+});
 
 const AdminLoginGuard = memo(() => {
   const { isAuthenticated, isAdmin } = useAuth();

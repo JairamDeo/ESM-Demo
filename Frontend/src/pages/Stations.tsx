@@ -1,3 +1,4 @@
+import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
 import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus } from "lucide-react";
 import { useStations, useCreateStation } from "@/hooks/useApi";

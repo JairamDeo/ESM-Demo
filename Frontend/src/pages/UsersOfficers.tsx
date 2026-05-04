@@ -1,4 +1,6 @@
 import { useState, memo, useCallback, useMemo } from "react";
+import { usePermissions } from "@/stores/rbac";
+import { useAuth } from "@/contexts/AuthContext";
 import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus, useDeleteOfficer } from "@/hooks/useApi";
 
@@ -12,7 +14,7 @@ const roleBadge: Record<string, string> = {
   "Record Office": "bg-warning/15 text-warning",
 };
 
-function ActionsMenu({ officer, onEdit, onToggle, onDelete }: { officer: any; onEdit: () => void; onToggle: () => void; onDelete: () => void }) {
+function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: { officer: any; onEdit: () => void; onToggle: () => void; onDelete: () => void; canManage: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -23,17 +25,18 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete }: { officer: any; on
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-8 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-44">
-            <button onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+            {canManage && <button onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
               <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> Edit Officer
-            </button>
-            <button onClick={() => { onToggle(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+            </button>}
+            {canManage && <button onClick={() => { onToggle(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
               {officer.status === "active"
                 ? <><ToggleLeft className="w-3.5 h-3.5 text-muted-foreground" /> Deactivate</>
                 : <><ToggleRight className="w-3.5 h-3.5 text-success" /> Activate</>}
-            </button>
-            <button onClick={() => { onDelete(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
+            </button>}
+            {canManage && <button onClick={() => { onDelete(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
               <Trash2 className="w-3.5 h-3.5" /> Delete
-            </button>
+            </button>}
+            {!canManage && <p className="px-3 py-2 text-xs text-muted-foreground italic">View only</p>}
           </div>
         </>
       )}
@@ -42,6 +45,9 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete }: { officer: any; on
 }
 
 export default memo(function UsersOfficers() {
+  const permissions = usePermissions();
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.role === "super_admin";
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -134,8 +140,8 @@ export default memo(function UsersOfficers() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Users & Officers</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage officers across ESM, Station HQ & Record Office roles</p>
+          <h1 className="text-2xl font-bold text-foreground">Officers & Veteran Accounts</h1>
+          <p className="text-muted-foreground text-sm mt-1">Officers added here can also login as veterans via the ESM portal using their registered phone number.</p>
         </div>
         <button onClick={() => { resetForm(); setAddOpen(true); }} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 flex items-center gap-2 self-start sm:self-auto">
           <UserPlus className="w-4 h-4" /> Add Officer

@@ -5,7 +5,8 @@ import {
   UserCheck, Printer, ChevronDown, Calendar, Building2,
   User, Tag, Clock, MessageSquare, Send, ArrowUpRight,
 } from "lucide-react";
-import { useGrievances, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, type GrievanceParams } from "@/hooks/useApi";
+import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, type GrievanceParams } from "@/hooks/useApi";
+import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Status = "pending" | "in-progress" | "escalated" | "resolved";
@@ -53,11 +54,18 @@ function InputField({ value, onChange, placeholder, type="text" }: { value:strin
   return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />;
 }
 
-function ViewDetailsModal({ grievance, onClose }: { grievance:any; onClose:()=>void }) {
+function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:any; onClose:()=>void }) {
   const [note, setNote] = useState("");
   const updateStatus = useUpdateGrievanceStatus();
   const addComment = useAddComment();
   const { user } = useAuth();
+  const permissions = usePermissions();
+
+  // ── LIVE DATA FIX: fetch fresh grievance from server so notes persist after refresh ──
+  // This replaces the stale prop with a live React Query subscription
+  const { data: liveGrievance, isLoading: detailLoading } = useGrievance(initialGrievance._id || "");
+  // Merge: use live data when available, fall back to prop
+  const grievance = liveGrievance || initialGrievance;
 
   const addNote = useCallback(async () => {
     if (!note.trim() || !grievance._id) return;
@@ -79,7 +87,7 @@ function ViewDetailsModal({ grievance, onClose }: { grievance:any; onClose:()=>v
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusBadge[grievance.status]}`}>{grievance.status}</span>
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${priorityBadge[grievance.priority]}`}>{grievance.priority} priority</span>
-          {action && (
+          {action && permissions.updateGrievanceStatus && (
             <button onClick={() => { updateStatus.mutate({ id: grievance._id || grievance.id, status: action.status, officerName: user?.name }); onClose(); }} className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ml-auto ${action.cls}`}>{action.label}</button>
           )}
         </div>
@@ -105,25 +113,35 @@ function ViewDetailsModal({ grievance, onClose }: { grievance:any; onClose:()=>v
           </div>
         )}
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Case Notes / Timeline</p>
-          <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
-            {(grievance.timeline || []).length === 0 && (grievance.comments || []).length === 0 && <p className="text-xs text-muted-foreground italic">No notes yet.</p>}
+          <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+            <MessageSquare className="w-3.5 h-3.5" /> Case Notes / Timeline
+            {detailLoading && <span className="text-xs text-muted-foreground italic">(refreshing...)</span>}
+          </p>
+          <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+            {(grievance.timeline || []).length === 0 && (grievance.comments || []).length === 0 && (
+              <p className="text-xs text-muted-foreground italic">No notes yet. Add one below.</p>
+            )}
             {(grievance.timeline || []).map((t: any, i: number) => (
-              <div key={i} className="bg-secondary/30 rounded-lg p-2.5">
-                <p className="text-sm text-foreground">[{t.status}] {t.note}</p>
+              <div key={i} className="bg-secondary/30 rounded-lg p-2.5 border border-border/50">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusBadge[t.status] || "bg-secondary text-foreground"}`}>{t.status}</span>
+                </div>
+                <p className="text-sm text-foreground">{t.note}</p>
                 <p className="text-xs text-muted-foreground mt-1">{t.updatedBy} · {t.updatedAt ? new Date(t.updatedAt).toLocaleString("en-IN") : ""}</p>
               </div>
             ))}
             {(grievance.comments || []).map((c: any, i: number) => (
-              <div key={`c-${i}`} className="bg-secondary/30 rounded-lg p-2.5">
+              <div key={`c-${i}`} className="bg-primary/5 rounded-lg p-2.5 border border-primary/10">
                 <p className="text-sm text-foreground">{c.message}</p>
-                <p className="text-xs text-muted-foreground mt-1">{c.authorName} · {c.createdAt ? new Date(c.createdAt).toLocaleString("en-IN") : ""}</p>
+                <p className="text-xs text-muted-foreground mt-1 font-medium">{c.authorName} · {c.createdAt ? new Date(c.createdAt).toLocaleString("en-IN") : ""}</p>
               </div>
             ))}
           </div>
           <div className="flex gap-2">
             <input value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="Add a note..." className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />
-            <button onClick={addNote} disabled={addComment.isPending} className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60"><Send className="w-4 h-4" /></button>
+            <button onClick={addNote} disabled={addComment.isPending || !note.trim()} className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-1.5">
+              {addComment.isPending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
           </div>
         </div>
       </div>
@@ -183,12 +201,13 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }: any) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const perms = usePermissions();
   const actions = [
     { label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
-    ...(grievance.status==="pending"?[{label:"Start Processing",icon:ArrowUpRight,onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]:[]),
-    ...(grievance.status!=="resolved"&&grievance.status!=="escalated"?[{label:"Escalate",icon:AlertTriangle,onClick:()=>{onEscalate();setOpen(false);}}]:[]),
-    ...(grievance.status!=="resolved"?[{label:"Mark Resolved",icon:CheckCircle2,onClick:()=>{onStatusChange("resolved");setOpen(false);}}]:[]),
-    { label:"Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);} },
+    ...(perms.updateGrievanceStatus && grievance.status==="pending"?[{label:"Start Processing",icon:ArrowUpRight,onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]:[]),
+    ...(perms.escalateGrievance && grievance.status!=="resolved"&&grievance.status!=="escalated"?[{label:"Escalate",icon:AlertTriangle,onClick:()=>{onEscalate();setOpen(false);}}]:[]),
+    ...(perms.updateGrievanceStatus && grievance.status!=="resolved"?[{label:"Mark Resolved",icon:CheckCircle2,onClick:()=>{onStatusChange("resolved");setOpen(false);}}]:[]),
+    ...(perms.reassignOfficer?[{ label:"Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);} }]:[]),
     { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);} },
   ];
   return (
@@ -222,6 +241,7 @@ function toCSV(data: any[]) {
 }
 
 export default memo(function Grievances() {
+  const permissions = usePermissions();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -312,9 +332,24 @@ export default memo(function Grievances() {
               <button onClick={()=>{const b=new Blob([JSON.stringify(grievances,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`grievances-${Date.now()}.json`;a.click();setExportOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60"><FileText className="w-3.5 h-3.5 text-muted-foreground"/>Export JSON</button>
             </div></>)}
           </div>
-          <button onClick={()=>setShowNewGrievance(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"><FileText className="w-4 h-4"/> New Grievance</button>
+          {permissions.createGrievance && <button onClick={()=>setShowNewGrievance(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"><FileText className="w-4 h-4"/> New Grievance</button>}
         </div>
       </div>
+
+      {/* ── Case Type Quick-Filter Strip ── */}
+      {/* <div className="flex gap-2 flex-wrap">
+        <button
+          onClick={() => { setFilters((f) => ({...f, caseType: ""})); setPage(1); }}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${!filters.caseType ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:text-foreground"}`}
+        >All Types</button>
+        {CASE_TYPES.map((ct) => (
+          <button
+            key={ct}
+            onClick={() => { setFilters((f) => ({...f, caseType: f.caseType === ct ? "" : ct})); setPage(1); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border whitespace-nowrap ${filters.caseType === ct ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:text-foreground"}`}
+          >{ct}</button>
+        ))}
+      </div> */}
 
       <div className="bg-card rounded-xl border border-border p-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">

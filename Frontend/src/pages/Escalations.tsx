@@ -1,3 +1,4 @@
+import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
 import { AlertTriangle, Clock, ArrowUpRight, CheckCircle2, Search, X } from "lucide-react";
 import { useEscalations, useResolveEscalation } from "@/hooks/useApi";
