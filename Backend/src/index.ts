@@ -12,7 +12,7 @@ const startServer = async () => {
     await connectDB();
 
     // Start Express server
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT ,"0.0.0.0", () => {
       console.log("\n═══════════════════════════════════════════════");
       console.log("  🛡️  Vitric ESM Backend API");
       console.log("═══════════════════════════════════════════════");

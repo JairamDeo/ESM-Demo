@@ -23,7 +23,7 @@ export default memo(function UserHome() {
 
   return (
     <div className="w-full flex justify-center">
-      <div className="w-full max-w-md lg:max-w-5xl px-4 lg:px-8 space-y-6 animate-fade-in">
+      <div className="w-full max-w-md lg:max-w-5xl px-4 lg:px-8 space-y-6 animate-fade-in ">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
           <div>
             <h1 className="text-xl lg:text-2xl font-bold text-foreground">

@@ -44,6 +44,7 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: { offic
   );
 }
 
+
 export default memo(function UsersOfficers() {
   const permissions = usePermissions();
   const { user: currentUser } = useAuth();
@@ -148,8 +149,11 @@ export default memo(function UsersOfficers() {
         </button>
       </div>
 
-      {addOpen && <OfficerModal onClose={() => setAddOpen(false)} />}
-      {editOfficer && <OfficerModal isEdit onClose={() => { setEditOfficer(null); resetForm(); }} />}
+
+    {addOpen && <OfficerModal onClose={() => setAddOpen(false)} />}
+    {editOfficer && <OfficerModal isEdit onClose={() => { setEditOfficer(null); resetForm(); }} />}
+
+
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
