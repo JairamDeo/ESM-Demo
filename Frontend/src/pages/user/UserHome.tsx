@@ -22,10 +22,10 @@ export default memo(function UserHome() {
   const progress = recentComplaint ? (progressMap[recentComplaint.status] || 20) : 80;
   const circumference = 201;
 
-  const RecentComplaintBox = () => (
-    <div className="bg-card rounded-xl p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-sm">Recent Complaint</h3>
+  const RecentComplaintBox = () =>(
+    <div className="bg-[#232324] rounded-xl p-6 lg:p-7 ">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold text-sm lg:text-lg">Recent Complaint</h3>
       </div>
       {recentComplaint ? (
         <div className="flex items-center justify-between gap-4">
@@ -52,10 +52,62 @@ export default memo(function UserHome() {
           </div>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">No complaints yet.</p>
+        <p className="text-xs lg:text-md text-muted-foreground">No complaints yet.</p>
       )}
     </div>
   );
+
+  // const RecentComplaintBox = () => {
+  // const displayId = recentComplaint?.grievanceId || "PMS/2026-001";
+  // const displayStatus = recentComplaint?.status || "In-Progress";
+  // const displayProgress = recentComplaint ? progress : 80;
+
+  // return (
+  //   <div className="bg-card rounded-xl p-4">
+  //     {/* Title */}
+  //     <h3 className="font-bold text-sm text-white ">Recent Complaint</h3>
+
+  //     {/* Content Row */}
+  //     <div className="flex items-center justify-between">
+
+  //       {/* Left: text info */}
+  //       <div className="space-y-3 text-[11px] text-[#cfcfcf]">
+  //         <p>Complaint ID : <span className="text-[#cfcfcf]">{displayId}</span></p>
+  //         <div className="flex items-center gap-1">
+  //           <span>Status :</span>
+  //           <span className="bg-[#2A2A2A] text-[#FFBF54] px-2 py-0.5 rounded-sm font-normal capitalize">
+  //             {displayStatus}
+  //           </span>
+  //         </div>
+  //       </div>
+
+//         {/* Right: circle progress */}
+//         <div className="relative w-[80px] h-[80px] flex-shrink-0">
+//           <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+//             <circle
+//               cx="40" cy="40" r="32"
+//               fill="none" stroke="currentColor" strokeWidth="7"
+//               className="text-border"
+//             />
+//             <circle
+//               cx="40" cy="40" r="32"
+//               fill="none" stroke="currentColor" strokeWidth="7"
+//               strokeLinecap="round"
+//               strokeDasharray={`${(displayProgress / 100) * circumference} ${circumference - (displayProgress / 100) * circumference}`}
+//               className="text-info transition-all duration-500"
+//             />
+//           </svg>
+//           <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
+//             {displayProgress}%
+//           </div>
+//         </div>
+
+//       </div>
+//     </div>
+//   );
+// };
+
+  
 
   return (
     <div className="w-full flex justify-center py-1">
@@ -97,12 +149,12 @@ export default memo(function UserHome() {
         </div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 ">
 
           {/* Left: Action Cards */}
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5  ">
 
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-2 gap-3 mb-3 ">
 
               {/* Raise Grievance */}
               <Link
@@ -130,12 +182,12 @@ export default memo(function UserHome() {
               </Link>
 
               {/* Right column */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 ">
 
                 {/* Service Card */}
                 <Link
                   to="/user/services"
-                  className="relative overflow-hidden bg-[#2196F3] rounded-xl p-4 hover:opacity-90 transition-all group flex flex-col justify-between h-[170px] lg:min-h-[190px]"
+                  className="relative overflow-hidden bg-[#2196F3] rounded-xl p-4 hover:opacity-90 transition-all group flex flex-col justify-between h-[170px] lg:min-h-[200px]"
                 >
                   <div className="absolute -bottom-20 -right-14 w-40 h-40 border-[20px] border-white/10 rounded-full pointer-events-none" />
                   <div className="relative z-10">
@@ -155,7 +207,7 @@ export default memo(function UserHome() {
                 {/* My Complaints Card */}
                 <Link
                   to="/user/complaints"
-                  className="relative overflow-hidden bg-[#22946C] rounded-xl p-4 w-[160px] h-[125px] flex flex-col justify-between lg:w-[332px] lg:min-h-[142px]"
+                  className="relative overflow-hidden bg-[#22946C] rounded-xl p-4 w-[160px] h-[125px] flex flex-col justify-between lg:w-[331px] lg:min-h-[131px]"
                 >
                   <div className="absolute -bottom-24 -right-14 w-40 h-40 border-[20px] border-white/10 rounded-full pointer-events-none" />
                   <div className="relative z-10 flex items-start justify-between">
@@ -177,7 +229,7 @@ export default memo(function UserHome() {
             </div>
 
             {/* ✅ Fast transparent — desktop only, sits below the cards in left column */}
-            <div className="hidden lg:block pt-1">
+            <div className="hidden lg:block pt-1 ">
               <p className="text-3xl font-bold text-foreground/50 leading-tight">Fast, transparent</p>
               <p className="text-3xl font-bold text-foreground/50 leading-tight">grievance resolution</p>
             </div>
@@ -188,9 +240,9 @@ export default memo(function UserHome() {
           <div className="space-y-6">
 
             {/* Services */}
-            <div className="bg-[#232324] rounded-xl p-4">
-              <h3 className="text-base lg:text-lg font-semibold text-white mb-4 mx-1">Services</h3>
-              <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="bg-[#232324] rounded-xl p-2 lg:pb-1  ">
+              <h3 className="text-base lg:text-lg font-semibold text-white mb-2 mx-3">Services</h3>
+              <div className="grid grid-cols-4 gap-3 mb-5 pt-1 ">
                 {services.map((s) => (
                   <Link key={s.label} to="/user/services" className="flex flex-col items-center group">
                     <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-[#151515] border border-[#676F7B] flex items-center justify-center group-hover:border-gray-400 transition-colors mb-2">
@@ -206,21 +258,21 @@ export default memo(function UserHome() {
               </div>
               <Link
                 to="/user/services"
-                className="block w-full py-2 bg-[#2A2A2A] text-gray-300 text-center rounded-sm text-sm font-medium hover:bg-[#333] transition-colors"
+                className="block w-full py-2 mb-1 bg-[#2A2A2A] text-gray-300 text-center rounded-sm text-sm font-medium hover:bg-[#333] transition-colors"
               >
                 View all
               </Link>
             </div>
 
             {/* ✅ Recent Complaint — desktop only, swapped into sidebar */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:block ">
               <RecentComplaintBox />
             </div>
 
             {/* Fast transparent — mobile only (original position) */}
             <div className="lg:hidden pb-8 ">
-              <p className="text-lg font-bold text-foreground/50 leading-tight">Fast, transparent</p>
-              <p className="text-lg font-bold text-foreground/50 leading-tight">grievance resolution</p>
+              <p className="text-xl font-bold  text-foreground/50 leading-tight">Fast, transparent</p>
+              <p className="text-xl font-bold text-foreground/50 leading-tight">grievance resolution</p>
             </div>
 
           </div>
@@ -229,3 +281,12 @@ export default memo(function UserHome() {
     </div>
   );
 });
+
+
+
+
+
+
+
+
+

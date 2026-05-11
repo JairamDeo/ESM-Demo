@@ -52,9 +52,9 @@ export default function Services() {
     <div className="px-2 space-y-3 animate-fade-in">
 
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-5">
         <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
-          <ChevronLeft className="w-5 h-5 mt-1" color="#FFFFFF" />
+          <ChevronLeft className="w-4 h-4 mt-1" color="#FFFFFF" />
         </Link>
         <h1 className="text-xl font-semibold text-foreground">Services</h1>
       </div>
@@ -71,8 +71,8 @@ export default function Services() {
 
       {/* Categories */}
       {categories.map((cat) => (
-        <div key={cat.title} className="rounded-xl bg-[#1B1B1B] p-3  lg:h-[220px] ">
-          <div className="flex items-center gap-2 mb-3 lg:gap-4 lg:mb-4 ">
+        <div key={cat.title} className="rounded-xl bg-[#1B1B1B] p-3   lg:h-[200px] ">
+          <div className="flex items-center gap-2 mb-3 lg:gap-4 lg:mb-2  ">
             <span className="text-lg ">{cat.icon}</span>
             <h2 className="font-semibold text-sm text-foreground lg:text-md lg:font-bold">{cat.title}</h2>
           </div>
@@ -88,10 +88,10 @@ export default function Services() {
                   <img
                     src={item.icon}
                     alt={item.label}
-                    className="w-[26px] h-[26px] object-contain"
+                    className="w-[24px] h-[24px] object-contain"
                   />
                 </div>
-                <span className="text-[10px] lg:text-[14px] text-foreground/80 text-center leading-tight">
+                <span className="text-[10px] lg:text-[12px] text-foreground/80 text-center leading-tight">
                   {item.label}
                 </span>
               </Link>
