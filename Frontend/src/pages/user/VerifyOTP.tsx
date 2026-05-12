@@ -102,7 +102,7 @@ export default memo(function VerifyOTP() {
         </div>
       </div>
       <div className="pb-8">
-        <button onClick={handleVerify} disabled={!otp.every((d) => d !== "") || loading} className="w-full h-12 shadow-[0_4px_12px_rgba(23,84,207,0.2)] bg-[#826CF3] text-primary-foreground font-bold py-3.5 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2 ">
+        <button onClick={handleVerify} disabled={!otp.every((d) => d !== "") || loading} className="w-full h-12 shadow-[0_4px_12px_rgba(23,84,207,0.2)] bg-[#826CF3] text-primary-foreground font-bold py-3.5 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-10 ">
           {loading ? <><span className="w-4 h-4  border-2 border-white/30 border-t-white rounded-full animate-spin" /> Verifying...</> : "Verify OTP"}
         </button>
       </div>

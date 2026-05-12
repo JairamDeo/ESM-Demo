@@ -17,7 +17,7 @@ export default memo(function RaiseGrievance() {
   const [form, setForm] = useState({
     concernType: "",
     mobileType: "",
-    caseType: preselectedType || "",
+    caseType: "",
     stationHQ: "",
     description: "",
     serviceNumber: "",
@@ -60,7 +60,8 @@ export default memo(function RaiseGrievance() {
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full bg-[#242424] rounded-md px-4 py-3 text-sm text-[#75717D] appearance-none outline-none focus:border-[#826CF3] transition-colors cursor-pointer ${value ? "text-white" : "text-[#75717D]"}`}
+          required
+          className={`w-full bg-[#242424] rounded-md px-4 py-3 text-sm  appearance-none outline-none focus:border-[#826CF3] transition-colors cursor-pointer ${value ? "text-white" : "text-[#75717D]"}`}
         >
           {children}
         </select>
