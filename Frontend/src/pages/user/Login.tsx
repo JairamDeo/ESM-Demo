@@ -1,6 +1,6 @@
 import { useState, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Shield, Sun, Moon } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";

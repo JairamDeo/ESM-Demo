@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendOtp = useCallback(async (phone: string) => {
+    // console.log("SEND OTP PHONE:", phone);
     await api.post("/auth/user/send-otp", { phone });
   }, []);
 

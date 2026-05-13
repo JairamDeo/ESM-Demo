@@ -8,10 +8,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background ">
 
       {/* Sidebar (Desktop Only) */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card p-4">
+      <aside className="hidden md:sticky top-0 h-screen md:flex flex-col w-64 border-r border-border bg-card p-4">
         <h2 className="text-lg font-bold text-foreground mb-6">Grievance Portal</h2>
 
         <nav className="flex flex-col gap-2">
@@ -23,10 +23,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col"> 
 
         {/* Top Bar */}
-        <header className="flex items-center justify-between px-6 py-4  bg-background">
+        <header className=" sticky top-0 z-50 flex items-center justify-between px-6 py-4  bg-background border-b">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#222222] flex items-center justify-center">
               <Icon icon="iconamoon:profile-fill" className="w-5 h-5 text-primary" color="white" />

@@ -88,9 +88,9 @@ export default memo(function RaiseGrievance() {
   
 
   return (
-    <div className="min-h-screen bg-[#171719] pt-0  font-sans ">
+    <div className="min-h-screen bg-[#171719]   font-sans ">
       {/* Header */}
-      <div className="flex items-center gap-5 px-2 pt-0 pb-2 h-[40px]">
+      <div className="flex items-center gap-5 px-2  pb-1 h-[40px]">
         <Link to="/user" className="flex items-center justify-center w-8 h-8 rounded-full shrink-0">
           <ChevronLeft size={16} color="#ffffff"  className="" />
         </Link>
@@ -98,7 +98,7 @@ export default memo(function RaiseGrievance() {
       </div>
 
       {/* Form */}
-      <div className="px-5 pb-8">
+      <div className="px-5">
         <SelectRow
           label="Concern For"
           value={form.concernType}
@@ -172,8 +172,9 @@ export default memo(function RaiseGrievance() {
         {/* Submit */}
         <button
           onClick={handleSubmit}
-          disabled={createGrievance.isPending}
-          className="mt-6 w-full bg-[#826CF3] text-white font-bold text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-60 lg:w-[30%] lg:mx-auto"
+          // disabled={createGrievance.isPending}
+          disabled={createGrievance.isPending ||!form.concernType ||!form.caseType ||!form.stationHQ}
+          className="mt-6 w-full bg-[#826CF3] text-white font-bold text-sm py-4 mb-4 rounded-xl shadow-[0_4px_12px_rgba(23,84,207,0.2)] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-60 lg:w-[30%] lg:mx-auto"
         >
           {createGrievance.isPending ? (
             <>

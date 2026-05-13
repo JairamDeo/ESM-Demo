@@ -17,7 +17,7 @@ const progressMap: Record<string, number> = {pending: 20, "in-progress": 80, esc
 const CIRCUMFERENCE = 2 * Math.PI * 32;
 
 const RecentComplaintBox = ({recentComplaint, progress,}: {recentComplaint: any; progress: number;}) => (
-  <div className="w-full bg-[#232324] rounded-xl p-3 lg:p-3 lg:h-[128px]">
+  <div className="w-full bg-[#232324] rounded-xl p-3 lg:p-3 lg:h-[130px]">
     <div className="flex justify-between items-center mb-3 lg:mb-0.5 ">
       <h3 className="font-semibold text-md lg:text-lg ">Recent Complaint</h3>
     </div>
@@ -73,13 +73,14 @@ export default memo(function UserHome() {
   const progress = progressMap[recentComplaint.status] ?? 20;
 
   return (
-    <div className="w-full flex justify-center py-1 ">
-      <div className="w-full max-w-md lg:max-w-full px-2 lg:px-6 space-y-6 animate-fade-in ">
+    <div className="w-full flex justify-center py-1   ">
+      <div className="w-full max-w-md lg:max-w-full px-2 lg:px-9 space-y-6 lg:space-y-8 animate-fade-in ">
 
         {/* Header */}
         <div>
           <h1 className="text-lg lg:text-3xl font-semibold text-foreground">
             {user?.name ? `Welcome, ${user.name.split(" ")[0]}` : "Welcome to Grievance Portal"}
+            {/* Welcome to Grievance Portal */}
           </h1>
           <p className="text-xs lg:text-sm text-[#c4c2c2] font-normal mt-1">
             Raise and monitor your concerns easily
@@ -87,7 +88,7 @@ export default memo(function UserHome() {
         </div>
 
         {/* Search Bar */}
-        <div className="flex items-center gap-3 bg-[#222223] rounded-xl px-4 py-3 border border-border lg:w-[90%]">
+        <div className="flex items-center gap-3 bg-[#222223] rounded-xl px-4 py-3 border border-border lg:w-[80%]">
           <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
           <input
             type="text"
@@ -97,8 +98,8 @@ export default memo(function UserHome() {
         </div>
 
         {/* Hero Banner */}
-        <div className="w-full bg-gradient-to-r from-[#193920] via-[#1c1c23] to-[#282857] rounded-2xl p-3 lg:p-6 flex justify-between items-center overflow-hidden min-h-[130px] lg:min-h-[160px]  lg:w-[90%]">
-          <div className="max-w-[60%] ml-2">
+        <div className="w-full bg-gradient-to-r from-[#193920] via-[#1c1c23] to-[#282857] rounded-2xl p-3 lg:p-6 flex justify-between items-center overflow-hidden min-h-[130px] lg:min-h-[160px]  lg:w-[80%]">
+          <div className="max-w-[60%] ml-2 ">
             <h2 className="text-lg lg:text-2xl font-semibold text-white leading-tight mb-3 lg:mb-4">
               All Your Grievance Services in One Place
             </h2>
@@ -112,12 +113,12 @@ export default memo(function UserHome() {
         </div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:w-[80%] ">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:w-[80%]  ">
 
           {/* Left: Action Cards */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 lg:mt-0.5 ">
 
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-3">
 
               {/* Raise Grievance */}
               <Link
@@ -145,7 +146,7 @@ export default memo(function UserHome() {
               </Link>
 
               {/* Right column */}
-              <div className="flex flex-col gap-2">
+              <div className=" flex flex-col gap-2">
 
                 {/* Service Card */}
                 <Link
@@ -181,7 +182,7 @@ export default memo(function UserHome() {
                       <Icon icon="majesticons:note-text" className="w-7 h-7 text-white" />
                     </div>
                   </div>
-                  <div className="relative z-10 bg-white text-[#22946C] text-xs rounded-sm font-bold py-1.5 mt-2 text-center h-[30px] shadow-lg group-hover:scale-[1.02] transition-transform">
+                  <div className="relative z-10 bg-white text-[#22946C] text-xs rounded-sm font-bold py-1.5 mt-2 text-center h-[30px] shadow-lg hover:scale-[1.02] transition-transform">
                     View All
                   </div>
                 </Link>
@@ -206,8 +207,8 @@ export default memo(function UserHome() {
           <div className="space-y-2  mt-0.5">
 
             {/* Services */}
-            <div className="bg-[#232324] rounded-xl p-2 lg:pb-0.5">
-              <h3 className="text-base lg:text-lg font-semibold text-white mb-2 mx-3">Services</h3>
+            <div className="bg-[#232324] rounded-xl p-3 lg:pb-1">
+              <h3 className="text-base lg:text-lg font-semibold text-white mb-2 mx-2">Services</h3>
               <div className="grid grid-cols-4 gap-3 mb-5 pt-1">
                 {services.map((s) => (
                   <Link key={s.label} to="/user/services" className="flex flex-col items-center group">

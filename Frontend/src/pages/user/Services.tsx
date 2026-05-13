@@ -49,7 +49,7 @@ const categories = [
 
 export default function Services() {
   return (
-    <div className="px-2 space-y-3 animate-fade-in">
+    <div className="px-2 space-y-3 animate-fade-in ">
 
       {/* Header */}
       <div className="flex items-center gap-5">
@@ -71,7 +71,7 @@ export default function Services() {
 
       {/* Categories */}
       {categories.map((cat) => (
-        <div key={cat.title} className="rounded-xl bg-[#1B1B1B] p-3   lg:h-[200px] ">
+        <div key={cat.title} className="rounded-xl bg-[#1B1B1B] p-3 lg:h-[150px] ">
           <div className="flex items-center gap-2 mb-3 lg:gap-4 lg:mb-2  ">
             <span className="text-lg ">{cat.icon}</span>
             <h2 className="font-semibold text-sm text-foreground lg:text-md lg:font-bold">{cat.title}</h2>
@@ -84,7 +84,7 @@ export default function Services() {
                 state={{ caseType: item.label }}
                 className="flex flex-col items-center gap-1.5 group"
               >
-                <div className="w-14 h-14 lg:mt-6 lg:w-18 lg:h-18  rounded-sm bg-[#222223] flex items-center justify-center group-hover:border-primary/30 transition-colors">
+                <div className="w-14 h-14 lg:mt-2 lg:w-18 lg:h-18  rounded-sm bg-[#222223] flex items-center justify-center group-hover:border-primary/30 transition-colors">
                   <img
                     src={item.icon}
                     alt={item.label}

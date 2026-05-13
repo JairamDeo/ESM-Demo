@@ -67,14 +67,14 @@ export default memo(function VerifyOTP() {
   const seconds = timer % 60;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background max-w-md mx-auto px-6 border">
+    <div className="flex flex-col min-h-screen bg-background max-w-md mx-auto px-6">
       <div className="flex items-center justify-between pt-4">
         <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-secondary text-muted-foreground"><ArrowLeft className="w-5 h-5" /></button>
         <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-secondary text-muted-foreground">
           {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
       </div>
-      <div className="flex-1 flex flex-col items-center pt-12">
+      <div className="flex-1 flex flex-col items-center pt-10 ">
         <h1 className="text-xl font-bold text-foreground mb-6">Verify OTP</h1>
         <p className="text-sm text-foreground/70  text-center mb-1">We've sent a 4-digit verification code to</p>
         <p className="text-sm text-foreground/70  text-center mb-10">your registered mobile number ending in <span className="font-semibold text-foreground">{maskedPhone}</span></p>
