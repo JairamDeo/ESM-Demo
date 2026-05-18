@@ -30,14 +30,14 @@ export default memo(function MyComplaints() {
   }), [complaints]);
 
   return (
-    <div className="px-4 space-y-5 animate-fade-in">
-      <div className="flex items-center gap-3">
+    <div className="px-4 space-y-5 animate-fade-in ">
+      <div className="flex items-center gap-3 ">
         <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ArrowLeft className="w-5 h-5" /></Link>
         <h1 className="text-lg font-bold text-foreground">My Complaints</h1>
       </div>
 
-      <div className="flex items-center gap-3 bg-secondary rounded-xl px-4 py-3 border border-border">
-        <Search className="w-4 h-4 text-muted-foreground" />
+      <div className="flex items-center gap-3 bg-[#222223] rounded-xl px-4 py-3 border border-border">
+        <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
         <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID or type..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full" />
       </div>
 
@@ -48,9 +48,9 @@ export default memo(function MyComplaints() {
           { label: "Active", value: stats.active, color: "text-info" },
           { label: "Resolved", value: stats.resolved, color: "text-success" },
         ].map((s) => (
-          <div key={s.label} className="bg-card rounded-xl border border-border p-3 text-center">
-            <p className={`text-lg font-bold ${s.color}`}>{isLoading ? "—" : s.value}</p>
-            <p className="text-[10px] text-muted-foreground">{s.label}</p>
+          <div key={s.label} className="bg-card rounded-xl border border-border p-3 lg:p-6 text-center ">
+            <p className={`text-lg lg:text-2xl font-bold ${s.color}`}>{isLoading ? "—" : s.value}</p>
+            <p className="text-[10px] lg:text-sm  text-muted-foreground">{s.label}</p>
           </div>
         ))}
       </div>
@@ -66,8 +66,8 @@ export default memo(function MyComplaints() {
           const Icon = config.icon;
           const progress = progressMap[c.status] || 20;
           return (
-            <Link key={c._id || c.id} to="/user/track-case" state={{ complaint: c }} className="block bg-card rounded-2xl border border-border p-4 hover:border-primary/30 transition-colors">
-              <div className="flex items-start justify-between mb-3">
+            <Link key={c._id || c.id} to="/user/track-case" state={{ complaint: c }} className="block bg-card rounded-xl border border-border p-4  hover:border-primary/30 transition-colors">
+              <div className="flex items-start justify-between mb-3 ">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center`}>
                     <Icon className={`w-5 h-5 ${config.color}`} />
@@ -84,7 +84,7 @@ export default memo(function MyComplaints() {
                 <span>{c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-IN") : c.date}</span>
               </div>
               <div className="mt-3 w-full bg-secondary rounded-full h-1.5">
-                <div className="h-1.5 rounded-full bg-primary transition-all" style={{ width: `${c.progress ?? progress}%` }} />
+                <div className="h-1.5 rounded-full bg-[#826CF3] transition-all" style={{ width: `${c.progress ?? progress}%` }} />
               </div>
             </Link>
           );

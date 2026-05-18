@@ -49,7 +49,7 @@ export default memo(function TrackCase() {
       <div className="flex justify-center">
         <div className="relative w-28 h-28">
           <svg className="w-28 h-28 -rotate-90" viewBox="0 0 112 112">
-            <circle cx="56" cy="56" r="46" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
+            <circle cx="56" cy="56" r="46" fill="none" stroke="hsl(var(--border))"  strokeWidth="6" />
             <circle cx="56" cy="56" r="46" fill="none" stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(progressPct/100)*circumference} ${circumference}`} />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -84,7 +84,7 @@ export default memo(function TrackCase() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <button className="flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold py-3 rounded-xl text-sm">
+        <button className="flex items-center justify-center gap-2 bg-[#826CF3] text-primary-foreground font-semibold py-3 rounded-xl text-sm">
           <MessageSquare className="w-4 h-4" /> Contact Officer
         </button>
         <button className="flex items-center justify-center gap-2 bg-secondary text-foreground font-semibold py-3 rounded-xl text-sm border border-border">

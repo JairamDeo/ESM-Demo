@@ -17,13 +17,13 @@ const progressMap: Record<string, number> = {pending: 20, "in-progress": 80, esc
 const CIRCUMFERENCE = 2 * Math.PI * 32;
 
 const RecentComplaintBox = ({recentComplaint, progress,}: {recentComplaint: any; progress: number;}) => (
-  <div className="w-full bg-[#232324] rounded-xl p-3 lg:p-3 lg:h-[130px]">
+  <div className="w-full bg-[#232324] rounded-xl p-5 lg:p-3 lg:h-[130px]">
     <div className="flex justify-between items-center mb-3 lg:mb-0.5 ">
       <h3 className="font-semibold text-md lg:text-lg ">Recent Complaint</h3>
     </div>
     {recentComplaint ? (
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-1 text-[11px] text-muted-foreground ">
+      <div className="flex items-center justify-between gap-1 ">
+        <div className="space-y-2 text-[11px] text-muted-foreground ">
           <p className="text-[#a5a4a4]">Complaint ID : {recentComplaint.grievanceId || "PMS/2026-001"}</p>
           <p className="flex items-center gap-1 bg-[#2A2A2A] rounded-sm pl-2 text-[#d5d5d5]">
             Status :{" "}
@@ -32,7 +32,7 @@ const RecentComplaintBox = ({recentComplaint, progress,}: {recentComplaint: any;
             </span>
           </p>
         </div>
-        <div className="relative w-[80px] h-[80px] flex-shrink-0">
+        <div className="relative w-[80px] h-[80px] flex-shrink-0 ">
           <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
             <circle
               cx="40" cy="40" r="32"
@@ -65,12 +65,12 @@ export default memo(function UserHome() {
   const { user } = useAuth();
   const { data: complaints = [] } = useMyGrievances();
 
-  // const recentComplaint = useMemo(() => complaints[0] || null, [complaints]);
-  // const progress = recentComplaint ? (progressMap[recentComplaint.status] || 20) : 80;
+  const recentComplaint = useMemo(() => complaints[0] || null, [complaints]);
+  const progress = recentComplaint ? (progressMap[recentComplaint.status] || 20) : 80;
   
   //For showing dummy data
-  const recentComplaint = {grievanceId: "PMS/2026-001",status: "in-progress" };
-  const progress = progressMap[recentComplaint.status] ?? 20;
+  // const recentComplaint = {grievanceId: "PMS/2026-001",status: "in-progress" };
+  // const progress = progressMap[recentComplaint.status] ?? 20;
 
   return (
     <div className="w-full flex justify-center py-1   ">
@@ -79,8 +79,8 @@ export default memo(function UserHome() {
         {/* Header */}
         <div>
           <h1 className="text-lg lg:text-3xl font-semibold text-foreground">
-            {user?.name ? `Welcome, ${user.name.split(" ")[0]}` : "Welcome to Grievance Portal"}
-            {/* Welcome to Grievance Portal */}
+            {/* {user?.name ? `Welcome, ${user.name.split(" ")[0]}` : "Welcome to Grievance Portal"} */}
+            Welcome to Grievance Portal
           </h1>
           <p className="text-xs lg:text-sm text-[#c4c2c2] font-normal mt-1">
             Raise and monitor your concerns easily
@@ -122,10 +122,11 @@ export default memo(function UserHome() {
 
               {/* Raise Grievance */}
               <Link
-                to="/user/raise-grievance"
-                className="relative overflow-hidden bg-[#4438ac] rounded-xl p-4 text-primary-foreground hover:opacity-90 transition-all flex flex-col justify-between group h-[304px] lg:min-h-[340px]"
+                // to="/user/raise-grievance"
+                  to="/user/services"
+                  className="relative overflow-hidden bg-[#4438ac] rounded-xl p-4 text-primary-foreground hover:opacity-90 transition-all flex flex-col justify-between group h-[304px] lg:min-h-[340px]"
               >
-                <div className="absolute -bottom-14 -right-12 w-40 h-40 border-[20px] border-white/5 rounded-full pointer-events-none" />
+                <div className="absolute -bottom-14 -right-12 w-40 h-40 border-[20px] border-white/5 rounded-full pointer-events-none " />
                 <div className="relative z-10">
                   <div className="bg-[#2222225C] w-10 h-10 rounded-full flex items-center justify-center mb-4 ml-auto">
                     <img src="/icons/pencil.svg" alt="" />
@@ -145,49 +146,26 @@ export default memo(function UserHome() {
                 </div>
               </Link>
 
-              {/* Right column */}
-              <div className=" flex flex-col gap-2">
-
-                {/* Service Card */}
-                <Link
-                  to="/user/services"
-                  className="relative overflow-hidden bg-[#2196F3] rounded-xl p-4 hover:opacity-90 transition-all group flex flex-col justify-between h-[170px] lg:min-h-[200px]"
-                >
-                  <div className="absolute -bottom-20 -right-14 w-40 h-40 border-[20px] border-white/10 rounded-full pointer-events-none" />
-                  <div className="relative z-10  ">
-                    <div className="bg-[#2222225C] w-10 h-10 rounded-full flex items-center justify-center mb-2 ml-auto">
-                      <Icon icon="famicons:folder" className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg text-white mt-1">Service</h3>
-                      <p className="text-[11px] text-blue-50">View available services</p>
-                    </div>
-                  </div>
-                  <div className="relative z-10 bg-white text-[#2196F3] rounded-sm py-2 px-4 text-center font-bold text-xs mt-3 shadow-lg group-hover:scale-[1.02] transition-transform">
-                    View Services
-                  </div>
-                </Link>
-
-                {/* My Complaints Card */}
-                <Link
+              {/* My Complaints Card */}
+              <Link
                   to="/user/complaints"
-                  className="relative overflow-hidden bg-[#22946C] rounded-xl p-4 w-full h-[125px] flex flex-col justify-between lg:w-full lg:min-h-[131px]"
+                  className="relative overflow-hidden bg-[#22946C] rounded-xl p-4 w-full h-[304px] flex flex-col justify-between lg:w-full lg:min-h-[340px]"
                 >
-                  <div className="absolute -bottom-24 -right-14 w-40 h-40 border-[20px] border-white/10 rounded-full pointer-events-none" />
-                  <div className="relative z-10 flex items-start justify-between">
-                    <h3 className="text-white text-lg font-semibold leading-6 mt-3">
+                  <div className="absolute -bottom-14 -right-12 w-40 h-40 border-[20px] border-white/10 rounded-full pointer-events-none" />
+
+                  <div className="relative z-10 ">
+                    <div className="w-10 h-10 rounded-full bg-[#2222225C] flex items-center justify-center mb-4 ml-auto">
+                      <img src="/icons/note-text.svg" alt="" />
+                    </div>
+                    <h3 className="text-white text-lg font-semibold lg:text-xl leading-6 mt-3 ">
                       My <br /> Complaints
                     </h3>
-                    <div className="w-10 h-10 rounded-full bg-[#2222225C] flex items-center justify-center px-2.5 ">
-                      <Icon icon="majesticons:note-text" className="w-7 h-7 text-white" />
-                    </div>
+                    
                   </div>
                   <div className="relative z-10 bg-white text-[#22946C] text-xs rounded-sm font-bold py-1.5 mt-2 text-center h-[30px] shadow-lg hover:scale-[1.02] transition-transform">
                     View All
                   </div>
-                </Link>
-
-              </div>
+              </Link>
             </div>
 
             {/* Recent Complaint — mobile only */}

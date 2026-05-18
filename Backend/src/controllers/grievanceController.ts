@@ -117,9 +117,9 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     slaDeadline.setDate(slaDeadline.getDate() + 15);
 
     const userId = (req as any).user?.role === "user" ? (req as any).user.id : undefined;
-
+    const grievanceId = `GRV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const grievance = await Grievance.create({
-      type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
+      grievanceId,type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
       stationName, officerName: officerName || "Unassigned",
       priority: priority || "medium",
       description,
@@ -128,6 +128,18 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       userId,
       timeline: [{ status: "pending", note: "Grievance submitted", updatedBy: veteranName, updatedAt: new Date() }],
     });
+
+     if (userId) {
+      await Notification.create({
+        recipientId: userId,
+        recipientType: "user",
+        title: "Grievance Submitted",
+        message: `Your grievance ${grievanceId} has been submitted successfully`,
+        type: "grievance_update",
+        grievanceId: grievance._id,
+        grievanceCode: grievanceId,
+      });
+    }
 
     // Update Station case count
     await Station.findOneAndUpdate(

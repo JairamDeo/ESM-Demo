@@ -25,6 +25,10 @@ export default memo(function Notifications() {
 
   const notifications = data?.data || [];
   const unreadCount = data?.unreadCount || 0;
+  
+  console.log("notifications data:", data);
+  console.log("notifications array:", notifications);
+  console.log("unread count:", unreadCount);
 
   const handleMarkAllRead = useCallback(() => {
     markRead.mutate("all");
@@ -36,10 +40,10 @@ export default memo(function Notifications() {
         <div className="flex items-center gap-3">
           <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ArrowLeft className="w-5 h-5" /></Link>
           <h1 className="text-lg font-bold text-foreground">Notifications</h1>
-          {unreadCount > 0 && <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">{unreadCount}</span>}
+          {unreadCount > 0 && <span className="text-xs bg-[#826CF3] text-primary-foreground px-2 py-0.5 rounded-full">{unreadCount}</span>}
         </div>
         {unreadCount > 0 && (
-          <button onClick={handleMarkAllRead} className="text-xs text-primary font-medium flex items-center gap-1 hover:underline">
+          <button onClick={handleMarkAllRead} className="text-xs text-[#826CF3] font-medium flex items-center gap-1 hover:underline">
             <Check className="w-3 h-3" /> Mark all read
           </button>
         )}

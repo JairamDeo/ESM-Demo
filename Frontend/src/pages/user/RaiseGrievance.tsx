@@ -8,50 +8,7 @@ import { toast } from "sonner";
 const caseTypes = ["Update Name","Death Intimation","Resolve Pension Issues","Update Aadhaar & PAN","Update Mobile & Email","Update Address","Stop FMA","Add Nominee","Monthly Pay Slip","Pension Payment Order","Update DOB of Spouse","Update Spouse Details","Add/Update Family Details","Grievance for Increment","Track Case Status","SMS / Portal Alerts"];
 const stationHQs = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Rajkot Station HQ","Surat Station HQ","Solapur Station HQ","Baroda Station HQ"];
 
-export default memo(function RaiseGrievance() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const preselectedType = (location.state as any)?.caseType || "";
-
-  const [form, setForm] = useState({
-    concernType: "",
-    mobileType: "",
-    caseType: "",
-    stationHQ: "",
-    description: "",
-    serviceNumber: "",
-    rank: "",
-  });
-  const createGrievance = useCreateGrievance();
-
-  const handleSubmit = useCallback(async () => {
-    if (!form.concernType || !form.caseType || !form.stationHQ) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-    try {
-      const result = await createGrievance.mutateAsync({
-        type: form.caseType,
-        veteranName: user?.name || "Veteran",
-        veteranPhone: user?.phone,
-        veteranRank: form.rank,
-        veteranArmyNo: form.serviceNumber,
-        stationName: form.stationHQ,
-        description: form.description,
-        submissionSource: "portal",
-        priority: "medium",
-      });
-      toast.success("Grievance submitted successfully!", {
-        description: `Complaint ID: ${result?.grievanceId || "Generated"}`,
-      });
-      navigate("/user/complaints");
-    } catch {
-      // error handled by hook
-    }
-  }, [form, user, createGrievance, navigate]);
-
-  const SelectRow = ({ label, value, onChange, children, required = false }: any) => (
+ const SelectRow = ({ label, value, onChange, children, required = false }: any) => (
     <div className="py-1.5  border-[#1f1f23]">
       <label className="block text-sm text-foreground font-normal text-[#FFFFFF] mb-2">
         {label}{required && <span className="text-red-500"> *</span>}
@@ -85,12 +42,52 @@ export default memo(function RaiseGrievance() {
     </div>
   );
 
-  
+  export default memo( function RaiseGrievance() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const preselectedType = (location.state as any)?.caseType || "";
+
+  const [form, setForm] = useState({
+    concernType: "",
+    caseType: preselectedType || "",
+    stationHQ: "",
+    description: "",
+    armyNumber: "",
+    rank: "",
+  });
+  const createGrievance = useCreateGrievance();
+
+  const handleSubmit = useCallback(async () => {
+    if (!form.concernType || !form.caseType || !form.stationHQ) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    try {
+      const result = await createGrievance.mutateAsync({
+        type: form.caseType,
+        veteranName: user?.name || "Veteran",
+        veteranPhone: user?.phone,
+        veteranRank: form.rank,
+        veteranArmyNo: form.armyNumber,
+        stationName: form.stationHQ,
+        description: form.description,
+        submissionSource: "portal",
+        priority: "medium",
+      });
+      toast.success("Grievance submitted successfully!", {
+        description: `Complaint ID: ${result?.grievanceId || "Generated"}`,
+      });
+      navigate("/user/complaints");
+    } catch {
+      // error handled by hook
+    }
+  }, [form, user, createGrievance, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#171719]   font-sans ">
+    <div className="max-h-screen bg-[#171719] font-sans  ">
       {/* Header */}
-      <div className="flex items-center gap-5 px-2  pb-1 h-[40px]">
+      <div className="flex items-center gap-5 px-2  h-[40px]  ">
         <Link to="/user" className="flex items-center justify-center w-8 h-8 rounded-full shrink-0">
           <ChevronLeft size={16} color="#ffffff"  className="" />
         </Link>
@@ -102,7 +99,7 @@ export default memo(function RaiseGrievance() {
         <SelectRow
           label="Concern For"
           value={form.concernType}
-          onChange={(v: string) => setForm({ ...form, concernType: v })}
+          onChange={(v: string) =>setForm((prev) => ({...prev,concernType: v,}))}
           required
           
         >
@@ -112,20 +109,9 @@ export default memo(function RaiseGrievance() {
         </SelectRow>
 
         <SelectRow
-          label="Mobile Number"
-          value={form.mobileType}
-          onChange={(v: string) => setForm({ ...form, mobileType: v })}
-          required
-        >
-          <option value="" disabled hidden>Select mobile type</option>
-          <option value="registered">Registered Mobile</option>
-          <option value="alternate">Alternate Mobile</option>
-        </SelectRow>
-
-        <SelectRow
           label="Case Type"
           value={form.caseType}
-          onChange={(v: string) => setForm({ ...form, caseType: v })}
+          onChange={(v: string) =>setForm((prev) => ({...prev,caseType: v,}))}
           required
         >
           <option value="" disabled hidden >Select case type</option>
@@ -136,7 +122,7 @@ export default memo(function RaiseGrievance() {
         <SelectRow
           label="Station HQ"
           value={form.stationHQ}
-          onChange={(v: string) => setForm({ ...form, stationHQ: v })}
+          onChange={(v: string) =>setForm((prev) => ({...prev,stationHQ: v,}))}
           required
         >
           <option value="" disabled hidden>Select Station HQ</option>
@@ -144,25 +130,25 @@ export default memo(function RaiseGrievance() {
         </SelectRow>
 
         <InputRow
-          label="Service Number"
-          value={form.serviceNumber}
-          onChange={(v: string) => setForm({ ...form, serviceNumber: v })}
-          placeholder="Enter service number"
-        />
-
-        <InputRow
           label="Rank"
           value={form.rank}
-          onChange={(v: string) => setForm({ ...form, rank: v })}
+          onChange={(v: string) =>setForm((prev) => ({...prev,rank: v,}))}
           placeholder="Enter rank"
         />
 
+        <InputRow
+          label="Army No"
+          value={form.armyNumber}
+          onChange={(v: string) =>setForm((prev) => ({...prev,armyNumber: v,}))}
+          placeholder="Enter army number"
+        />
+
         {/* Description */}
-        <div className="py-3 border-b border-[#1f1f23]">
+        <div className="py-3 border-b lg:border-none border-[#1f1f23]">
           <label className="block text-sm text-foreground font-normal text-[#FFFFFF] mb-2">Description</label>
           <textarea
             value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            onChange={(e) =>setForm((prev) => ({...prev,description: e.target.value,}))}
             rows={4}
             placeholder="Describe your grievance..."
             className="w-full bg-[#242424]  rounded-md px-4 py-3 text-sm text-white placeholder:text-[#75717D] outline-none focus:border-[#826CF3] transition-colors resize-none leading-relaxed"
@@ -174,7 +160,7 @@ export default memo(function RaiseGrievance() {
           onClick={handleSubmit}
           // disabled={createGrievance.isPending}
           disabled={createGrievance.isPending ||!form.concernType ||!form.caseType ||!form.stationHQ}
-          className="mt-6 w-full bg-[#826CF3] text-white font-bold text-sm py-4 mb-4 rounded-xl shadow-[0_4px_12px_rgba(23,84,207,0.2)] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-60 lg:w-[30%] lg:mx-auto"
+          className="mt-6 w-full bg-[#826CF3] text-white font-bold text-sm py-4 mb-4 lg:my-1 rounded-xl shadow-[0_4px_12px_rgba(23,84,207,0.2)] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-60 lg:w-[30%] lg:mx-auto"
         >
           {createGrievance.isPending ? (
             <>
