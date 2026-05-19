@@ -10,7 +10,7 @@ const categories = [
     title: "Idenity & personal",
     items: [
       { label: "Update Name",           desc: "As per Pt II Order",          icon: "/icons/updatename.svg"   },
-      { label: "Aadhaar & PAN",         desc: "Identity document updates",   icon: "/icons/address-card.svg" },
+      { label: "Update Aadhaar & PAN",  desc: "Identity document updates",   icon: "/icons/address-card.svg" },
       { label: "Update Mobile & Email", desc: "Contact detail updates",      icon: "/icons/mobile.svg"       },
       { label: "Update Address",        desc: "Residential address changes", icon: "/icons/location.svg"     },
     ],

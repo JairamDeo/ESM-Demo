@@ -3,9 +3,9 @@ import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   UserCheck, Printer, ChevronDown, Calendar, Building2,
-  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,
+  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,
 } from "lucide-react";
-import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, type GrievanceParams } from "@/hooks/useApi";
+import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, useDeleteGrievance, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 

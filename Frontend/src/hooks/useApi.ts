@@ -52,15 +52,20 @@ export const useGrievance = (id: string) =>
     enabled: !!id,
   });
 
-export const useMyGrievances = (params?: { status?: string }) =>
-  useQuery({
+export const useMyGrievances = (params?: { status?: string }) => {
+  const path = window.location.pathname;
+  const isUserPortal = path.startsWith("/user/") || path === "/user";
+  return useQuery({
     queryKey: queryKeys.grievances.my(params),
     queryFn: async () => {
       const { data } = await api.get("/grievances/my", { params });
       return data.data;
     },
     staleTime: 30_000,
+    refetchInterval: false,
+    enabled: isUserPortal,
   });
+};
 
 export const useTrackGrievance = (id: string) =>
   useQuery({
@@ -136,6 +141,23 @@ export const useAddComment = () => {
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Failed to add comment");
+    },
+  });
+};
+
+export const useDeleteGrievance = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/grievances/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      toast.success("Grievance deleted successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to delete grievance");
     },
   });
 };
@@ -389,16 +411,20 @@ export const useReports = (months = 6) =>
   });
 
 // ─── Notifications ────────────────────────────────────────────────────────────
-export const useNotifications = (unreadOnly = false) =>
-  useQuery({
+export const useNotifications = (unreadOnly = false) => {
+  const path = window.location.pathname;
+  const isUserPortal = path.startsWith("/user/") || path === "/user";
+  return useQuery({
     queryKey: queryKeys.notifications,
     queryFn: async () => {
       const { data } = await api.get("/notifications", { params: { unreadOnly } });
       return data;
     },
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 0,
+    refetchInterval: isUserPortal ? 30_000 : false,
+    enabled: isUserPortal,
   });
+};
 
 export const useMarkNotificationRead = () => {
   const qc = useQueryClient();

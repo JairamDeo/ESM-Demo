@@ -5,7 +5,7 @@ import { useCreateGrievance } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-const caseTypes = ["Update Name","Death Intimation","Resolve Pension Issues","Update Aadhaar & PAN","Update Mobile & Email","Update Address","Stop FMA","Add Nominee","Monthly Pay Slip","Pension Payment Order","Update DOB of Spouse","Update Spouse Details","Add/Update Family Details","Grievance for Increment","Track Case Status","SMS / Portal Alerts"];
+const caseTypes = ["Update Name","Death Intimation","Resolve Pension Issues","Update Aadhaar & PAN","Update Mobile & Email","Update Address","Stop FMA","Add Nominee","Monthly Pay Slip","Pension Payment Order","Update DOB of Spouse","Update Spouse Details","Add Family Details","Grievance for Increment","Track Case Status","SMS / Portal Alerts"];
 const stationHQs = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Rajkot Station HQ","Surat Station HQ","Solapur Station HQ","Baroda Station HQ"];
 
  const SelectRow = ({ label, value, onChange, children, required = false }: any) => (

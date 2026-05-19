@@ -127,9 +127,9 @@ export default memo(function Stations() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 w-full bg-secondary rounded-full h-1.5">
+                {/* <div className="mt-3 w-full bg-secondary rounded-full h-1.5">
                   <div className="bg-primary rounded-full h-1.5 transition-all" style={{ width: `${resRate}%` }} />
-                </div>
+                </div> */}
               </div>
             );
           })}

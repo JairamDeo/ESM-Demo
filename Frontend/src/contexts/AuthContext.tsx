@@ -26,12 +26,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+  // ← getStoredUser checks path to get correct user
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const path = window.location.pathname;
+    return path.startsWith("/user/")
+      ? getStoredUser("user")
+      : getStoredUser("admin");
+  });
 
   const adminLogin = useCallback(async (username: string, password: string) => {
     const res = await api.post("/auth/admin/login", { username, password });
     const { token, admin } = res.data;
-    setAuthToken(token);
+    setAuthToken(token, "admin");         // ← pass "admin"
     const authUser: AuthUser = {
       id: admin.id,
       name: admin.name,
@@ -39,19 +45,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: admin.role,
       station: admin.station,
     };
-    setStoredUser(authUser);
+    setStoredUser(authUser, "admin");     // ← pass "admin"
     setUser(authUser);
   }, []);
 
   const sendOtp = useCallback(async (phone: string) => {
-    // console.log("SEND OTP PHONE:", phone);
     await api.post("/auth/user/send-otp", { phone });
   }, []);
 
   const verifyOtp = useCallback(async (phone: string, otp: string) => {
     const res = await api.post("/auth/user/verify-otp", { phone, otp });
     const { token, user: userInfo } = res.data;
-    setAuthToken(token);
+    setAuthToken(token, "user");          // ← pass "user"
     const authUser: AuthUser = {
       id: userInfo.id,
       name: userInfo.name || `+91 ${phone}`,
@@ -59,12 +64,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: "user",
       station: userInfo.stationHQ,
     };
-    setStoredUser(authUser);
+    setStoredUser(authUser, "user");      // ← pass "user"
     setUser(authUser);
   }, []);
 
   const logout = useCallback(() => {
-    clearAuthToken();
+    const path = window.location.pathname;
+    const role = path.startsWith("/user/") ? "user" : "admin";
+    clearAuthToken(role);                 // ← pass correct role
     setUser(null);
   }, []);
 

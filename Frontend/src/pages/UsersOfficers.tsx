@@ -43,7 +43,66 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: { offic
     </div>
   );
 }
+  const OfficerModal = ({ isEdit = false, onClose, form, setForm, handleAdd, handleUpdate, createOfficer, updateOfficer }: {
+    isEdit?: boolean;
+    onClose: () => void;
+    form: any;
+    setForm: any;
+    handleAdd: () => void;
+    handleUpdate: () => void;
+    createOfficer: any;
+    updateOfficer: any;}) => (
 
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-foreground">{isEdit ? "Edit Officer" : "Add Officer"}</h2>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Name *</label>
+            <div className="flex gap-2 mt-1">
+              {!isEdit && (
+                <select value={form.rank} onChange={(e) => setForm(prev => ({ ...prev, rank: e.target.value }))} className="w-24 px-2 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary">
+                  {RANKS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              )}
+              <input value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Full name" className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Role *</label>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {ROLES.map((r) => (
+                <button key={r} onClick={() => setForm(prev =>({...prev , role :r}))} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${form.role === r ? "bg-primary text-primary-foreground border-primary" : "bg-secondary text-muted-foreground border-border"}`}>{r}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Station *</label>
+            <div className="relative mt-1">
+              <select value={form.stationName} onChange={(e) => setForm(prev => ({...prev, stationName: e.target.value }))} className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary appearance-none">
+                {STATIONS.map((s) => <option key={s}>{s}</option>)}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Email *</label>
+            <input type="email" value={form.email} onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="officer@army.in" className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground" />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={onClose} className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm">Cancel</button>
+            <button onClick={isEdit ? handleUpdate : handleAdd} disabled={createOfficer.isPending || updateOfficer.isPending} className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+              {(createOfficer.isPending || updateOfficer.isPending) ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <UserPlus className="w-4 h-4" />}
+              {isEdit ? "Save Changes" : "Add Officer"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+);
 
 export default memo(function UsersOfficers() {
   const permissions = usePermissions();
@@ -62,7 +121,9 @@ export default memo(function UsersOfficers() {
   const deleteOfficer = useDeleteOfficer();
 
   const officers = useMemo(() => data?.data || [], [data]);
-  const summary = useMemo(() => data?.summary || { esmOfficers: 0, stationOfficers: 0, recordOffice: 0 }, [data]);
+  const { data: summaryData , isLoading: summaryLoading } = useOfficers({});
+  const summary = useMemo(() => summaryData?.summary || { esmOfficers: 0, stationOfficers: 0, recordOffice: 0 }, [summaryData]);
+  // const summary = useMemo(() => data?.summary || { esmOfficers: 0, stationOfficers: 0, recordOffice: 0 }, [data]);
 
   const resetForm = useCallback(() => {
     setForm({ rank: "Maj.", name: "", role: "Station HQ Officer", stationName: STATIONS[0], email: "" });
@@ -85,58 +146,6 @@ export default memo(function UsersOfficers() {
     setEditOfficer(null); resetForm();
   }, [editOfficer, form, updateOfficer, resetForm]);
 
-  const OfficerModal = ({ isEdit = false, onClose }: { isEdit?: boolean; onClose: () => void }) => (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-foreground">{isEdit ? "Edit Officer" : "Add Officer"}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Name *</label>
-            <div className="flex gap-2 mt-1">
-              {!isEdit && (
-                <select value={form.rank} onChange={(e) => setForm({ ...form, rank: e.target.value })} className="w-24 px-2 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary">
-                  {RANKS.map((r) => <option key={r}>{r}</option>)}
-                </select>
-              )}
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground" />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Role *</label>
-            <div className="flex gap-2 mt-1 flex-wrap">
-              {ROLES.map((r) => (
-                <button key={r} onClick={() => setForm({ ...form, role: r })} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${form.role === r ? "bg-primary text-primary-foreground border-primary" : "bg-secondary text-muted-foreground border-border"}`}>{r}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Station *</label>
-            <div className="relative mt-1">
-              <select value={form.stationName} onChange={(e) => setForm({ ...form, stationName: e.target.value })} className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary appearance-none">
-                {STATIONS.map((s) => <option key={s}>{s}</option>)}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Email *</label>
-            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="officer@army.in" className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground" />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button onClick={onClose} className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm">Cancel</button>
-            <button onClick={isEdit ? handleUpdate : handleAdd} disabled={createOfficer.isPending || updateOfficer.isPending} className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
-              {(createOfficer.isPending || updateOfficer.isPending) ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <UserPlus className="w-4 h-4" />}
-              {isEdit ? "Save Changes" : "Add Officer"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -149,10 +158,24 @@ export default memo(function UsersOfficers() {
         </button>
       </div>
 
+    {addOpen && <OfficerModal  form={form} 
+    setForm={setForm}
+    handleAdd={handleAdd}
+    handleUpdate={handleUpdate}
+    createOfficer={createOfficer}
+    updateOfficer={updateOfficer}
+    onClose={() => setAddOpen(false)} />}
 
-    {addOpen && <OfficerModal onClose={() => setAddOpen(false)} />}
-    {editOfficer && <OfficerModal isEdit onClose={() => { setEditOfficer(null); resetForm(); }} />}
-
+    {editOfficer && <OfficerModal isEdit
+    form={form}
+    setForm={setForm}
+    handleAdd={handleAdd}
+    handleUpdate={handleUpdate}
+    createOfficer={createOfficer}
+    updateOfficer={updateOfficer}
+    onClose={() => {
+      setEditOfficer(null);
+      resetForm(); }} />}
 
 
       {/* Summary Cards */}
@@ -167,7 +190,7 @@ export default memo(function UsersOfficers() {
               <r.icon className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xl font-bold text-foreground">{isLoading ? "—" : r.count}</p>
+              <p className="text-xl font-bold text-foreground">{summaryLoading ? "—" : r.count}</p>
               <p className="text-sm text-muted-foreground">{r.label}</p>
             </div>
           </div>
@@ -194,7 +217,7 @@ export default memo(function UsersOfficers() {
             <thead>
               <tr className="border-b border-border">
                 {["Officer","Role","Station","Active Cases","Status","Actions"].map((h, i) => (
-                  <th key={h} className={`text-xs font-medium text-muted-foreground py-3 px-3 ${i === 5 ? "text-right" : "text-left"}`}>{h}</th>
+                  <th key={h} className={`text-xs font-medium text-muted-foreground py-3 px-3  ${i === 5 ? "text-right" : "text-left"}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -225,9 +248,11 @@ export default memo(function UsersOfficers() {
                   <td className="py-3 px-3 text-right">
                     <ActionsMenu
                       officer={o}
+                      canManage={permissions.manageOfficers}
                       onEdit={() => openEdit(o)}
                       onToggle={() => o._id && toggleStatus.mutate(o._id)}
                       onDelete={() => o._id && deleteOfficer.mutate(o._id)}
+                      
                     />
                   </td>
                 </tr>

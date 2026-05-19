@@ -9,11 +9,19 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// ─── Helper to check if on user portal ───────────────────────────────────────
+const isUserPortal = () => {
+  const path = window.location.pathname;
+  return path.startsWith("/user/") || path === "/user";
+};
+
 // ─── Request interceptor — attach JWT ────────────────────────────────────────
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem("vitric_token");
-    // console.log(token)
+    const token = isUserPortal()
+      ? localStorage.getItem("vitric_user_token")
+      : localStorage.getItem("vitric_admin_token");
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -28,11 +36,16 @@ api.interceptors.response.use(
   (error: AxiosError<{ message?: string }>) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("vitric_token");
-      localStorage.removeItem("vitric_user");
-      // Only redirect if not already on a login page
+      if (isUserPortal()) {
+        localStorage.removeItem("vitric_user_token");
+        localStorage.removeItem("vitric_user");
+      } else {
+        localStorage.removeItem("vitric_admin_token");
+        localStorage.removeItem("vitric_admin");
+      }
       const path = window.location.pathname;
       if (!path.includes("/login") && !path.includes("/verify-otp")) {
-        if (path.startsWith("/user")) {
+        if (isUserPortal()) {
           window.location.href = "/user/login";
         } else {
           window.location.href = "/admin/login";
@@ -60,24 +73,32 @@ export interface ApiResponse<T = any> {
 }
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
-export const setAuthToken = (token: string) => {
-  localStorage.setItem("vitric_token", token);
+export const setAuthToken = (token: string, role?: string) => {
+  const key = role === "user" ? "vitric_user_token" : "vitric_admin_token";
+  localStorage.setItem(key, token);
 };
 
-export const clearAuthToken = () => {
-  localStorage.removeItem("vitric_token");
-  localStorage.removeItem("vitric_user");
+export const clearAuthToken = (role?: string) => {
+  if (role === "user") {
+    localStorage.removeItem("vitric_user_token");
+    localStorage.removeItem("vitric_user");
+  } else {
+    localStorage.removeItem("vitric_admin_token");
+    localStorage.removeItem("vitric_admin");
+  }
 };
 
-export const getStoredUser = () => {
+export const getStoredUser = (role?: string) => {
   try {
-    const u = localStorage.getItem("vitric_user");
+    const key = role === "user" ? "vitric_user" : "vitric_admin";
+    const u = localStorage.getItem(key);
     return u ? JSON.parse(u) : null;
   } catch {
     return null;
   }
 };
 
-export const setStoredUser = (user: object) => {
-  localStorage.setItem("vitric_user", JSON.stringify(user));
+export const setStoredUser = (user: object, role?: string) => {
+  const key = role === "user" ? "vitric_user" : "vitric_admin";
+  localStorage.setItem(key, JSON.stringify(user));
 };

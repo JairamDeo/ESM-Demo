@@ -49,7 +49,9 @@ const S = ({ children }: { children: React.ReactNode }) => (
 
 const AdminGuard = memo(() => {
   const { isAuthenticated, isAdmin } = useAuth();
-  if (!isAuthenticated || !isAdmin) return <Navigate to="/admin/login" replace />;
+  const hasToken = !!localStorage.getItem("vitric_admin_token");
+  if (!hasToken && (!isAuthenticated || !isAdmin)) return <Navigate to="/admin/login" replace />;
+  
   return (
     <S><AdminLayout>
       <Routes>
@@ -70,11 +72,13 @@ const AdminGuard = memo(() => {
 
 const UserRoutes = memo(() => {
   const { isAuthenticated, user } = useAuth();
-  // Allow access: user role OR officers with loginAsVeteran permission
   const rbacPerms = useRBACStore.getState().permissions;
   const role = user?.role as any;
   const canAccessVeteranPortal = role === "user" || (isAuthenticated && rbacPerms[role]?.loginAsVeteran);
-  if (!isAuthenticated || !canAccessVeteranPortal) return <Navigate to="/user/login" replace />;
+  const hasToken = !!localStorage.getItem("vitric_user_token");
+
+  if (!hasToken && (!isAuthenticated || !canAccessVeteranPortal)) return <Navigate to="/user/login" replace />;
+
   return (
     <S><UserLayout>
       <Routes>

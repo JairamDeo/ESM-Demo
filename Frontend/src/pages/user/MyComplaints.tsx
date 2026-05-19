@@ -2,6 +2,8 @@ import { useState, useMemo, memo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText, Clock, CheckCircle2, AlertTriangle, Search } from "lucide-react";
 import { useMyGrievances } from "@/hooks/useApi";
+// import { useAuth } from "@/contexts/AuthContext";
+
 
 const statusConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
   "in-progress": { icon: Clock, color: "text-info", bg: "bg-info/15", label: "In Progress" },
@@ -14,8 +16,12 @@ const statusConfig: Record<string, { icon: any; color: string; bg: string; label
 const progressMap: Record<string, number> = { pending: 20, "in-progress": 60, escalated: 55, resolved: 100, closed: 100 };
 
 export default memo(function MyComplaints() {
+
   const [search, setSearch] = useState("");
   const { data: complaints = [], isLoading } = useMyGrievances();
+
+  // const { user } = useAuth();
+  // console.log("current user:", user);
 
   const filtered = useMemo(() =>
     complaints.filter((c: any) =>

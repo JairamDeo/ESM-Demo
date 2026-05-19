@@ -25,10 +25,6 @@ export default memo(function Notifications() {
 
   const notifications = data?.data || [];
   const unreadCount = data?.unreadCount || 0;
-  
-  console.log("notifications data:", data);
-  console.log("notifications array:", notifications);
-  console.log("unread count:", unreadCount);
 
   const handleMarkAllRead = useCallback(() => {
     markRead.mutate("all");
