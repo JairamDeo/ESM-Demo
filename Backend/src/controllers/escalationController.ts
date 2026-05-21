@@ -3,14 +3,28 @@ import Escalation from "../models/Escalation";
 import Grievance from "../models/Grievance";
 import Notification from "../models/Notification";
 
+// ─── Helper: get station filter based on role ────────────────────────────────
+const getStationFilter = (req: Request): any => {
+  const user = (req as any).user;
+  if (!user || user.role === "super_admin") return {};
+  if (user.station && user.station !== "Nagpur Sub-Area") {
+    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
+  }
+  return {};
+};
+
 // ─── GET all escalations ─────────────────────────────────────────────────────
 export const getEscalations = async (req: Request, res: Response): Promise<void> => {
   try {
     const { status, station, search, page = 1, limit = 20 } = req.query;
-    const query: any = {};
+
+    const stationFilter = getStationFilter(req);
+    const query: any = { ...stationFilter };
 
     if (status) query.status = status;
-    if (station) query.stationName = { $regex: station, $options: "i" };
+    if (station && (req as any).user?.role === "super_admin") {
+      query.stationName = { $regex: station, $options: "i" };
+    }
     if (search) {
       query.$or = [
         { escalationId: { $regex: search, $options: "i" } },
@@ -32,10 +46,14 @@ export const getEscalations = async (req: Request, res: Response): Promise<void>
       Escalation.countDocuments(query),
     ]);
 
+    // Summary also filtered by station
     const [openCount, resolvedCount, avgDays] = await Promise.all([
-      Escalation.countDocuments({ status: "open" }),
-      Escalation.countDocuments({ status: "resolved" }),
-      Escalation.aggregate([{ $match: { status: "open" } }, { $group: { _id: null, avg: { $avg: "$daysOpen" } } }]),
+      Escalation.countDocuments({ ...stationFilter, status: "open" }),
+      Escalation.countDocuments({ ...stationFilter, status: "resolved" }),
+      Escalation.aggregate([
+        { $match: { ...stationFilter, status: "open" } },
+        { $group: { _id: null, avg: { $avg: "$daysOpen" } } }
+      ]),
     ]);
 
     res.status(200).json({
@@ -86,13 +104,11 @@ export const createEscalation = async (req: Request, res: Response): Promise<voi
       veteranName: grievance.veteranName,
       type: grievance.type,
       stationName: grievance.stationName,
-      reason,
-      escalatedTo,
+      reason, escalatedTo,
       escalatedBy: (req as any).user?.name || "Admin",
       daysOpen,
     });
 
-    // Update grievance status
     grievance.status = "escalated";
     grievance.escalationId = escalation._id as any;
     grievance.timeline.push({ status: "escalated", note: reason, updatedBy: "Admin", updatedAt: new Date() });
@@ -117,7 +133,6 @@ export const resolveEscalation = async (req: Request, res: Response): Promise<vo
     escalation.resolutionNote = resolutionNote || "Resolved by admin";
     await escalation.save();
 
-    // Also update associated grievance status
     await Grievance.findByIdAndUpdate(escalation.grievanceId, {
       status: "in-progress",
       $push: { timeline: { status: "in-progress", note: "Escalation resolved", updatedBy: "Admin", updatedAt: new Date() } },

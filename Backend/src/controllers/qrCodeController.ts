@@ -3,11 +3,23 @@ import qrcode from "qrcode";
 import QRCodeModel from "../models/QRCode";
 import Station from "../models/Station";
 
+// ─── Helper: get station filter based on role ────────────────────────────────
+const getStationFilter = (req: Request): any => {
+  const user = (req as any).user;
+  if (!user || user.role === "super_admin") return {};
+  if (user.station && user.station !== "Nagpur Sub-Area") {
+    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
+  }
+  return {};
+};
+
 // ─── GET all QR codes ────────────────────────────────────────────────────────
 export const getQRCodes = async (req: Request, res: Response): Promise<void> => {
   try {
     const { status, search } = req.query;
-    const query: any = {};
+
+    const stationFilter = getStationFilter(req);
+    const query: any = { ...stationFilter };
 
     if (status) query.status = status;
     if (search) {
@@ -57,7 +69,6 @@ export const generateQRCode = async (req: Request, res: Response): Promise<void>
     const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(stationName)}&code=${code.toUpperCase()}`;
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
-    // Find or link station
     let linkedStationId = stationId;
     if (!linkedStationId && stationName) {
       const station = await Station.findOne({ name: { $regex: stationName, $options: "i" } });
@@ -70,11 +81,9 @@ export const generateQRCode = async (req: Request, res: Response): Promise<void>
     }
 
     const qr = await QRCodeModel.create({
-      stationId: linkedStationId,
-      stationName,
+      stationId: linkedStationId, stationName,
       code: (code as string).toUpperCase(),
-      qrData,
-      svgContent,
+      qrData, svgContent,
       generatedBy: (req as any).user?.id,
     });
 
@@ -94,7 +103,6 @@ export const viewQRCode = async (req: Request, res: Response): Promise<void> => 
       res.setHeader("Content-Type", "image/svg+xml");
       res.send(qr.svgContent);
     } else {
-      // Regenerate SVG on the fly
       const svg = await qrcode.toString(qr.qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
       res.setHeader("Content-Type", "image/svg+xml");
       res.send(svg);
@@ -111,10 +119,7 @@ export const downloadQRCode = async (req: Request, res: Response): Promise<void>
     if (!qr) { res.status(404).json({ success: false, message: "QR Code not found" }); return; }
 
     const pngBuffer = await qrcode.toBuffer(qr.qrData, {
-      type: "png",
-      width: 512,
-      margin: 2,
-      errorCorrectionLevel: "H",
+      type: "png", width: 512, margin: 2, errorCorrectionLevel: "H",
       color: { dark: "#1a1a2e", light: "#ffffff" },
     });
 
@@ -132,11 +137,9 @@ export const regenerateQRCode = async (req: Request, res: Response): Promise<voi
     const oldQR = await QRCodeModel.findById(req.params.id);
     if (!oldQR) { res.status(404).json({ success: false, message: "QR Code not found" }); return; }
 
-    // Mark old as regenerated
     oldQR.status = "regenerated";
     await oldQR.save();
 
-    // Create new QR with same station
     const newQrData = `${oldQR.qrData}&regen=${Date.now()}`;
     const svgContent = await qrcode.toString(newQrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
@@ -145,11 +148,8 @@ export const regenerateQRCode = async (req: Request, res: Response): Promise<voi
     const newCode = `${baseParts[0]}-${baseParts[1]}-${String(newNum).padStart(3, "0")}`;
 
     const newQR = await QRCodeModel.create({
-      stationId: oldQR.stationId,
-      stationName: oldQR.stationName,
-      code: newCode,
-      qrData: newQrData,
-      svgContent,
+      stationId: oldQR.stationId, stationName: oldQR.stationName,
+      code: newCode, qrData: newQrData, svgContent,
       generatedBy: (req as any).user?.id,
     });
 
@@ -159,7 +159,7 @@ export const regenerateQRCode = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// ─── RECORD a scan (called when veteran scans the QR) ───────────────────────
+// ─── RECORD a scan ───────────────────────────────────────────────────────────
 export const recordScan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { code } = req.params;
@@ -169,20 +169,11 @@ export const recordScan = async (req: Request, res: Response): Promise<void> => 
       { new: true }
     );
 
-    if (!qr) {
-      res.status(404).json({ success: false, message: "Active QR Code not found" });
-      return;
-    }
+    if (!qr) { res.status(404).json({ success: false, message: "Active QR Code not found" }); return; }
 
     res.status(200).json({
-      success: true,
-      message: "Scan recorded",
-      data: {
-        stationName: qr.stationName,
-        code: qr.code,
-        totalScans: qr.totalScans,
-        grievanceUrl: qr.qrData,
-      },
+      success: true, message: "Scan recorded",
+      data: { stationName: qr.stationName, code: qr.code, totalScans: qr.totalScans, grievanceUrl: qr.qrData },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -198,7 +189,6 @@ export const toggleQRStatus = async (req: Request, res: Response): Promise<void>
     qr.status = qr.status === "active" ? "inactive" : "active";
     await qr.save();
 
-    // Sync station qrActive flag
     await Station.findByIdAndUpdate(qr.stationId, { qrActive: qr.status === "active" });
 
     res.status(200).json({ success: true, message: `QR Code ${qr.status}`, data: qr });

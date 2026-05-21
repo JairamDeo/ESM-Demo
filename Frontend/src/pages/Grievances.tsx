@@ -2,7 +2,7 @@ import { useState, useRef, memo, useCallback, useMemo } from "react";
 import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
-  UserCheck, Printer, ChevronDown, Calendar, Building2,
+  UserCheck, Printer, ChevronDown, Building2,
   User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,
 } from "lucide-react";
 import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, useDeleteGrievance, type GrievanceParams } from "@/hooks/useApi";
@@ -303,7 +303,7 @@ export default memo(function Grievances() {
   const FilterModal = () => {
     const [local, setLocal] = useState({...filters});
     return (
-      <Modal open onClose={()=>setShowFilter(false)} title="Advanced Filters">
+      <Modal open  onClose={()=>setShowFilter(false)} title="Advanced Filters">
         <div className="space-y-4">
           <FormField label="Case Type"><SelectField value={local.caseType} onChange={(v)=>setLocal((f)=>({...f,caseType:v}))}><option value="">All Case Types</option>{CASE_TYPES.map((t)=><option key={t}>{t}</option>)}</SelectField></FormField>
           <FormField label="Priority"><SelectField value={local.priority} onChange={(v)=>setLocal((f)=>({...f,priority:v}))}><option value="">All Priorities</option>{["low","medium","high","critical"].map((p)=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}</SelectField></FormField>
@@ -334,8 +334,8 @@ export default memo(function Grievances() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <button onClick={()=>setExportOpen((o)=>!o)} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors flex items-center gap-2">
-              <Download className="w-4 h-4" /> Export <ChevronDown className="w-3.5 h-3.5" />
+            <button onClick={()=>setExportOpen((o)=>!o)} className="px-4 py-2 text-sm bg-secondary/50 text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors flex items-center gap-2">
+              <Download className="w-4 h-4" /> Export <ChevronDown className="w-4 h-4 " />
             </button>
             {exportOpen && (<><div className="fixed inset-0 z-10" onClick={()=>setExportOpen(false)}/><div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-40">
               <button onClick={()=>{const c=toCSV(grievances);const b=new Blob([c],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`grievances-${Date.now()}.csv`;a.click();setExportOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60"><FileText className="w-3.5 h-3.5 text-muted-foreground"/>Export CSV</button>

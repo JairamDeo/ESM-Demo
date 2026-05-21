@@ -85,7 +85,7 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: { offic
               <select value={form.stationName} onChange={(e) => setForm(prev => ({...prev, stationName: e.target.value }))} className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary appearance-none">
                 {STATIONS.map((s) => <option key={s}>{s}</option>)}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
             </div>
           </div>
           <div>
@@ -206,10 +206,14 @@ export default memo(function UsersOfficers() {
               <Search className="w-4 h-4 text-muted-foreground" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search officers..." className="bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground w-36" />
             </div>
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm text-foreground outline-none">
-              <option value="">All Roles</option>
-              {ROLES.map((r) => <option key={r}>{r}</option>)}
-            </select>
+          <div className="relative">
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer  ">       
+          <option value="">All Roles</option>
+          {ROLES.map((r) => (<option key={r} value={r}>{r}
+          </option>))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+          </div>  
           </div>
         </div>
         <div className="overflow-x-auto">

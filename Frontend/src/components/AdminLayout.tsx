@@ -2,12 +2,12 @@ import { useState, memo, useCallback, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, FileText, Building2, Users, Settings, Bell,
-  ChevronLeft, ChevronRight, LogOut, Search, Moon, Sun, QrCode,
+  ChevronLeft, ChevronRight, ChevronDown, LogOut, Search, Moon, Sun, QrCode,
   BarChart3, AlertTriangle, ClipboardList, Menu, X, Shield,
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNotifications } from "@/hooks/useApi";
+// import { useNotifications } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 
 const ALL_NAV = [
@@ -54,11 +54,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 
   // Live unread notification count
-  const { data: notifData } = useNotifications();
-  const unreadCount = useMemo(() => {
-    const list: any[] = (notifData as any)?.data?.notifications ?? (notifData as any)?.data ?? [];
-    return Array.isArray(list) ? list.filter((n: any) => !n.isRead).length : 0;
-  }, [notifData]);
+  // const { data: notifData } = useNotifications();
+  // const unreadCount = useMemo(() => {
+  //   const list: any[] = (notifData as any)?.data?.notifications ?? (notifData as any)?.data ?? [];
+  //   return Array.isArray(list) ? list.filter((n: any) => !n.isRead).length : 0;
+  // }, [notifData]);
+
+  // Admin notifications — disabled for now
+  const unreadCount = 0;
 
   const handleLogout = useCallback(() => {
     logout();
@@ -83,6 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="font-bold text-foreground text-base tracking-tight">Vitric ESM</span>
           </div>
         )}
+        
         {mobile && (
           <button onClick={() => setMobileOpen(false)} className="ml-auto p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
             <X className="w-5 h-5" />
@@ -197,7 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
                 title="Account"
               >
-                <LogOut className="w-5 h-5" />
+                <ChevronDown className="w-6 h-6" />
               </button>
 
               {profileOpen && (

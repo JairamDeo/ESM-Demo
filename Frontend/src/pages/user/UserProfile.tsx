@@ -1,6 +1,6 @@
 import { useState, memo, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, User, Phone, Shield, MapPin, Mail, Edit2, Save, X } from "lucide-react";
+import { ChevronLeft, User, Phone, Shield, MapPin, Mail, Edit2, Save, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile } from "@/hooks/useApi";
 
@@ -27,11 +27,12 @@ export default memo(function UserProfile() {
   return (
     <div className="px-4 space-y-5 animate-fade-in pb-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ArrowLeft className="w-5 h-5" /></Link>
-          <h1 className="text-lg font-bold text-foreground">My Profile</h1>
+        <div className="flex items-center gap-5">
+          <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ChevronLeft className="w-5 h-5 " color="#FFFFFF" /></Link>
+          <h1 className="text-xl font-bold text-foreground">My Profile</h1>
         </div>
-        <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={updateProfile.isPending} className="flex items-center gap-1.5 text-sm text-primary font-medium">
+
+        <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={updateProfile.isPending} className="flex items-center gap-1.5 text-sm text-[#826CF3] font-medium">
           {editing ? (updateProfile.isPending ? <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> : <><Save className="w-4 h-4"/>Save</>) : <><Edit2 className="w-4 h-4"/>Edit</>}
         </button>
       </div>

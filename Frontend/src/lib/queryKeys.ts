@@ -1,5 +1,5 @@
 export const queryKeys = {
-  dashboard: ["dashboard"] as const,
+  dashboard: (period?: string) => ["dashboard", period] as const,
   grievances: {
     all: (params?: object) => ["grievances", params] as const,
     single: (id: string) => ["grievances", id] as const,

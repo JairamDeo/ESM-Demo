@@ -28,10 +28,10 @@ const seed = async () => {
 
   // ── Admins ────────────────────────────────────────────────────────────────
   const admins = await Admin.create([
-    { username: "admin", password: "admin123", name: "Admin Officer", email: "admin@vitric.in", role: "super_admin", station: "Nagpur Sub-Area" },
-    { username: "esm", password: "esm123", name: "Lt. Col. V. Rao", email: "v.rao@vitric.in", role: "esm_officer", station: "Nagpur HQ" },
-    { username: "station1", password: "station123", name: "Maj. P. Kulkarni", email: "p.kulkarni@vitric.in", role: "station_officer", station: "Pune HQ" },
-    { username: "record", password: "record123", name: "Maj. T. Nair", email: "t.nair@vitric.in", role: "record_office", station: "Kolhapur HQ" },
+  { username: "admin",    password: "admin123",   name: "Admin Officer",    email: "admin@vitric.in",       role: "super_admin",     station: "Nagpur Sub-Area"        },
+  { username: "esm",      password: "esm123",     name: "Lt. Col. V. Rao",  email: "v.rao@vitric.in",       role: "esm_officer",     station: "Nagpur Station HQ"      },
+  { username: "station1", password: "station123", name: "Maj. P. Kulkarni", email: "p.kulkarni@vitric.in",  role: "station_officer", station: "Pune Station HQ"      },
+  { username: "record",   password: "record123",  name: "Maj. T. Nair",     email: "t.nair@vitric.in",      role: "record_office",   station: "Kolhapur Station HQ"    },
   ]);
   console.log(`👤 Created ${admins.length} admins`);
 
@@ -96,16 +96,16 @@ const seed = async () => {
 
   // ── QR Codes with real SVGs ───────────────────────────────────────────────
   const qrCodesData = [
-    { code: "NAG-QR-001", station: stations[0], scans: 234, lastScanned: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-    { code: "PUN-QR-001", station: stations[1], scans: 198, lastScanned: new Date(Date.now() - 4 * 60 * 60 * 1000) },
-    { code: "AHM-QR-001", station: stations[2], scans: 167, lastScanned: new Date(Date.now() - 1 * 60 * 60 * 1000) },
-    { code: "NAS-QR-001", station: stations[3], scans: 132, lastScanned: new Date(Date.now() - 6 * 60 * 60 * 1000) },
-    { code: "AUR-QR-001", station: stations[4], scans: 98,  lastScanned: new Date(Date.now() - 12 * 60 * 60 * 1000) },
-    { code: "KOL-QR-001", station: stations[5], scans: 87,  lastScanned: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-    { code: "SOL-QR-001", station: stations[6], scans: 76,  lastScanned: new Date(Date.now() - 8 * 60 * 60 * 1000) },
-    { code: "BAR-QR-001", station: stations[7], scans: 112, lastScanned: new Date(Date.now() - 3 * 60 * 60 * 1000) },
-    { code: "RAJ-QR-001", station: stations[8], scans: 45,  lastScanned: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), status: "inactive" },
-    { code: "SUR-QR-001", station: stations[9], scans: 134, lastScanned: new Date(Date.now() - 5 * 60 * 60 * 1000) },
+    { code: "NAGPUR-QR-001", station: stations[0], scans: 234, lastScanned: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+    { code: "PUNE-QR-001", station: stations[1], scans: 198, lastScanned: new Date(Date.now() - 4 * 60 * 60 * 1000) },
+    { code: "AHMEDABAD-QR-001", station: stations[2], scans: 167, lastScanned: new Date(Date.now() - 1 * 60 * 60 * 1000) },
+    { code: "NASHIK-QR-001", station: stations[3], scans: 132, lastScanned: new Date(Date.now() - 6 * 60 * 60 * 1000) },
+    { code: "AURANGABAD-QR-001", station: stations[4], scans: 98,  lastScanned: new Date(Date.now() - 12 * 60 * 60 * 1000) },
+    { code: "KOLHAPUR-QR-001", station: stations[5], scans: 87,  lastScanned: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    { code: "SOLAPUR-QR-001", station: stations[6], scans: 76,  lastScanned: new Date(Date.now() - 8 * 60 * 60 * 1000) },
+    { code: "BARODA-QR-001", station: stations[7], scans: 112, lastScanned: new Date(Date.now() - 3 * 60 * 60 * 1000) },
+    { code: "RAJKOT-QR-001", station: stations[8], scans: 45,  lastScanned: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), status: "inactive" },
+    { code: "SURAT-QR-001", station: stations[9], scans: 134, lastScanned: new Date(Date.now() - 5 * 60 * 60 * 1000) },
   ];
 
   const qrDocs = [];

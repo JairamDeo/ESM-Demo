@@ -4,11 +4,13 @@ import api from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-export const useDashboard = () =>
+export const useDashboard = (period = "all") =>
   useQuery({
-    queryKey: queryKeys.dashboard,
+    queryKey: queryKeys.dashboard(period),
     queryFn: async () => {
-      const { data } = await api.get("/grievances/dashboard");
+      const { data } = await api.get("/grievances/dashboard", {
+        params: { period }
+      });
       return data.data;
     },
     staleTime: 60_000,

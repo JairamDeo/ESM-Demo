@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Clock, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, FileText, ChevronLeft } from "lucide-react";
 
 const STEP_LABELS: Record<string,string> = { pending:"Submitted", "in-progress":"Under Review", escalated:"Escalated", resolved:"Resolved", closed:"Closed" };
 
@@ -21,11 +21,11 @@ export default memo(function TrackCase() {
     <div className="px-4 space-y-5 animate-fade-in pb-6">
 
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-5">
         <Link to="/user/complaints" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
-          <ArrowLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5 " color="#FFFFFF" />
         </Link>
-        <h1 className="text-lg font-bold text-foreground">Track Case</h1>
+        <h1 className="text-xl font-bold text-foreground">Track Case</h1>
       </div>
 
       {/* Single Combined Block */}

@@ -1,6 +1,6 @@
 import { useState, useMemo, memo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, FileText, Clock, CheckCircle2, AlertTriangle, Search } from "lucide-react";
+import { ArrowLeft, FileText, Clock, CheckCircle2, AlertTriangle, Search, ChevronLeft } from "lucide-react";
 import { useMyGrievances } from "@/hooks/useApi";
 // import { useAuth } from "@/contexts/AuthContext";
 
@@ -37,9 +37,9 @@ export default memo(function MyComplaints() {
 
   return (
     <div className="px-4 space-y-5 animate-fade-in ">
-      <div className="flex items-center gap-3 ">
-        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ArrowLeft className="w-5 h-5" /></Link>
-        <h1 className="text-lg font-bold text-foreground">My Complaints</h1>
+      <div className="flex items-center gap-5 ">
+        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ChevronLeft className="w-5 h-5  " color="#FFFFFF" /></Link>
+        <h1 className="text-xl font-bold text-foreground">My Complaints</h1>
       </div>
 
       <div className="flex items-center gap-3 bg-[#222223] rounded-xl px-4 py-3 border border-border">

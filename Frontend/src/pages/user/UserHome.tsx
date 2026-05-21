@@ -103,7 +103,7 @@ const RecentComplaintBox = ({recentComplaint, progress,}: {recentComplaint: any;
       </div>
     ) : (
       <div className="py-4 text-center">
-        <p className="text-xs text-muted-foreground">No complaints yet.</p>
+        <p className="text-xs text-foreground">No complaints yet.</p>
         <p className="text-[10px] text-muted-foreground mt-1">Raise a grievance to see it here</p>
       </div>
     )}

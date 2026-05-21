@@ -6,27 +6,56 @@ import Notification from "../models/Notification";
 import Station from "../models/Station";
 import CaseType from "../models/CaseType";
 
+// ─── Helper: get station filter based on role ────────────────────────────────
+const getStationFilter = (req: Request): any => {
+  const user = (req as any).user;
+  if (!user || user.role === "super_admin") return {};
+  if (user.station && user.station !== "Nagpur Sub-Area") {
+    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
+  }
+  return {};
+};
+
+// ─── Helper: get date filter ─────────────────────────────────────────────────
+const getDateFilter = (period?: string): any => {
+  if (!period || period === "all") return {};
+  const now = new Date();
+  let from: Date;
+  switch (period) {
+    case "today":
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case "this_week":
+      from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case "this_month":
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case "last_3_months":
+      from = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      break;
+    case "this_year":
+      from = new Date(now.getFullYear(), 0, 1);
+      break;
+    default:
+      return {};
+  }
+  return { createdAt: { $gte: from } };
+};
+
 // ─── GET all grievances (with search + filter + pagination) ──────────────────
 export const getGrievances = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
-      page = 1,
-      limit = 10,
-      search = "",
-      status,
-      priority,
-      station,
-      type,
-      officer,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-      startDate,
-      endDate,
+      page = 1, limit = 10, search = "",
+      status, priority, station, type, officer,
+      sortBy = "createdAt", sortOrder = "desc",
+      startDate, endDate,
     } = req.query;
 
-    const query: any = { isDeleted: false };
+    const stationFilter = getStationFilter(req);
+    const query: any = { isDeleted: false, ...stationFilter };
 
-    // Search across multiple fields
     if (search) {
       query.$or = [
         { grievanceId: { $regex: search, $options: "i" } },
@@ -40,7 +69,10 @@ export const getGrievances = async (req: Request, res: Response): Promise<void> 
 
     if (status) query.status = status;
     if (priority) query.priority = priority;
-    if (station) query.stationName = { $regex: station, $options: "i" };
+    // Only allow station filter override for super_admin
+    if (station && (req as any).user?.role === "super_admin") {
+    query.stationName = { $regex: station, $options: "i" };
+    }
     if (type) query.type = { $regex: type, $options: "i" };
     if (officer) query.officerName = { $regex: officer, $options: "i" };
 
@@ -53,7 +85,6 @@ export const getGrievances = async (req: Request, res: Response): Promise<void> 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
-
     const sortObj: any = {};
     sortObj[sortBy as string] = sortOrder === "asc" ? 1 : -1;
 
@@ -65,12 +96,7 @@ export const getGrievances = async (req: Request, res: Response): Promise<void> 
     res.status(200).json({
       success: true,
       data: grievances,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        totalPages: Math.ceil(total / limitNum),
-      },
+      pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -87,12 +113,7 @@ export const getGrievanceById = async (req: Request, res: Response): Promise<voi
       ],
       isDeleted: false,
     });
-
-    if (!grievance) {
-      res.status(404).json({ success: false, message: "Grievance not found" });
-      return;
-    }
-
+    if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
     res.status(200).json({ success: true, data: grievance });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -112,42 +133,35 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Set SLA deadline: 15 days from now
     const slaDeadline = new Date();
     slaDeadline.setDate(slaDeadline.getDate() + 15);
 
     const userId = (req as any).user?.role === "user" ? (req as any).user.id : undefined;
     const grievanceId = `GRV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const grievance = await Grievance.create({
-      grievanceId,type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
+      grievanceId, type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
       stationName, officerName: officerName || "Unassigned",
       priority: priority || "medium",
       description,
       submissionSource: submissionSource || "portal",
-      slaDeadline,
-      userId,
+      slaDeadline, userId,
       timeline: [{ status: "pending", note: "Grievance submitted", updatedBy: veteranName, updatedAt: new Date() }],
     });
 
-     if (userId) {
+    if (userId) {
       await Notification.create({
-        recipientId: userId,
-        recipientType: "user",
+        recipientId: userId, recipientType: "user",
         title: "Grievance Submitted",
         message: `Your grievance ${grievanceId} has been submitted successfully`,
         type: "grievance_update",
-        grievanceId: grievance._id,
-        grievanceCode: grievanceId,
+        grievanceId: grievance._id, grievanceCode: grievanceId,
       });
     }
 
-    // Update Station case count
     await Station.findOneAndUpdate(
       { name: { $regex: stationName, $options: "i" } },
       { $inc: { totalCases: 1 } }
     );
-
-    // Update CaseType count
     await CaseType.findOneAndUpdate(
       { name: type },
       { $inc: { totalCases: 1, pendingCases: 1 } }
@@ -166,8 +180,7 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
     const validStatuses = ["pending", "in-progress", "escalated", "resolved", "closed"];
 
     if (!status || !validStatuses.includes(status)) {
-      res.status(400).json({ success: false, message: "Invalid status" });
-      return;
+      res.status(400).json({ success: false, message: "Invalid status" }); return;
     }
 
     const grievance = await Grievance.findOne({
@@ -178,15 +191,10 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
       isDeleted: false,
     });
 
-    if (!grievance) {
-      res.status(404).json({ success: false, message: "Grievance not found" });
-      return;
-    }
+    if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
 
     const oldStatus = grievance.status;
     grievance.status = status;
-
-    // Add timeline entry
     grievance.timeline.push({
       status,
       note: note || `Status updated to ${status}`,
@@ -196,9 +204,7 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
 
     if (status === "resolved") {
       grievance.resolvedAt = new Date();
-      // Update CaseType resolved count
       await CaseType.findOneAndUpdate({ name: grievance.type }, { $inc: { resolvedCases: 1, pendingCases: -1 } });
-      // Update Station resolved count
       await Station.findOneAndUpdate(
         { name: { $regex: grievance.stationName, $options: "i" } },
         { $inc: { resolvedCases: 1 } }
@@ -206,7 +212,6 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
     }
 
     if (status === "escalated" && oldStatus !== "escalated") {
-      // Auto-create escalation
       const daysSinceCreation = Math.floor((Date.now() - grievance.createdAt.getTime()) / (1000 * 60 * 60 * 24));
       const escCount = await Escalation.countDocuments();
       await Escalation.create({
@@ -226,16 +231,13 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
 
     await grievance.save();
 
-    // Send notification if userId exists
     if (grievance.userId) {
       await Notification.create({
-        recipientId: grievance.userId,
-        recipientType: "user",
+        recipientId: grievance.userId, recipientType: "user",
         title: "Grievance Update",
         message: `Your grievance ${grievance.grievanceId} status changed to ${status}`,
         type: "grievance_update",
-        grievanceId: grievance._id,
-        grievanceCode: grievance.grievanceId,
+        grievanceId: grievance._id, grievanceCode: grievance.grievanceId,
       });
     }
 
@@ -252,12 +254,8 @@ export const assignOfficer = async (req: Request, res: Response): Promise<void> 
     const grievance = await Grievance.findByIdAndUpdate(
       req.params.id,
       {
-        officerId,
-        officerName,
-        status: "in-progress",
-        $push: {
-          timeline: { status: "in-progress", note: `Assigned to ${officerName}`, updatedBy: "Admin", updatedAt: new Date() },
-        },
+        officerId, officerName, status: "in-progress",
+        $push: { timeline: { status: "in-progress", note: `Assigned to ${officerName}`, updatedBy: "Admin", updatedAt: new Date() } },
       },
       { new: true }
     );
@@ -268,7 +266,7 @@ export const assignOfficer = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// ─── ADD comment to grievance ────────────────────────────────────────────────
+// ─── ADD comment ─────────────────────────────────────────────────────────────
 export const addComment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { message, authorName, authorRole } = req.body;
@@ -287,18 +285,16 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
       authorId: (req as any).user?.id,
       authorName: authorName || (req as any).user?.name || "Unknown",
       authorRole: authorRole || (req as any).user?.role || "user",
-      message,
-      createdAt: new Date(),
+      message, createdAt: new Date(),
     });
     await grievance.save();
-
     res.status(200).json({ success: true, message: "Comment added", data: grievance });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── DELETE (soft-delete) grievance ─────────────────────────────────────────
+// ─── DELETE (soft-delete) ────────────────────────────────────────────────────
 export const deleteGrievance = async (req: Request, res: Response): Promise<void> => {
   try {
     const grievance = await Grievance.findByIdAndUpdate(req.params.id, { isDeleted: true }, { new: true });
@@ -309,14 +305,13 @@ export const deleteGrievance = async (req: Request, res: Response): Promise<void
   }
 };
 
-// ─── GET grievances by USER (veteran) ────────────────────────────────────────
+// ─── GET my grievances (veteran) ─────────────────────────────────────────────
 export const getMyGrievances = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.id;
     const { status } = req.query;
     const query: any = { userId, isDeleted: false };
     if (status) query.status = status;
-
     const grievances = await Grievance.find(query).sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: grievances });
   } catch (error: any) {
@@ -324,7 +319,7 @@ export const getMyGrievances = async (req: Request, res: Response): Promise<void
   }
 };
 
-// ─── TRACK grievance by ID (public) ─────────────────────────────────────────
+// ─── TRACK grievance (public) ────────────────────────────────────────────────
 export const trackGrievance = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -336,10 +331,7 @@ export const trackGrievance = async (req: Request, res: Response): Promise<void>
       isDeleted: false,
     }).select("grievanceId type veteranName stationName officerName status priority timeline createdAt resolvedAt");
 
-    if (!grievance) {
-      res.status(404).json({ success: false, message: "Grievance not found. Check your complaint ID." });
-      return;
-    }
+    if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found. Check your complaint ID." }); return; }
     res.status(200).json({ success: true, data: grievance });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -347,14 +339,25 @@ export const trackGrievance = async (req: Request, res: Response): Promise<void>
 };
 
 // ─── DASHBOARD stats ─────────────────────────────────────────────────────────
-export const getDashboardStats = async (_req: Request, res: Response): Promise<void> => {
+export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { period } = req.query;
+
+    // Role-based station filter
+    const stationFilter = getStationFilter(req);
+
+    // Date filter from period param
+    const dateFilter = getDateFilter(period as string);
+
+    // Combined base filter
+    const baseFilter = { isDeleted: false, ...stationFilter, ...dateFilter };
+
     const [total, pending, inProgress, escalated, resolved] = await Promise.all([
-      Grievance.countDocuments({ isDeleted: false }),
-      Grievance.countDocuments({ status: "pending", isDeleted: false }),
-      Grievance.countDocuments({ status: "in-progress", isDeleted: false }),
-      Grievance.countDocuments({ status: "escalated", isDeleted: false }),
-      Grievance.countDocuments({ status: "resolved", isDeleted: false }),
+      Grievance.countDocuments(baseFilter),
+      Grievance.countDocuments({ ...baseFilter, status: "pending" }),
+      Grievance.countDocuments({ ...baseFilter, status: "in-progress" }),
+      Grievance.countDocuments({ ...baseFilter, status: "escalated" }),
+      Grievance.countDocuments({ ...baseFilter, status: "resolved" }),
     ]);
 
     // Monthly data (last 6 months)
@@ -362,7 +365,7 @@ export const getDashboardStats = async (_req: Request, res: Response): Promise<v
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
     const monthlyGrievances = await Grievance.aggregate([
-      { $match: { createdAt: { $gte: sixMonthsAgo }, isDeleted: false } },
+      { $match: { createdAt: { $gte: sixMonthsAgo }, isDeleted: false, ...stationFilter } },
       {
         $group: {
           _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
@@ -373,24 +376,21 @@ export const getDashboardStats = async (_req: Request, res: Response): Promise<v
       { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
-    // By type
     const byType = await Grievance.aggregate([
-      { $match: { isDeleted: false } },
+      { $match: { ...baseFilter } },
       { $group: { _id: "$type", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 5 },
     ]);
 
-    // By station
     const byStation = await Grievance.aggregate([
-      { $match: { isDeleted: false } },
+      { $match: { ...baseFilter } },
       { $group: { _id: "$stationName", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 5 },
     ]);
 
-    // Recent grievances
-    const recent = await Grievance.find({ isDeleted: false })
+    const recent = await Grievance.find(baseFilter)
       .sort({ createdAt: -1 })
       .limit(5)
       .select("grievanceId type veteranName stationName status createdAt");
@@ -416,7 +416,7 @@ export const getDashboardStats = async (_req: Request, res: Response): Promise<v
   }
 };
 
-// ─── DELETE ALL grievances ────────────────────────────────────────────────────
+// ─── DELETE ALL ───────────────────────────────────────────────────────────────
 export const deleteAllGrievances = async (_req: Request, res: Response): Promise<void> => {
   try {
     await Grievance.deleteMany({});

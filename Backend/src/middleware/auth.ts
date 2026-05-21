@@ -46,11 +46,11 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
     }
 
     (req as any).user = {
-      id: currentUser._id.toString(),
-      name: currentUser.name || currentUser.username,
-      role: decoded.role,
-      email: currentUser.email,
-      station: currentUser.station || currentUser.stationHQ,
+        id:      currentUser._id.toString(),
+        name:    currentUser.name || currentUser.username,
+        role:    decoded.role,
+        email:   currentUser.email,
+        station: decoded.station || currentUser.station || currentUser.stationHQ,
     };
 
     next();
@@ -78,3 +78,9 @@ export const restrictTo = (...roles: string[]) => {
 
 // ─── Admin only shortcut ─────────────────────────────────────────────────────
 export const adminOnly = restrictTo("super_admin", "esm_officer", "station_officer", "record_office");
+
+// ─── Station filter helper ────────────────────────────────────────────────────
+export const getStationFilter = (user: any): string | null => {
+  if (user.role === "super_admin") return null; // no filter
+  return user.station || null; // filter by their station
+};

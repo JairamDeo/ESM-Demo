@@ -1,6 +1,6 @@
 import { memo, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Bell, CheckCircle2, AlertTriangle, FileText, Check } from "lucide-react";
+import { ArrowLeft, Bell, CheckCircle2, AlertTriangle, FileText, Check, ChevronLeft } from "lucide-react";
 import { useNotifications, useMarkNotificationRead } from "@/hooks/useApi";
 
 const typeIcon: Record<string, any> = {
@@ -33,9 +33,9 @@ export default memo(function Notifications() {
   return (
     <div className="px-4 space-y-5 animate-fade-in pb-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ArrowLeft className="w-5 h-5" /></Link>
-          <h1 className="text-lg font-bold text-foreground">Notifications</h1>
+        <div className="flex items-center gap-5">
+          <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ChevronLeft className="w-5 h-5 " color="#FFFFFF" /></Link>
+          <h1 className="text-xl font-bold text-foreground">Notifications</h1>
           {unreadCount > 0 && <span className="text-xs bg-[#826CF3] text-primary-foreground px-2 py-0.5 rounded-full">{unreadCount}</span>}
         </div>
         {unreadCount > 0 && (

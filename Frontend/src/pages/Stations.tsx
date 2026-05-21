@@ -1,6 +1,6 @@
 import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
-import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus } from "lucide-react";
+import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus, ChevronDown } from "lucide-react";
 import { useStations, useCreateStation } from "@/hooks/useApi";
 
 const STATES = ["Maharashtra", "Gujarat", "Karnataka", "Rajasthan", "Madhya Pradesh", "Uttar Pradesh", "Punjab", "Haryana", "Delhi", "Telangana"];
@@ -41,12 +41,15 @@ export default memo(function Stations() {
         <div className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 flex-1 max-w-sm">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search stations..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full" />
-        </div>
-        <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
-          <option value="">All States</option>
-          {STATES.map((s) => <option key={s}>{s}</option>)}
-        </select>
       </div>
+      <div className="relative">
+      <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="appearance-none bg-secondary/50 border border-border rounded-lg px-3 py-2 pr-10 text-sm  outline-none  cursor-pointer text-secondary-foreground hover:bg-secondary/80"
+    >   <option value="">All States</option>
+        {STATES.map((s) => (<option key={s}>{s}</option>))}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground pointer-events-none" />
+      </div>
+    </div>
 
       {/* Modal */}
       {open && (
@@ -62,11 +65,15 @@ export default memo(function Stations() {
                 <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="e.g. Amravati" className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary" />
                 {form.city && <p className="text-xs text-muted-foreground mt-1">Name: <span className="text-foreground">{form.city} Station HQ</span></p>}
               </div>
+
               <div>
                 <label className="text-xs font-medium text-muted-foreground">State *</label>
-                <select value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary">
-                  {STATES.map((s) => <option key={s}>{s}</option>)}
+                <div className="relative mt-1">
+                <select value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+    >           {STATES.map((s) => (<option key={s}>{s}</option>))}
                 </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+                </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Number of Officers</label>

@@ -54,9 +54,9 @@ export default function Services() {
       {/* Header */}
       <div className="flex items-center gap-5">
         <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
-          <ChevronLeft className="w-4 h-4 mt-1" color="#FFFFFF" />
+          <ChevronLeft className="w-5 h-5 " color="#FFFFFF" />
         </Link>
-        <h1 className="text-xl font-semibold text-foreground">Services</h1>
+        <h1 className="text-xl font-bold text-foreground">Services</h1>
       </div>
 
       {/* Search */}

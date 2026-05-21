@@ -1,6 +1,6 @@
 import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
-import { QrCode, Download, Eye, RefreshCw, X, Plus, Search } from "lucide-react";
+import { QrCode, Download, Eye, RefreshCw, X, Plus, Search, ChevronDown } from "lucide-react";
 import QRCode from "react-qr-code";
 import { useQRCodes, useGenerateQRCode, useRegenerateQRCode, useToggleQRStatus, getQRDownloadUrl } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -56,7 +56,7 @@ export default memo(function QRCodes() {
   const handleToggle = useCallback(async (qr: any) => {
     if (qr._id) await toggle.mutateAsync(qr._id);
   }, [toggle]);
-
+ 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -75,11 +75,15 @@ export default memo(function QRCodes() {
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search QR codes..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full" />
         </div>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
-          <option value="">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+
+        <div className="relative">
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="appearance-none bg-secondary/50 border border-border rounded-lg px-3 py-2 pr-10 text-sm text-foreground outline-none cursor-pointer hover:bg-secondary/80"
+  >         <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+        </div>
       </div>
 
       {/* Generate Modal */}
@@ -91,12 +95,15 @@ export default memo(function QRCodes() {
               <button onClick={() => setOpen(false)} className="text-muted-foreground"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Station *</label>
-                <select value={form.station} onChange={(e) => setForm({ ...form, station: e.target.value })} className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary">
-                  {STATIONS.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Station *</label>
+            <div className="relative mt-1">
+            <select value={form.station} onChange={(e) => setForm({ ...form, station: e.target.value })} className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+    >       {STATIONS.map((s) => (<option key={s}>{s}</option>))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+          </div>
+          </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">QR Code (auto-generated if empty)</label>
                 <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder={autoCode} className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground" />
@@ -115,7 +122,7 @@ export default memo(function QRCodes() {
 
       {/* View Modal */}
       {selectedQR && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 ">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm text-center">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-foreground">QR Preview</h2>
@@ -149,7 +156,8 @@ export default memo(function QRCodes() {
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${qr.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{qr.status}</span>
                 <span className="text-xs font-mono text-muted-foreground">{qr.code}</span>
               </div>
-              <div className="w-full aspect-square bg-white rounded-lg flex items-center justify-center mb-4 p-3">
+              {/* <div className="w-full aspect-square bg-white rounded-lg flex items-center justify-center mb-4 p-3"> */}
+              <div className="w-60 h-60 bg-white rounded-lg flex items-center justify-center mb-4 p-2 mx-auto">
                 <QRCode id={`qr-${qr.code}`} value={qr.qrData || qr.code} size={120} />
               </div>
               <h3 className="font-semibold text-foreground text-sm">{qr.stationName || qr.station}</h3>

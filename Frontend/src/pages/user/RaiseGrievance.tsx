@@ -87,11 +87,11 @@ const stationHQs = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ"
   return (
     <div className="max-h-screen bg-[#171719] font-sans  ">
       {/* Header */}
-      <div className="flex items-center gap-5 px-2  h-[40px]  ">
-        <Link to="/user" className="flex items-center justify-center w-8 h-8 rounded-full shrink-0">
-          <ChevronLeft size={16} color="#ffffff"  className="" />
+      <div className="flex items-center gap-5 px-3   ">
+        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
+          <ChevronLeft className="w-5 h-5  " color="#FFFFFF" />
         </Link>
-        <h1 className="text-md font-semibold text-white tracking-tight">Personal Details</h1>
+        <h1 className="text-xl font-bold text-foreground">Personal Details</h1>
       </div>
 
       {/* Form */}

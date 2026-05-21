@@ -30,9 +30,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         {/* Top Bar */}
         <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-background border-b">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#222222] flex items-center justify-center">
+            <Link to="/user/profile" className="w-9 h-9 rounded-full bg-[#222222] flex items-center justify-center">
               <Icon icon="iconamoon:profile-fill" className="w-5 h-5 text-primary" color="white" />
-            </div>
+            </Link>
             <span className="text-sm text-muted-foreground">Welcome Back</span>
           </div>
 

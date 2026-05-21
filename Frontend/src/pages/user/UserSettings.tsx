@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Moon, Sun, Bell, Shield, LogOut, ChevronRight } from "lucide-react";
+import { ArrowLeft, Moon, Sun, Bell, Shield, LogOut, ChevronRight, ChevronLeft } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -25,9 +25,9 @@ export default memo(function UserSettings() {
 
   return (
     <div className="px-4 space-y-5 animate-fade-in pb-6">
-      <div className="flex items-center gap-3">
-        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ArrowLeft className="w-5 h-5" /></Link>
-        <h1 className="text-lg font-bold text-foreground">Settings</h1>
+      <div className="flex items-center gap-5">
+        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ChevronLeft className="w-5 h-5 " color="#FFFFFF" /></Link>
+        <h1 className="text-xl font-bold text-foreground">Settings</h1>
       </div>
 
       <div className="space-y-3">

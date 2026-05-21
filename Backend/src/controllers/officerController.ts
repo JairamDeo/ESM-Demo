@@ -2,12 +2,23 @@ import { Request, Response } from "express";
 import Officer from "../models/Officer";
 import Station from "../models/Station";
 
+// ─── Helper: get station filter based on role ────────────────────────────────
+const getStationFilter = (req: Request): any => {
+  const user = (req as any).user;
+  if (!user || user.role === "super_admin") return {};
+  if (user.station && user.station !== "Nagpur Sub-Area") {
+    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
+  }
+  return {};
+};
+
 // ─── GET all officers ────────────────────────────────────────────────────────
 export const getOfficers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { search, role, station, status, page = 1, limit = 20 } = req.query;
 
-    const query: any = {};
+    const stationFilter = getStationFilter(req);
+    const query: any = { ...stationFilter };
 
     if (search) {
       query.$or = [
@@ -17,7 +28,9 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
       ];
     }
     if (role) query.role = role;
-    if (station) query.stationName = { $regex: station, $options: "i" };
+    if (station && (req as any).user?.role === "super_admin") {
+      query.stationName = { $regex: station, $options: "i" };
+    }
     if (status) query.status = status;
 
     const pageNum = parseInt(page as string);
@@ -32,11 +45,12 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
       Officer.countDocuments(query),
     ]);
 
-    // Role-wise counts
+    // Role-wise counts — also filtered by station for non super_admin
+    const countFilter = { ...stationFilter };
     const [esmCount, stationCount, recordCount] = await Promise.all([
-      Officer.countDocuments({ role: "ESM Officer" }),
-      Officer.countDocuments({ role: "Station HQ Officer" }),
-      Officer.countDocuments({ role: "Record Office" }),
+      Officer.countDocuments({ ...countFilter, role: "ESM Officer" }),
+      Officer.countDocuments({ ...countFilter, role: "Station HQ Officer" }),
+      Officer.countDocuments({ ...countFilter, role: "Record Office" }),
     ]);
 
     res.status(200).json({
@@ -80,16 +94,12 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
     const station = await Station.findOne({ name: { $regex: stationName, $options: "i" } });
 
     const officer = await Officer.create({
-      name: name.trim(),
-      rank: rank?.trim() || "",
-      role,
+      name: name.trim(), rank: rank?.trim() || "", role,
       stationId: station?._id,
       stationName: station?.name || stationName,
-      email: email.toLowerCase().trim(),
-      phone,
+      email: email.toLowerCase().trim(), phone,
     });
 
-    // Update station officer count
     if (station) {
       await Station.findByIdAndUpdate(station._id, { $inc: { officerCount: 1 } });
     }
@@ -142,7 +152,6 @@ export const deleteOfficer = async (req: Request, res: Response): Promise<void> 
     const officer = await Officer.findByIdAndDelete(req.params.id);
     if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
 
-    // Decrease station count
     if (officer.stationId) {
       await Station.findByIdAndUpdate(officer.stationId, { $inc: { officerCount: -1 } });
     }
