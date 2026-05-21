@@ -5,9 +5,9 @@ import User from "../models/User";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-const signToken = (id: string, role: string): string =>
-  jwt.sign({ id, role }, process.env.JWT_SECRET as string, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+const signToken = (id: string, role: string, station?: string): string =>
+  jwt.sign({ id, role, station }, process.env.JWT_SECRET as string, {
+  expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   } as jwt.SignOptions);
 
 const generateOTP = (): string =>
@@ -43,8 +43,8 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     admin.lastLogin = new Date();
     await admin.save({ validateBeforeSave: false });
 
-    const token = signToken(admin._id.toString(), admin.role);
-
+    const token = signToken(admin._id.toString(), admin.role, admin.station);
+    
     res.status(200).json({
       success: true,
       message: "Login successful",

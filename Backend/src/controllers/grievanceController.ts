@@ -415,3 +415,15 @@ export const getDashboardStats = async (_req: Request, res: Response): Promise<v
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ─── DELETE ALL grievances ────────────────────────────────────────────────────
+export const deleteAllGrievances = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await Grievance.deleteMany({});
+    await Escalation.deleteMany({});
+    await Notification.deleteMany({});
+    res.status(200).json({ success: true, message: "All grievances, escalations and notifications deleted" });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

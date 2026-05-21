@@ -4,10 +4,11 @@ import Admin from "../models/Admin";
 import User from "../models/User";
 
 interface JwtPayload {
-  id: string;
-  role: string;
-  iat: number;
-  exp: number;
+        id:      string;
+        role:    string;
+        station?: string;  // ← add this
+        iat:     number;
+        exp:     number;
 }
 
 // ─── Attach user to request ──────────────────────────────────────────────────

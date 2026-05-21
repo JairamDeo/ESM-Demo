@@ -3,7 +3,7 @@ import {
   getGrievances, getGrievanceById, createGrievance,
   updateGrievanceStatus, assignOfficer, addComment,
   deleteGrievance, getMyGrievances, trackGrievance,
-  getDashboardStats,
+  getDashboardStats,deleteAllGrievances,
 } from "../controllers/grievanceController";
 import { protect, restrictTo, adminOnly } from "../middleware/auth";
 
@@ -23,6 +23,9 @@ router.post("/", protect, createGrievance);
 
 // ─── Admin: list all ─────────────────────────────────────────────────────────
 router.get("/", protect, adminOnly, getGrievances);
+
+// ─── Admin: delete all grievances ────────────────────────────────────────────
+router.delete("/delete-all", protect, restrictTo("super_admin"), deleteAllGrievances);
 
 // ─── Admin: single ───────────────────────────────────────────────────────────
 router.get("/:id", protect, adminOnly, getGrievanceById);

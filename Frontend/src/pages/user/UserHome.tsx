@@ -17,22 +17,70 @@ const progressMap: Record<string, number> = {pending: 20, "in-progress": 80, esc
 const CIRCUMFERENCE = 2 * Math.PI * 32;
 
 const RecentComplaintBox = ({recentComplaint, progress,}: {recentComplaint: any; progress: number;}) => (
-  <div className="w-full bg-[#232324] rounded-xl p-5 lg:p-3 lg:h-[130px]">
-    <div className="flex justify-between items-center mb-3 lg:mb-0.5 ">
-      <h3 className="font-semibold text-md lg:text-lg ">Recent Complaint</h3>
+  <div className="w-full bg-[#232324] rounded-xl p-4">
+    <div className="flex justify-between items-center mb-3">
+      <h3 className="font-semibold text-md lg:text-lg">Recent Complaint</h3>
     </div>
+
     {recentComplaint ? (
-      <div className="flex items-center justify-between gap-1 ">
-        <div className="space-y-2 text-[11px] text-muted-foreground ">
-          <p className="text-[#a5a4a4]">Complaint ID : {recentComplaint.grievanceId || "PMS/2026-001"}</p>
-          <p className="flex items-center gap-1 bg-[#2A2A2A] rounded-sm pl-2 text-[#d5d5d5]">
-            Status :{" "}
-            <span className="  px-2 py-1 font-medium capitalize text-[#fec25c]">
-              {recentComplaint.status || "Inprogress"}
-            </span>
+      <div className="flex items-start justify-between gap-3">
+
+        {/* Left — Info */}
+        <div className="flex-1 space-y-2 min-w-0">
+
+          {/* ID */}
+          <p className="text-[10px] text-[#a5a4a4]">
+            #{recentComplaint.grievanceId}
           </p>
+
+          {/* Type */}
+          <p className="text-sm font-semibold text-white leading-tight">
+            {recentComplaint.type || "Grievance"}
+          </p>
+
+          {/* Status */}
+          <div className="flex items-center gap-1.5 rounded-full text-[11px] text-[#d1d1d1] ">
+            <span>Status :</span>
+            <span className={`px-1.5 py-0.5 rounded-full  font-medium capitalize text-[10px]
+              ${recentComplaint.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                recentComplaint.status === 'in-progress' ? 'bg-blue-500/20 text-blue-400' :
+                recentComplaint.status === 'escalated' ? 'bg-red-500/20 text-red-400' :
+                'bg-yellow-500/20 text-[#FFBF54]'}`}>
+              {recentComplaint.status}
+            </span>
+          </div>
+
+          {/* Station + Date in same line */}
+          <div className="flex items-center gap-2 text-[11px] text-[#a5a4a4]">
+            {recentComplaint.stationName && (
+              <div className="flex items-center gap-1">
+                <span>📍</span>
+                <span className="truncate max-w-[80px]">{recentComplaint.stationName}</span>
+              </div>
+            )}
+            {recentComplaint.createdAt && (
+              <>
+                <span className="text-[#444]">•</span>
+                <div className="flex items-center gap-1">
+                  <span>📅</span>
+                  <span>{new Date(recentComplaint.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Officer */}
+          {recentComplaint.officerName && recentComplaint.officerName !== "Unassigned" && (
+            <div className="flex items-center gap-1.5 text-[11px] text-[#a5a4a4]">
+              <span>👤</span>
+              <span className="truncate">{recentComplaint.officerName}</span>
+            </div>
+          )}
+
         </div>
-        <div className="relative w-[80px] h-[80px] flex-shrink-0 ">
+
+        {/* Right — Circle Progress */}
+        <div className="relative w-[80px] h-[80px] flex-shrink-0">
           <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
             <circle
               cx="40" cy="40" r="32"
@@ -51,15 +99,16 @@ const RecentComplaintBox = ({recentComplaint, progress,}: {recentComplaint: any;
             {progress}%
           </div>
         </div>
+
       </div>
     ) : (
-      <p className="text-xs lg:text-md text-muted-foreground">No complaints yet.</p>
+      <div className="py-4 text-center">
+        <p className="text-xs text-muted-foreground">No complaints yet.</p>
+        <p className="text-[10px] text-muted-foreground mt-1">Raise a grievance to see it here</p>
+      </div>
     )}
   </div>
 );
-
-
-
 
 export default memo(function UserHome() {
   const { user } = useAuth();

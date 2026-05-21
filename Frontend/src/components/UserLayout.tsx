@@ -40,9 +40,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
             {/* Notification Bell with red dot */}
             <Link to="/user/notifications" className="p-2 rounded-full bg-[#222222] hover:bg-secondary text-muted-foreground relative">
-              <img src="/icons/notification.svg" alt="" className="w-4 h-4" />
+              <Icon icon="iconoir:bell"  className="w-4 h-4 text-white" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#e11e66]" />
+                <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-[#e11e66]" />
               )}
             </Link>
 

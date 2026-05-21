@@ -115,16 +115,16 @@ export const useUpdateGrievanceStatus = () => {
 export const useAssignOfficer = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, officerName }: { id: string; officerName: string }) => {
+    mutationFn: async ({ id, officerName, isNew = false }: { id: string; officerName: string; isNew?: boolean }) => {
       const { data } = await api.patch(`/grievances/${id}/assign`, { officerName });
-      return data.data;
+      return { ...data.data, isNew };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["grievances"] });
-      toast.success("Officer reassigned");
+      toast.success(data?.isNew ? "Officer assigned" : "Officer reassigned");
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to reassign officer");
+      toast.error(err?.response?.data?.message || "Failed to assign officer");
     },
   });
 };
@@ -415,14 +415,18 @@ export const useNotifications = (unreadOnly = false) => {
   const path = window.location.pathname;
   const isUserPortal = path.startsWith("/user/") || path === "/user";
   return useQuery({
-    queryKey: queryKeys.notifications,
+    queryKey: [...queryKeys.notifications,unreadOnly,],
     queryFn: async () => {
       const { data } = await api.get("/notifications", { params: { unreadOnly } });
       return data;
     },
-    staleTime: 0,
-    refetchInterval: isUserPortal ? 30_000 : false,
+    staleTime: 60_000,
+    gcTime: 300_000,
+    refetchInterval: isUserPortal ? 60_000 : false,
     enabled: isUserPortal,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
   });
 };
 

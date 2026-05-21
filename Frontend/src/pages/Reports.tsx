@@ -101,7 +101,7 @@ export default memo(function Reports() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border">
+                <tr className="border-b border-border  ">
                   {["Station","Total","Resolved","Pending","Resolution Rate"].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-muted-foreground py-3 px-3">{h}</th>
                   ))}
@@ -109,7 +109,7 @@ export default memo(function Reports() {
               </thead>
               <tbody>
                 {stationPerf.map((s: any) => (
-                  <tr key={s.station} className="border-b border-border/50 hover:bg-secondary/30">
+                  <tr key={s.station} className="border-b border-border/50 hover:bg-secondary/30 ">
                     <td className="py-3 px-3 text-sm font-medium text-foreground">{s.station}</td>
                     <td className="py-3 px-3 text-sm text-foreground">{s.total}</td>
                     <td className="py-3 px-3 text-sm text-success">{s.resolved}</td>

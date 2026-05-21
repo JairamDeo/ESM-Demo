@@ -40,6 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -79,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         {(!collapsed || mobile) && (
           <div>
-            <span className="font-semibold text-foreground text-base tracking-tight">Vitric ESM</span>
+            <span className="font-bold text-foreground text-base tracking-tight">Vitric ESM</span>
           </div>
         )}
         {mobile && (
@@ -110,7 +111,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ))}
       </nav>
 
-      <div className="p-2 border-t border-border space-y-1 shrink-0">
+      {/* Only collapse button — logout removed from sidebar */}
+      <div className="p-2 border-t border-border shrink-0">
         {!mobile && (
           <button
             onClick={() => setCollapsed(!collapsed)}
@@ -119,13 +121,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /><span>Collapse</span></>}
           </button>
         )}
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors text-sm"
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          {(!collapsed || mobile) && <span>Logout</span>}
-        </button>
       </div>
     </>
   ));
@@ -165,10 +160,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               />
             </div>
           </div>
+
           <div className="flex items-center gap-1 md:gap-2 shrink-0">
+            {/* Theme toggle */}
             <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
               {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
+
+            {/* Notifications */}
             <button className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground relative">
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -177,7 +176,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </span>
               )}
             </button>
+
             <div className="w-px h-8 bg-border mx-1" />
+
+            {/* User info */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                 <span className="text-primary text-sm font-semibold">{(user?.name || "A")[0].toUpperCase()}</span>
@@ -187,11 +189,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <p className="text-xs text-muted-foreground">{roleLabel[user?.role || ""] || user?.station || "HQ"}</p>
               </div>
             </div>
-            <button onClick={handleLogout} className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground" title="Logout">
-              <LogOut className="w-5 h-5" />
-            </button>
+
+            {/* Profile dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setProfileOpen((o) => !o)}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+                title="Account"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+
+              {profileOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
+                  <div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-48">
+
+                    {/* User info in dropdown */}
+                    <div className="px-3 py-2 border-b border-border">
+                      <p className="text-sm font-medium text-foreground">{user?.name || "Admin"}</p>
+                      <p className="text-xs text-muted-foreground">{roleLabel[user?.role || ""] || "Admin"}</p>
+                    </div>
+
+                    {/* Switch to Veteran Portal */}
+                    {/* <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        navigate("/user");
+                      }}
+                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors"
+                    >
+                      <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                      Veteran Portal
+                    </button> */}
+
+                    {/* Logout */}
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        handleLogout();
+                      }}
+                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Logout
+                    </button>
+
+                  </div>
+                </>
+              )}
+            </div>
+
           </div>
         </header>
+
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
     </div>

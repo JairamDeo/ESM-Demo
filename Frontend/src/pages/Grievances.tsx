@@ -202,13 +202,22 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const perms = usePermissions();
+  const deleteGrievance = useDeleteGrievance();
+
   const actions = [
     { label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
     ...(perms.updateGrievanceStatus && grievance.status==="pending"?[{label:"Start Processing",icon:ArrowUpRight,onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]:[]),
     ...(perms.escalateGrievance && grievance.status!=="resolved"&&grievance.status!=="escalated"?[{label:"Escalate",icon:AlertTriangle,onClick:()=>{onEscalate();setOpen(false);}}]:[]),
     ...(perms.updateGrievanceStatus && grievance.status!=="resolved"?[{label:"Mark Resolved",icon:CheckCircle2,onClick:()=>{onStatusChange("resolved");setOpen(false);}}]:[]),
-    ...(perms.reassignOfficer?[{ label:"Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);} }]:[]),
+    ...(perms.reassignOfficer?[{label: grievance.officerName === "Unassigned" || !grievance.officerName ? "Assign Officer" : "Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);} }]:[]),
     { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);} },
+    ...(perms.deleteGrievance ? [{label: "Delete Grievance", icon: Trash2, onClick: () => {
+      if (window.confirm("Are you sure you want to delete this grievance?")) {
+        deleteGrievance.mutate(grievance._id);
+      }
+      setOpen(false);
+    }
+  }] : []),
   ];
   return (
     <div className="relative" ref={ref}>
@@ -281,7 +290,8 @@ export default memo(function Grievances() {
 
   const handleReassign = useCallback((g: any, officerName: string) => {
     if (!g._id) return;
-    assignOfficer.mutate({ id: g._id, officerName });
+    const isNew = g._originalOfficer === "Unassigned" || !g._originalOfficer;
+    assignOfficer.mutate({ id: g._id, officerName, isNew });
   }, [assignOfficer]);
 
   const removeFilter = (key: keyof FilterState) => setFilters((f)=>({...f,[key]:""}));
@@ -336,7 +346,7 @@ export default memo(function Grievances() {
         </div>
       </div>
 
-      {/* ── Case Type Quick-Filter Strip ── */}
+      {/* ── Case Type Quick-Filter Strip ──  */}
       {/* <div className="flex gap-2 flex-wrap">
         <button
           onClick={() => { setFilters((f) => ({...f, caseType: ""})); setPage(1); }}
@@ -402,7 +412,7 @@ export default memo(function Grievances() {
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={()=>setViewGrievance(g)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"><Eye className="w-4 h-4"/></button>
-                      <ActionsMenu grievance={g} onView={()=>setViewGrievance(g)} onStatusChange={(s: string)=>handleStatusChange(g,s)} onEscalate={()=>setEscalateGrievance(g)} onAssign={()=>setReassignGrievance(g)}/>
+                      <ActionsMenu grievance={g} onView={()=>setViewGrievance(g)} onStatusChange={(s: string)=>handleStatusChange(g,s)} onEscalate={()=>setEscalateGrievance(g)} onAssign={()=>setReassignGrievance({...g, _originalOfficer: g.officerName})}/>
                     </div>
                   </td>
                 </tr>
@@ -444,22 +454,29 @@ export default memo(function Grievances() {
           </div>
         </Modal>
       )}
-      {reassignGrievance && (
-        <Modal open onClose={()=>setReassignGrievance(null)} title={`Reassign — ${reassignGrievance.grievanceId||reassignGrievance.id}`}>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Currently: <span className="text-foreground font-medium">{reassignGrievance.officerName||reassignGrievance.officer}</span></p>
-            <FormField label="New Assigned Officer">
-              <SelectField value={reassignGrievance.officerName||""} onChange={(v)=>setReassignGrievance((g: any)=>({...g,officerName:v}))}>
-                {OFFICERS.map((o)=><option key={o}>{o}</option>)}
-              </SelectField>
-            </FormField>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={()=>setReassignGrievance(null)} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg">Cancel</button>
-              <button onClick={()=>{handleReassign(reassignGrievance,reassignGrievance.officerName);setReassignGrievance(null);}} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg">Reassign</button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      {reassignGrievance && (() => {
+  // Store original officer name — doesn't change when dropdown is selected
+  const isUnassigned = reassignGrievance._originalOfficer === "Unassigned" || !reassignGrievance._originalOfficer;
+  return (
+    <Modal open onClose={()=>setReassignGrievance(null)} title={`${isUnassigned ? "Assign" : "Reassign"} — ${reassignGrievance.grievanceId||reassignGrievance.id}`}>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">Currently: <span className="text-foreground font-medium">{reassignGrievance._originalOfficer}</span></p>
+        <FormField label={isUnassigned ? "Assign Officer" : "New Assigned Officer"}>
+          <SelectField value={reassignGrievance.officerName === "Unassigned" ? "" : reassignGrievance.officerName||""} onChange={(v)=>setReassignGrievance((g: any)=>({...g,officerName:v}))}>
+            <option value="">Select Officer</option>
+            {OFFICERS.map((o)=><option key={o}>{o}</option>)}
+          </SelectField>
+        </FormField>
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={()=>setReassignGrievance(null)} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg">Cancel</button>
+          <button onClick={()=>{handleReassign(reassignGrievance,reassignGrievance.officerName);setReassignGrievance(null);}} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg">
+            {isUnassigned ? "Assign Officer" : "Reassign Officer"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+})()}
     </div>
   );
 });

@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, Fragment } from "react";
 import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronUp, RotateCcw, Check } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,7 +107,7 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
           </thead>
           <tbody>
             {PERMISSION_GROUPS.map((group) => (
-              <>
+              <Fragment key={group.label}>
                 {/* Group header row */}
                 <tr
                   key={`group-${group.label}`}
@@ -123,7 +123,7 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
                 </tr>
                 {/* Permission rows */}
                 {expandedGroup === group.label && group.perms.map((perm) => (
-                  <tr key={perm.key} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
+                  <tr key={`${group.label}-${perm.key}`} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
                     <td className="py-2.5 pr-4 text-sm text-foreground pl-6">
                       {perm.label}
                       {perm.danger && <span className="ml-1.5 text-[10px] text-destructive font-medium">[sensitive]</span>}
@@ -145,7 +145,7 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
                     ))}
                   </tr>
                 ))}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
