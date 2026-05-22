@@ -208,8 +208,8 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
     { label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
     ...(perms.updateGrievanceStatus && grievance.status==="pending"?[{label:"Start Processing",icon:ArrowUpRight,onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]:[]),
     ...(perms.escalateGrievance && grievance.status!=="resolved"&&grievance.status!=="escalated"?[{label:"Escalate",icon:AlertTriangle,onClick:()=>{onEscalate();setOpen(false);}}]:[]),
-    ...(perms.updateGrievanceStatus && grievance.status!=="resolved"?[{label:"Mark Resolved",icon:CheckCircle2,onClick:()=>{onStatusChange("resolved");setOpen(false);}}]:[]),
-    ...(perms.reassignOfficer?[{label: grievance.officerName === "Unassigned" || !grievance.officerName ? "Assign Officer" : "Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);} }]:[]),
+    ...(perms.updateGrievanceStatus && (grievance.status==="in-progress" || grievance.status==="escalated")?[{label:"Mark Resolved",icon:CheckCircle2,onClick:()=>{onStatusChange("resolved");setOpen(false);}}]:[]),
+    ...(perms.reassignOfficer && grievance.status !== "resolved"?[{label: grievance.officerName === "Unassigned" || !grievance.officerName ? "Assign Officer" : "Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);} }]:[]),
     { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);} },
     ...(perms.deleteGrievance ? [{label: "Delete Grievance", icon: Trash2, onClick: () => {
       if (window.confirm("Are you sure you want to delete this grievance?")) {

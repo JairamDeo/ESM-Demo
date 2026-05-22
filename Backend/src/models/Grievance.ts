@@ -108,7 +108,7 @@ GrievanceSchema.index({ status: 1, createdAt: -1 });
 GrievanceSchema.index({ stationName: 1 });
 GrievanceSchema.index({ type: 1 });
 GrievanceSchema.index({ userId: 1 });
-GrievanceSchema.index({ grievanceId: 1 });
+// GrievanceSchema.index({ grievanceId: 1 });
 GrievanceSchema.index({ isDeleted: 1 });
 
 export default mongoose.model<IGrievance>("Grievance", GrievanceSchema);

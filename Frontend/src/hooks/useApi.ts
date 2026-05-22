@@ -211,6 +211,23 @@ export const useUpdateStation = () => {
   });
 };
 
+export const useDeleteStation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/stations/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["stations"] });
+      toast.success("Station deleted successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to delete station");
+    },
+  });
+};
+
 // ─── QR Codes ─────────────────────────────────────────────────────────────────
 export const useQRCodes = (params?: { status?: string; search?: string }) =>
   useQuery({

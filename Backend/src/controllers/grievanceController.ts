@@ -5,6 +5,8 @@ import Escalation from "../models/Escalation";
 import Notification from "../models/Notification";
 import Station from "../models/Station";
 import CaseType from "../models/CaseType";
+import Officer from "../models/Officer";
+import QRCode from "../models/QRCode";
 
 // ─── Helper: get station filter based on role ────────────────────────────────
 const getStationFilter = (req: Request): any => {
@@ -395,12 +397,19 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       .limit(5)
       .select("grievanceId type veteranName stationName status createdAt");
 
+      // Dynamic counts
+      const [stationCount, officerCount, activeQRCount] = await Promise.all([
+      Station.countDocuments({ isActive: true }),
+      Officer.countDocuments({ status: "active" }),
+      QRCode.countDocuments({ status: "active" }), ]);
+
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     res.status(200).json({
       success: true,
       data: {
         stats: { total, pending, inProgress, escalated, resolved },
+        counts: { stations: stationCount, officers: officerCount, activeQR: activeQRCount }, // ← add this
         monthly: monthlyGrievances.map((m) => ({
           name: monthNames[m._id.month - 1],
           received: m.received,

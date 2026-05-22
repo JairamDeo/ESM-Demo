@@ -1,5 +1,5 @@
 import { useState, memo, useMemo } from "react";
-import { BarChart3, Download, Calendar, FileText, TrendingUp, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import {  Download, FileText, TrendingUp, CheckCircle2, AlertTriangle, Clock, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { useReports } from "@/hooks/useApi";
 
@@ -37,12 +37,15 @@ export default memo(function Reports() {
           <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
           <p className="text-muted-foreground text-sm mt-1">Performance metrics and audit reports</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select value={months} onChange={(e) => setMonths(Number(e.target.value))} className="px-3 py-2 text-sm bg-secondary border border-border text-foreground rounded-lg outline-none focus:border-primary">
-            <option value={3}>Last 3 months</option>
-            <option value={6}>Last 6 months</option>
-            <option value={12}>Last 12 months</option>
-          </select>
+        <div className="flex items-center gap-2 ">
+         <div className="relative">
+            <select value={months} onChange={(e) => setMonths(Number(e.target.value))} className="appearance-none px-3 py-2 pr-10 text-sm bg-secondary/50 border border-border text-foreground rounded-lg outline-none  hover:bg-secondary/80 cursor-pointer"
+  >             <option value={3}>Last 3 months</option>
+                <option value={6}>Last 6 months</option>
+                <option value={12}>Last 12 months</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+          </div>
           <button onClick={handleExport} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2">
             <Download className="w-4 h-4" /> Export JSON
           </button>
