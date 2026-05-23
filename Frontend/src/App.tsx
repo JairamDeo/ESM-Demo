@@ -30,7 +30,7 @@ const UserProfile    = lazy(() => import("@/pages/user/UserProfile"));
 const Notifications  = lazy(() => import("@/pages/user/Notifications"));
 const UserSettings   = lazy(() => import("@/pages/user/UserSettings"));
 
-const queryClient = new QueryClient({
+ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30_000, gcTime: 5 * 60_000, retry: 1, refetchOnWindowFocus: false },
     mutations: { retry: 0 },

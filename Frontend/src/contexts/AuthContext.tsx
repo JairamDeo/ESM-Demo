@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useMemo } from "react";
 import api, { setAuthToken, clearAuthToken, setStoredUser, getStoredUser } from "@/lib/api";
+import { queryClient } from "@/App";
 
 export type UserRole = "super_admin" | "esm_officer" | "station_officer" | "record_office" | "user" | null;
 
@@ -47,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setStoredUser(authUser, "admin");     // ← pass "admin"
     setUser(authUser);
+    queryClient.clear();
   }, []);
 
   const sendOtp = useCallback(async (phone: string) => {
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setStoredUser(authUser, "user");      // ← pass "user"
     setUser(authUser);
+     queryClient.clear();
   }, []);
 
   const logout = useCallback(() => {
@@ -73,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const role = path.startsWith("/user/") ? "user" : "admin";
     clearAuthToken(role);                 // ← pass correct role
     setUser(null);
+    queryClient.clear();
   }, []);
 
   const value = useMemo<AuthContextType>(() => ({

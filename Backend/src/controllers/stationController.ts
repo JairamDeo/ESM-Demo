@@ -75,11 +75,30 @@ export const createStation = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const existing = await Station.findOne({ name: { $regex: `^${name}$`, $options: "i" } });
-    if (existing) {
-      res.status(409).json({ success: false, message: "Station with this name already exists" });
-      return;
-    }
+    const existing = await Station.findOne({ 
+  name: { $regex: `^${name}$`, $options: "i" },
+  isActive: true  // ← only check ACTIVE stations
+});
+if (existing) {
+  res.status(409).json({ success: false, message: "Station with this name already exists" });
+  return;
+}
+
+// If inactive station exists with same name — reactivate it instead of creating new
+const inactive = await Station.findOne({ 
+  name: { $regex: `^${name}$`, $options: "i" },
+  isActive: false 
+});
+if (inactive) {
+  inactive.isActive = true;
+  inactive.city = city.trim();
+  inactive.state = state.trim();
+  inactive.officerCount = officerCount || 0;
+  if (address) inactive.address = address;
+  await inactive.save();
+  res.status(201).json({ success: true, message: "Station restored successfully", data: inactive });
+  return;
+}
 
     const station = await Station.create({
       name: name.trim(), city: city.trim(), state: state.trim(),
