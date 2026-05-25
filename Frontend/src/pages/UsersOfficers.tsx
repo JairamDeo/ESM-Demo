@@ -200,7 +200,7 @@ export default memo(function UsersOfficers() {
       {/* Table */}
       <div className="bg-card rounded-xl border border-border p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-          <h3 className="font-semibold text-foreground">All Officers</h3>
+          <h3 className="font-bold text-foreground">All Officers</h3>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <div className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-1.5">
               <Search className="w-4 h-4 text-muted-foreground" />
@@ -233,7 +233,7 @@ export default memo(function UsersOfficers() {
               )) : officers.map((o: any) => (
                 <tr key={o._id || o.email} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                   <td className="py-3 px-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 ">
                       <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                         <span className="text-primary text-xs font-semibold">{o.name?.split(" ").filter(Boolean).pop()?.[0] ?? "O"}</span>
                       </div>
@@ -243,13 +243,13 @@ export default memo(function UsersOfficers() {
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 px-3"><span className={`text-xs px-2.5 py-1 rounded-full font-medium ${roleBadge[o.role] || ""}`}>{o.role}</span></td>
+                  <td className="py-3 px-2"><span className={`text-xs px-2.5 py-1 rounded-full font-medium ${roleBadge[o.role] || ""}`}>{o.role}</span></td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{o.stationName}</td>
-                  <td className="py-3 px-3 text-sm text-foreground font-medium">{o.activeCases ?? o.cases ?? 0}</td>
+                  <td className="py-3 px-7 text-sm text-foreground font-medium">{o.activeCases ?? o.cases ?? 0}</td>
                   <td className="py-3 px-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${o.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{o.status}</span>
                   </td>
-                  <td className="py-3 px-3 text-right">
+                  <td className="py-3 px-4 text-right">
                     <ActionsMenu
                       officer={o}
                       canManage={permissions.manageOfficers}

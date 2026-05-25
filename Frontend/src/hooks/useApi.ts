@@ -89,6 +89,10 @@ export const useCreateGrievance = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] }); 
+      qc.invalidateQueries({ queryKey: ["reports"] });  
+
+
       toast.success("Grievance submitted successfully!");
     },
     onError: (err: any) => {
@@ -105,7 +109,11 @@ export const useUpdateGrievanceStatus = () => {
       return data.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: ["grievances"] });  // ← grievances list
+      qc.invalidateQueries({ queryKey: ["dashboard"] });   // ← dashboard stats
+      qc.invalidateQueries({ queryKey: ["escalations"] }); // ← escalations list
+      qc.invalidateQueries({ queryKey: ["reports"] }); 
+
       toast.success("Status updated");
     },
     onError: (err: any) => {
@@ -156,6 +164,9 @@ export const useDeleteGrievance = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });  
+      qc.invalidateQueries({ queryKey: ["reports"] });  
+
       toast.success("Grievance deleted successfully");
     },
     onError: (err: any) => {
@@ -410,6 +421,10 @@ export const useResolveEscalation = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["escalations"] });
       qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });  
+      qc.invalidateQueries({ queryKey: ["reports"] });  
+
+
       toast.success("Escalation resolved");
     },
     onError: (err: any) => {
@@ -419,15 +434,16 @@ export const useResolveEscalation = () => {
 };
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
-export const useReports = (months = 6) =>
+export const useReports = (months = 6, period = "all") =>
   useQuery({
-    queryKey: queryKeys.reports(months),
+    queryKey: [...queryKeys.reports(months), period],
     queryFn: async () => {
-      const { data } = await api.get("/reports", { params: { months } });
+      const { data } = await api.get("/reports", { params: { months, period } });
       return data.data;
     },
-    staleTime: 300_000,
-  });
+    staleTime: 0,           // ← always fresh
+    refetchInterval: 60_000, // ← auto refetch every 60 seconds
+});
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const useNotifications = (unreadOnly = false) => {

@@ -1,6 +1,6 @@
 import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
-import { AlertTriangle, Clock, ArrowUpRight, CheckCircle2, Search, X } from "lucide-react";
+import { AlertTriangle, Clock, ArrowUpRight, CheckCircle2, Search, X, ChevronDown } from "lucide-react";
 import { useEscalations, useResolveEscalation } from "@/hooks/useApi";
 
 export default memo(function Escalations() {
@@ -53,11 +53,15 @@ export default memo(function Escalations() {
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search escalations..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full" />
         </div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-primary">
-          <option value="">All Status</option>
-          <option value="open">Open</option>
-          <option value="resolved">Resolved</option>
+        <div className="relative">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer"
+  >
+        <option value="">All Status</option>
+        <option value="open">Open</option>
+        <option value="resolved">Resolved</option>
         </select>
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+      </div>
       </div>
 
       {/* Resolve Modal */}

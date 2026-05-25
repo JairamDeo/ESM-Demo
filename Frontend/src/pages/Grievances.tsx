@@ -13,7 +13,7 @@ type Status = "pending" | "in-progress" | "escalated" | "resolved";
 type Priority = "low" | "medium" | "high" | "critical";
 
 const CASE_TYPES = ["Update Name","Death Intimation","Resolve Pension Issues","Update Aadhaar & PAN","Update Mobile & Email","Update Address","Stop FMA","Add Nominee","Monthly Pay Slip","Pension Payment Order","Update DOB of Spouse","Update Spouse Details","Add/Update Family Details","Grievance for Increment","Track Case Status","SMS / Portal Alerts"];
-const STATIONS = ["Pune HQ","Nashik HQ","Nagpur HQ","Ahmedabad HQ","Aurangabad HQ","Kolhapur HQ","Solapur HQ","Baroda HQ","Amravati HQ","Surat HQ"];
+const STATIONS = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Solapur Station HQ","Baroda Station HQ","Rajkot Station HQ","Surat Station HQ"];
 const OFFICERS = ["Maj. P. Kulkarni","Capt. A. Desai","Lt. Col. V. Rao","Maj. S. Joshi","Capt. R. Mehta","Maj. T. Nair","Lt. D. Pawar","Maj. H. Patel","Col. K. Sharma","Capt. N. Verma"];
 
 const statusBadge: Record<string, string> = { pending:"bg-warning/15 text-warning","in-progress":"bg-info/15 text-info",escalated:"bg-destructive/15 text-destructive",resolved:"bg-success/15 text-success" };
@@ -406,8 +406,8 @@ export default memo(function Grievances() {
                   <td className="py-3 px-3 text-sm text-foreground">{g.veteranName||g.veteran}</td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{g.stationName||g.station}</td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{g.officerName||g.officer}</td>
-                  <td className="py-3 px-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${priorityBadge[g.priority]||""}`}>{g.priority}</span></td>
-                  <td className="py-3 px-3"><span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusBadge[g.status]||""}`}>{g.status}</span></td>
+                  <td className="py-3 px-2"><span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${priorityBadge[g.priority]||""}`}>{g.priority}</span></td>
+                  <td className="py-3 px-2"><span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusBadge[g.status]||""}`}>{g.status}</span></td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{g.createdAt?new Date(g.createdAt).toLocaleDateString("en-IN"):g.date}</td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-1">
