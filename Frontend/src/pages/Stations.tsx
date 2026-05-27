@@ -59,7 +59,7 @@ export default memo(function Stations() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search stations..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full" />
         </div>
         <div className="relative">
-          <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="appearance-none bg-secondary/50 border border-border rounded-lg px-3 py-2 pr-10 text-sm outline-none cursor-pointer text-secondary-foreground hover:bg-secondary/80">
+          <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="appearance-none bg-secondary/50 border border-border rounded-lg px-4 py-2 pr-10 text-sm outline-none cursor-pointer text-secondary-foreground hover:bg-secondary/80">
             <option value="">All States</option>
             {STATES.map((s) => (<option  key={s}>{s}</option>))}
           </select>

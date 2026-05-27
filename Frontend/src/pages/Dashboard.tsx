@@ -339,8 +339,7 @@ export default memo(function Dashboard() {
             <ChevronDown className="w-4 h-4 text-secondary-foreground" />
           </button> */}
 
-        <button
-          onClick={() => setDropdownOpen((o) => !o)} className="flex items-center justify-between w-44 px-4 py-2 bg-secondary/50 border border-border rounded-lg text-sm text-foreground hover:bg-secondary/80 transition-colors"
+        <button onClick={() => setDropdownOpen((o) => !o)} className="flex items-center justify-between w-44 px-4 py-2 bg-secondary/50 border border-border rounded-lg text-sm text-foreground hover:bg-secondary/80 transition-colors"
 >
           <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
 
