@@ -388,15 +388,49 @@ export const useDeleteOfficer = () => {
 };
 
 // ─── Case Types ───────────────────────────────────────────────────────────────
-export const useCaseTypes = () =>
+export const useCaseTypes = (params?: { status?: string }) =>
   useQuery({
-    queryKey: queryKeys.caseTypes,
+    queryKey: [...queryKeys.caseTypes, params],
     queryFn: async () => {
-      const { data } = await api.get("/case-types");
+      const { data } = await api.get("/case-types", { params });
       return data.data;
     },
     staleTime: 300_000,
   });
+
+  export const useCreateCaseType = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; description?: string }) => {
+      const { data } = await api.post("/case-types", body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["case-types"] });
+      toast.success("Case type added successfully!");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to add case type");
+    },
+  });
+};
+
+export const useUpdateCaseType = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: { id: string; [key: string]: any }) => {
+      const { data } = await api.put(`/case-types/${id}`, body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["case-types"] });
+      toast.success("Case type updated");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to update case type");
+    },
+  });
+};
 
 // ─── Escalations ──────────────────────────────────────────────────────────────
 export interface EscalationParams { status?: string; station?: string; search?: string; page?: number; }

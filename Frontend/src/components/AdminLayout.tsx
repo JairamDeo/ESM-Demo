@@ -143,7 +143,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Role badge */}
       {(!collapsed || mobile) && user && (
         <div className="px-4 py-2.5 border-b border-border">
-          <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-10 py-2">
             <Shield className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-medium text-primary">{roleLabel[user.role || ""] || user.role}</span>
           </div>

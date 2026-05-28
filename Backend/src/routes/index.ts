@@ -27,7 +27,7 @@ import { protect, adminOnly, restrictTo } from "../middleware/auth";
 // ═══════════════════════════════════════════════════════════════════════════════
 export const stationRouter = Router();
 
-stationRouter.get("/", protect, adminOnly, getStations);
+stationRouter.get("/", protect, getStations);
 stationRouter.post("/", protect, restrictTo("super_admin", "esm_officer"), createStation);
 stationRouter.get("/:id", protect, adminOnly, getStationById);
 stationRouter.put("/:id", protect, restrictTo("super_admin", "esm_officer"), updateStation);
@@ -65,7 +65,7 @@ officerRouter.delete("/:id", protect, restrictTo("super_admin"), deleteOfficer);
 // ═══════════════════════════════════════════════════════════════════════════════
 export const caseTypeRouter = Router();
 
-caseTypeRouter.get("/", protect, adminOnly, getCaseTypes);
+caseTypeRouter.get("/", protect, getCaseTypes);
 caseTypeRouter.post("/", protect, restrictTo("super_admin"), createCaseType);
 caseTypeRouter.get("/:id", protect, adminOnly, getCaseTypeById);
 caseTypeRouter.put("/:id", protect, restrictTo("super_admin"), updateCaseType);

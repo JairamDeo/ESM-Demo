@@ -1,20 +1,16 @@
-import { useState, useRef, memo, useCallback, useMemo } from "react";
+import { useState, useRef, memo, useCallback, useMemo, useEffect } from "react";
 import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   UserCheck, Printer, ChevronDown, Building2,
   User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,
 } from "lucide-react";
-import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, useDeleteGrievance, type GrievanceParams } from "@/hooks/useApi";
+import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Status = "pending" | "in-progress" | "escalated" | "resolved";
 type Priority = "low" | "medium" | "high" | "critical";
-
-const CASE_TYPES = ["Update Name","Death Intimation","Resolve Pension Issues","Update Aadhaar & PAN","Update Mobile & Email","Update Address","Stop FMA","Add Nominee","Monthly Pay Slip","Pension Payment Order","Update DOB of Spouse","Update Spouse Details","Add/Update Family Details","Grievance for Increment","Track Case Status","SMS / Portal Alerts"];
-const STATIONS = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Solapur Station HQ","Baroda Station HQ","Rajkot Station HQ","Surat Station HQ"];
-const OFFICERS = ["Maj. P. Kulkarni","Capt. A. Desai","Lt. Col. V. Rao","Maj. S. Joshi","Capt. R. Mehta","Maj. T. Nair","Lt. D. Pawar","Maj. H. Patel","Col. K. Sharma","Capt. N. Verma"];
 
 const statusBadge: Record<string, string> = { pending:"bg-warning/15 text-warning","in-progress":"bg-info/15 text-info",escalated:"bg-destructive/15 text-destructive",resolved:"bg-success/15 text-success" };
 const priorityBadge: Record<string, string> = { low:"bg-muted text-muted-foreground",medium:"bg-info/15 text-info",high:"bg-warning/15 text-warning",critical:"bg-destructive/15 text-destructive" };
@@ -151,8 +147,33 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
 
 function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   const createGrievance = useCreateGrievance();
-  const [form, setForm] = useState({ type:CASE_TYPES[0], veteran:"", rank:"", armyNo:"", contact:"", station:STATIONS[0], officer:OFFICERS[0], priority:"medium", description:"" });
+  const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
+  const { data: stationsData } = useStations({ limit: 100 });
+  const { data: officersData } = useOfficers({ limit: 100 });
+
+  const stations = stationsData?.data || [];
+  const officers = officersData?.data || [];
+
+  const [form, setForm] = useState({ type: "", veteran: "", rank: "", armyNo: "", contact: "", station: "", officer: "", priority: "medium", description: "" });
   const [errors, setErrors] = useState<Record<string,string>>({});
+
+  useEffect(() => {
+    if (caseTypesList.length && !form.type) {
+      setForm((f) => ({ ...f, type: caseTypesList[0].name }));
+    }
+  }, [caseTypesList, form.type]);
+
+  useEffect(() => {
+    if (stations.length && !form.station) {
+      setForm((f) => ({ ...f, station: stations[0].name }));
+    }
+  }, [stations, form.station]);
+
+  useEffect(() => {
+    if (officers.length && !form.officer) {
+      setForm((f) => ({ ...f, officer: officers[0].name }));
+    }
+  }, [officers, form.officer]);
 
   const set = (k: string, v: string) => { setForm((f) => ({...f,[k]:v})); setErrors((e) => {const n={...e};delete n[k];return n;}); };
 
@@ -163,25 +184,32 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     if (!form.armyNo.trim()) e.armyNo = "Required";
     if (Object.keys(e).length) { setErrors(e); return; }
     await createGrievance.mutateAsync({
-      type: form.type, veteranName: `${form.rank} ${form.veteran}`.trim(),
-      veteranPhone: form.contact, veteranArmyNo: form.armyNo, veteranRank: form.rank,
-      stationName: form.station, officerName: form.officer, priority: form.priority, description: form.description, submissionSource: "manual",
+      type: form.type || (caseTypesList[0]?.name || ""),
+      veteranName: `${form.rank} ${form.veteran}`.trim(),
+      veteranPhone: form.contact,
+      veteranArmyNo: form.armyNo,
+      veteranRank: form.rank,
+      stationName: form.station || (stations[0]?.name || ""),
+      officerName: form.officer || (officers[0]?.name || "Unassigned"),
+      priority: form.priority,
+      description: form.description,
+      submissionSource: "manual",
     });
     onClose();
-  }, [form, createGrievance, onClose]);
+  }, [form, createGrievance, onClose, caseTypesList, stations, officers]);
 
   return (
     <Modal open onClose={onClose} title="New Grievance" wide>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="Case Type *"><SelectField value={form.type} onChange={(v)=>set("type",v)}>{CASE_TYPES.map((t)=><option key={t}>{t}</option>)}</SelectField></FormField>
+          <FormField label="Case Type *"><SelectField value={form.type} onChange={(v)=>set("type",v)}>{caseTypesList.map((t: any)=><option key={t._id || t.name} value={t.name}>{t.name}</option>)}</SelectField></FormField>
           <FormField label="Priority *"><SelectField value={form.priority} onChange={(v)=>set("priority",v)}>{["low","medium","high","critical"].map((p)=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}</SelectField></FormField>
           <FormField label={`Veteran Name * ${errors.veteran||""}`}><InputField value={form.veteran} onChange={(v)=>set("veteran",v)} placeholder="e.g. R.K. Sharma" /></FormField>
           <FormField label={`Rank * ${errors.rank||""}`}><InputField value={form.rank} onChange={(v)=>set("rank",v)} placeholder="e.g. Col." /></FormField>
           <FormField label={`Army No. * ${errors.armyNo||""}`}><InputField value={form.armyNo} onChange={(v)=>set("armyNo",v)} placeholder="e.g. IC-45678" /></FormField>
           <FormField label="Contact Number"><InputField value={form.contact} onChange={(v)=>set("contact",v)} placeholder="+91 XXXXX XXXXX" /></FormField>
-          <FormField label="Station HQ *"><SelectField value={form.station} onChange={(v)=>set("station",v)}>{STATIONS.map((s)=><option key={s}>{s}</option>)}</SelectField></FormField>
-          <FormField label="Assign Officer *"><SelectField value={form.officer} onChange={(v)=>set("officer",v)}>{OFFICERS.map((o)=><option key={o}>{o}</option>)}</SelectField></FormField>
+          <FormField label="Station HQ *"><SelectField value={form.station} onChange={(v)=>set("station",v)}>{stations.map((s: any)=><option key={s._id || s.name} value={s.name}>{s.name}</option>)}</SelectField></FormField>
+          <FormField label="Assign Officer *"><SelectField value={form.officer} onChange={(v)=>set("officer",v)}>{officers.map((o: any)=><option key={o._id || o.name} value={o.name}>{o.name}</option>)}</SelectField></FormField>
         </div>
         <FormField label="Description">
           <textarea value={form.description} onChange={(e)=>set("description",e.target.value)} rows={3} placeholder="Brief description..." className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground resize-none" />
@@ -200,31 +228,57 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 
 function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }: any) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [openUpward, setOpenUpward] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const perms = usePermissions();
   const deleteGrievance = useDeleteGrievance();
 
-  const actions = [
-    { label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
-    ...(perms.updateGrievanceStatus && grievance.status==="pending"?[{label:"Start Processing",icon:ArrowUpRight,onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]:[]),
-    ...(perms.escalateGrievance && grievance.status!=="resolved"&&grievance.status!=="escalated"?[{label:"Escalate",icon:AlertTriangle,onClick:()=>{onEscalate();setOpen(false);}}]:[]),
-    ...(perms.updateGrievanceStatus && (grievance.status==="in-progress" || grievance.status==="escalated")?[{label:"Mark Resolved",icon:CheckCircle2,onClick:()=>{onStatusChange("resolved");setOpen(false);}}]:[]),
-    ...(perms.reassignOfficer && grievance.status !== "resolved"?[{label: grievance.officerName === "Unassigned" || !grievance.officerName ? "Assign Officer" : "Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);} }]:[]),
-    { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);} },
-    ...(perms.deleteGrievance ? [{label: "Delete Grievance", icon: Trash2, onClick: () => {
-      if (window.confirm("Are you sure you want to delete this grievance?")) {
-        deleteGrievance.mutate(grievance._id);
-      }
-      setOpen(false);
+  const handleToggle = () => {
+    if (buttonRef.current) { const rect = buttonRef.current.getBoundingClientRect();
+      // if not enough space below → open upward
+      setOpenUpward(window.innerHeight - rect.bottom < 220);
     }
-  }] : []),
+    setOpen((o) => !o);
+  };
+
+  const actions = [{ label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
+
+    ...(perms.updateGrievanceStatus && grievance.status==="pending"? [{label:"Start Processing", icon:ArrowUpRight, onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]: []),
+    ...(perms.escalateGrievance && grievance.status!=="resolved" && grievance.status!=="escalated"? [{label:"Escalate", icon:AlertTriangle, onClick:()=>{onEscalate();setOpen(false);}}]: []),
+    ...(perms.updateGrievanceStatus && (grievance.status==="in-progress" || grievance.status==="escalated")? [{label:"Mark Resolved", icon:CheckCircle2, onClick:()=>{onStatusChange("resolved");setOpen(false);} }]: []),
+    ...(perms.reassignOfficer && grievance.status !== "resolved"? [{ label: grievance.officerName === "Unassigned" || !grievance.officerName? "Assign Officer": "Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);}}]: []),
+    { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);}},
+    ...(perms.deleteGrievance? [{label:"Delete Grievance", icon:Trash2, onClick:() => {
+            if (window.confirm("Are you sure you want to delete this grievance?")) {
+              deleteGrievance.mutate(grievance._id);
+            }
+            setOpen(false);
+          }
+        }]
+      : []),
   ];
+
   return (
-    <div className="relative" ref={ref}>
-      <button onClick={()=>setOpen((o)=>!o)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"><MoreVertical className="w-4 h-4" /></button>
-      {open && (<><div className="fixed inset-0 z-10" onClick={()=>setOpen(false)} /><div className="absolute right-0 top-8 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-44 min-w-max">{actions.map(({label,icon:Icon,onClick})=><button key={label} onClick={onClick} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors text-left"><Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />{label}</button>)}</div></>)}
-    </div>
-  );
+    <div className="relative">
+      <button ref={buttonRef} onClick={handleToggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground">
+        <MoreVertical className="w-4 h-4" />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)}/>
+          <div className={`absolute right-0 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-44 min-w-max ${openUpward ? "bottom-8" : "top-8"}`}>
+            {actions.map(({ label, icon: Icon, onClick }) => (
+              <button key={label} onClick={onClick} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors text-left">
+                <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                {label}
+              </button>
+            ))}
+          </div>
+          </>
+          )}
+      </div>
+    );
 }
 
 function FilterPills({ filters, onRemove }: { filters:FilterState; onRemove:(k:keyof FilterState)=>void }) {
@@ -262,6 +316,13 @@ export default memo(function Grievances() {
   const [escalateGrievance, setEscalateGrievance] = useState<any>(null);
   const [reassignGrievance, setReassignGrievance] = useState<any>(null);
   const [exportOpen, setExportOpen] = useState(false);
+
+  const { data: caseTypesList = [] } = useCaseTypes();
+  const { data: stationsData } = useStations({ limit: 100 });
+  const { data: officersData } = useOfficers({ limit: 100 });
+
+  const stations = stationsData?.data || [];
+  const officers = officersData?.data || [];
 
   const queryParams = useMemo<GrievanceParams>(() => ({
     page, limit: PAGE_SIZE,
@@ -305,10 +366,10 @@ export default memo(function Grievances() {
     return (
       <Modal open  onClose={()=>setShowFilter(false)} title="Advanced Filters">
         <div className="space-y-4">
-          <FormField label="Case Type"><SelectField value={local.caseType} onChange={(v)=>setLocal((f)=>({...f,caseType:v}))}><option value="">All Case Types</option>{CASE_TYPES.map((t)=><option key={t}>{t}</option>)}</SelectField></FormField>
+          <FormField label="Case Type"><SelectField value={local.caseType} onChange={(v)=>setLocal((f)=>({...f,caseType:v}))}><option value="">All Case Types</option>{caseTypesList.map((t: any)=><option key={t._id || t.name} value={t.name}>{t.name}</option>)}</SelectField></FormField>
           <FormField label="Priority"><SelectField value={local.priority} onChange={(v)=>setLocal((f)=>({...f,priority:v}))}><option value="">All Priorities</option>{["low","medium","high","critical"].map((p)=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}</SelectField></FormField>
-          <FormField label="Station HQ"><SelectField value={local.station} onChange={(v)=>setLocal((f)=>({...f,station:v}))}><option value="">All Stations</option>{STATIONS.map((s)=><option key={s}>{s}</option>)}</SelectField></FormField>
-          <FormField label="Assigned Officer"><SelectField value={local.officer} onChange={(v)=>setLocal((f)=>({...f,officer:v}))}><option value="">All Officers</option>{OFFICERS.map((o)=><option key={o}>{o}</option>)}</SelectField></FormField>
+          <FormField label="Station HQ"><SelectField value={local.station} onChange={(v)=>setLocal((f)=>({...f,station:v}))}><option value="">All Stations</option>{stations.map((s: any)=><option key={s._id || s.name} value={s.name}>{s.name}</option>)}</SelectField></FormField>
+          <FormField label="Assigned Officer"><SelectField value={local.officer} onChange={(v)=>setLocal((f)=>({...f,officer:v}))}><option value="">All Officers</option>{officers.map((o: any)=><option key={o._id || o.name} value={o.name}>{o.name}</option>)}</SelectField></FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Date From"><InputField value={local.dateFrom} onChange={(v)=>setLocal((f)=>({...f,dateFrom:v}))} type="date" /></FormField>
             <FormField label="Date To"><InputField value={local.dateTo} onChange={(v)=>setLocal((f)=>({...f,dateTo:v}))} type="date" /></FormField>
@@ -464,7 +525,7 @@ export default memo(function Grievances() {
         <FormField label={isUnassigned ? "Assign Officer" : "New Assigned Officer"}>
           <SelectField value={reassignGrievance.officerName === "Unassigned" ? "" : reassignGrievance.officerName||""} onChange={(v)=>setReassignGrievance((g: any)=>({...g,officerName:v}))}>
             <option value="">Select Officer</option>
-            {OFFICERS.map((o)=><option key={o}>{o}</option>)}
+            {officers.map((o: any)=><option key={o._id || o.name} value={o.name}>{o.name}</option>)}
           </SelectField>
         </FormField>
         <div className="flex justify-end gap-2 pt-2">

@@ -1,12 +1,9 @@
 import { useState, memo, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronLeft, Paperclip, X, FileText, Image } from "lucide-react";
-import { useCreateGrievance } from "@/hooks/useApi";
+import { useCreateGrievance, useCaseTypes, useStations } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-const caseTypes = ["Update Name","Death Intimation","Resolve Pension Issues","Update Aadhaar & PAN","Update Mobile & Email","Update Address","Stop FMA","Add Nominee","Monthly Pay Slip","Pension Payment Order","Update DOB of Spouse","Update Spouse Details","Add Family Details","Grievance for Increment","Track Case Status","SMS / Portal Alerts"];
-const stationHQs = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Rajkot Station HQ","Surat Station HQ","Solapur Station HQ","Baroda Station HQ"];
 
 const SelectRow = ({ label, value, onChange, children, required = false, disabled = false }: any) => (
   <div className="py-1.5 border-[#1f1f23]">
@@ -56,6 +53,10 @@ export default memo(function RaiseGrievance() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
+  const { data: stationsData } = useStations({ limit: 100 });
+  const stationHQsList = stationsData?.data || [];
 
   // ── Read QR params from URL ──────────────────────────────────────────────
   const urlParams = new URLSearchParams(window.location.search);
@@ -121,7 +122,7 @@ export default memo(function RaiseGrievance() {
   }, [form, user, createGrievance, navigate, isFromQR]);
 
   return (
-    <div className="max-h-screen bg-[#171719] font-sans">
+    <div className="min-h-screen bg-[#171719] font-sans overflow-y-auto">
 
       {/* Header */}
       <div className="flex items-center gap-5 px-3">
@@ -142,7 +143,7 @@ export default memo(function RaiseGrievance() {
       )}
 
       {/* Form */}
-      <div className="px-5 mt-2">
+      <div className="px-5 mt-2 ">
 
         <SelectRow
           label="Concern For"
@@ -162,7 +163,7 @@ export default memo(function RaiseGrievance() {
           required
         >
           <option value="" disabled hidden>Select case type</option>
-          {caseTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+          {caseTypesList.map((ct: any) => <option key={ct._id || ct.name} value={ct.name}>{ct.name}</option>)}
         </SelectRow>
 
         {/* Station HQ — disabled if from QR */}
@@ -174,7 +175,7 @@ export default memo(function RaiseGrievance() {
           disabled={isFromQR}
         >
           <option value="" disabled hidden>Select Station HQ</option>
-          {stationHQs.map((s) => <option key={s} value={s}>{s}</option>)}
+          {stationHQsList.map((s: any) => <option key={s._id || s.name} value={s.name}>{s.name}</option>)}
         </SelectRow>
 
         <InputRow

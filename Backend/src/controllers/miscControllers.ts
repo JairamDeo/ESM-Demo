@@ -50,9 +50,14 @@ const getStationFilter = (req: Request): any => {
 // CASE TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const getCaseTypes = async (_req: Request, res: Response): Promise<void> => {
+export const getCaseTypes = async (req: Request, res: Response): Promise<void> => {
   try {
-    const caseTypes = await CaseType.find({ isActive: true }).sort({ id: 1 });
+    const { status } = req.query;
+    const filter: any = {};
+    if (status === "active") {
+      filter.isActive = { $ne: false }; // Match active case types
+    }
+    const caseTypes = await CaseType.find(filter).sort({ id: 1 });
     res.status(200).json({ success: true, data: caseTypes });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

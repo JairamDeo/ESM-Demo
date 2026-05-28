@@ -53,6 +53,8 @@ const seed = async () => {
     { id: 14, name: "Grievance for Increment",    description: "As per Rank & Service",         totalCases: 34,  pendingCases: 8,  resolvedCases: 26  },
     { id: 15, name: "Track Case Status",          description: "Real-time tracking portal",     totalCases: 210, pendingCases: 0,  resolvedCases: 210 },
     { id: 16, name: "SMS / Portal Alerts",        description: "Notifications on updates",      totalCases: 173, pendingCases: 0,  resolvedCases: 173 },
+    { id: 17, name: "Medical Certificate",        description: "Notifications on updates",      totalCases: 173, pendingCases: 20,  resolvedCases: 153 },
+
   ];
   const caseTypes = await CaseType.create(caseTypesData);
   console.log(`📋 Created ${caseTypes.length} case types`);
@@ -111,6 +113,7 @@ const seed = async () => {
   const qrDocs = [];
   for (const q of qrCodesData) {
     const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(q.station.name)}&code=${q.code}`;
+    // const qrData = `http://localhost:5173/grievance?station=${encodeURIComponent(q.station.name)}&code=${q.code}`;
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
     qrDocs.push({
       stationId: q.station._id,

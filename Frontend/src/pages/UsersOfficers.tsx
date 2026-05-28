@@ -1,4 +1,4 @@
-import { useState, memo, useCallback, useMemo } from "react";
+import { useState, memo, useRef, useCallback, useMemo } from "react";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
@@ -14,36 +14,73 @@ const roleBadge: Record<string, string> = {
   "Record Office": "bg-warning/15 text-warning",
 };
 
-function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: { officer: any; onEdit: () => void; onToggle: () => void; onDelete: () => void; canManage: boolean }) {
+function ActionsMenu({officer, onEdit, onToggle, onDelete, canManage,}: {officer: any; onEdit: () => void; onToggle: () => void; onDelete: () => void; canManage: boolean;}) 
+{
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const handleToggle = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+     // if space below is small -> open upward 
+      setOpenUpward(window.innerHeight - rect.bottom < 180);
+    }
+    setOpen((o) => !o);
+  };
+
   return (
     <div className="relative">
-      <button onClick={() => setOpen((o) => !o)} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground">
+      <button ref={buttonRef} onClick={handleToggle} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground">
         <MoreVertical className="w-4 h-4" />
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-8 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-44">
-            {canManage && <button onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-              <Edit2 className="w-3.5 h-3.5 text-muted-foreground" /> Edit Officer
-            </button>}
-            {canManage && <button onClick={() => { onToggle(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-              {officer.status === "active"
-                ? <><ToggleLeft className="w-3.5 h-3.5 text-muted-foreground" /> Deactivate</>
-                : <><ToggleRight className="w-3.5 h-3.5 text-success" /> Activate</>}
-            </button>}
-            {canManage && <button onClick={() => { onDelete(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
-              <Trash2 className="w-3.5 h-3.5" /> Delete
-            </button>}
-            {!canManage && <p className="px-3 py-2 text-xs text-muted-foreground italic">View only</p>}
+          <div className="fixed inset-0 z-10" 
+          onClick={() => setOpen(false)}/>
+          <div className={`absolute right-0 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-44 ${openUpward ? "bottom-8" : "top-8"}`}>
+            {canManage && (
+              <button onClick={() => {onEdit(); setOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
+                Edit Officer
+              </button>
+            )}
+
+            {canManage && (
+              <button onClick={() => {onToggle(); setOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+                {officer.status === "active" ? (
+                  <>
+                    <ToggleLeft className="w-3.5 h-3.5 text-muted-foreground" />
+                    Deactivate
+                  </>
+                ) : (
+                  <>
+                    <ToggleRight className="w-3.5 h-3.5 text-success" />
+                    Activate
+                  </>
+                )}
+              </button>
+            )}
+
+            {canManage && (
+              <button onClick={() => {onDelete(); setOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            )}
+
+            {!canManage && (
+              <p className="px-3 py-2 text-xs text-muted-foreground italic">
+                View only
+              </p>
+            )}
           </div>
         </>
       )}
     </div>
   );
 }
-  const OfficerModal = ({ isEdit = false, onClose, form, setForm, handleAdd, handleUpdate, createOfficer, updateOfficer }: {
+
+const OfficerModal = ({ isEdit = false, onClose, form, setForm, handleAdd, handleUpdate, createOfficer, updateOfficer }: {
     isEdit?: boolean;
     onClose: () => void;
     form: any;
