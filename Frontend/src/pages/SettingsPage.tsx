@@ -8,51 +8,71 @@ import { toast } from "sonner";
 // ─── Permission display labels ────────────────────────────────────────────────
 const PERMISSION_GROUPS: { label: string; perms: Array<{ key: keyof Permission; label: string; danger?: boolean }> }[] = [
   {
-    label: "Grievances",
+    label: "Dashboard",
     perms: [
-      { key: "viewGrievances",        label: "View grievances" },
-      { key: "createGrievance",       label: "Submit new grievances" },
-      { key: "updateGrievanceStatus", label: "Update status / progress cases" },
-      { key: "escalateGrievance",     label: "Escalate cases" },
-      { key: "reassignOfficer",       label: "Reassign officer on a case" },
-      { key: "deleteGrievance",       label: "Delete grievances", danger: true },
+      { key: "viewDashboard", label: "View dashboard" },
     ],
   },
   {
-    label: "Case Types & Data",
+    label: "Grievances",
     perms: [
-      { key: "viewCaseTypes",   label: "View case types" },
-      { key: "manageCaseTypes", label: "Add / edit case types" },
-      { key: "viewStations",    label: "View station HQs" },
-      { key: "manageStations",  label: "Add / edit / delete stations" },
+      { key: "viewGrievances",        label: "View grievances"                  },
+      { key: "createGrievance",       label: "Submit new grievances"            },
+      { key: "updateGrievanceStatus", label: "Update status / progress cases"   },
+      { key: "escalateGrievance",     label: "Escalate cases"                   },
+      { key: "reassignOfficer",       label: "Reassign officer on a case"       },
+      { key: "deleteGrievance",       label: "Delete grievances", danger: true  },
+    ],
+  },
+  {
+    label: "Case Types",
+    perms: [
+      { key: "viewCaseTypes",   label: "View case types"         },
+      { key: "manageCaseTypes", label: "Add / edit case types"   },
+    ],
+  },
+  {
+    label: "Station HQs",
+    perms: [
+      { key: "viewStations",   label: "View station HQs"                          },
+      { key: "manageStations", label: "Add / edit / delete stations", danger: true },
     ],
   },
   {
     label: "QR Codes",
     perms: [
-      { key: "viewQRCodes",    label: "View QR codes" },
-      { key: "manageQRCodes",  label: "Generate / toggle / delete QR codes" },
+      { key: "viewQRCodes",   label: "View QR codes"                         },
+      { key: "manageQRCodes", label: "Generate / toggle / delete QR codes"   },
     ],
   },
   {
-    label: "Officers & Reports",
+    label: "Officers",
     perms: [
-      { key: "viewOfficers",       label: "View officer list" },
-      { key: "manageOfficers",     label: "Add / edit / delete officers" },
-      { key: "viewEscalations",    label: "View escalations" },
+      { key: "viewOfficers",   label: "View officer list"                    },
+      { key: "manageOfficers", label: "Add / edit / delete officers"         },
+    ],
+  },
+  {
+    label: "Escalations",
+    perms: [
+      { key: "viewEscalations",    label: "View escalations"    },
       { key: "resolveEscalations", label: "Resolve escalations" },
-      { key: "viewReports",        label: "View reports & analytics" },
-      { key: "exportReports",      label: "Export reports (CSV / JSON)" },
     ],
   },
   {
-    label: "System",
+    label: "Reports",
     perms: [
-      { key: "viewDashboard",  label: "View dashboard" },
-      { key: "viewSettings",   label: "View settings page" },
-      { key: "manageSettings", label: "Change system settings", danger: true },
-      { key: "manageRoles",    label: "Manage role permissions", danger: true },
-      { key: "loginAsVeteran", label: "Use veteran portal (officer dual login)" },
+      { key: "viewReports",   label: "View reports & analytics"    },
+      { key: "exportReports", label: "Export reports (CSV / JSON)" },
+    ],
+  },
+  {
+    label: "Settings & System",
+    perms: [
+      { key: "viewSettings",   label: "View settings page"                              },
+      { key: "manageSettings", label: "Change system settings",    danger: true         },
+      { key: "manageRoles",    label: "Manage role permissions",   danger: true         },
+      { key: "loginAsVeteran", label: "Use veteran portal (officer dual login)"         },
     ],
   },
 ];
@@ -247,7 +267,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Auto-Escalation */}
-      <div className="bg-card rounded-xl border border-border p-5">
+      {/* <div className="bg-card rounded-xl border border-border p-5">
         <div className="flex items-center gap-3 mb-4">
           <Clock className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-foreground">Auto-Escalation Rules</h3>
@@ -257,7 +277,7 @@ export default function SettingsPage() {
           <EscalationRule label="Escalate to Sub-Area Commander after" defaultDays={30} />
           <EscalationRule label="Send reminder to station officer after" defaultDays={7} />
         </div>
-      </div>
+      </div> */}
 
       {/* Role-Based Access Control */}
       <div className="bg-card rounded-xl border border-border p-5">

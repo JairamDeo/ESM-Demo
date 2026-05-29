@@ -1,7 +1,7 @@
 import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
 import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus, ChevronDown, Trash2 } from "lucide-react";
-import { useStations, useCreateStation, useDeleteStation } from "@/hooks/useApi";
+import { useStations, useCreateStation, useDeleteStation, useHQs  } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 
 const STATES = ["Maharashtra", "Gujarat", "Karnataka", "Rajasthan", "Madhya Pradesh", "Uttar Pradesh", "Punjab", "Haryana", "Delhi", "Telangana"];
@@ -10,7 +10,7 @@ export default memo(function Stations() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterState, setFilterState] = useState("");
-  const [form, setForm] = useState({ name: "", city: "", state: "Maharashtra", officers: "4", address: "" });
+  const [form, setForm] = useState({ name: "", city: "", state: "Maharashtra", officers: "4", address: "", hqId: "", hqName: ""   });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading } = useStations({ search, state: filterState || undefined });
@@ -20,12 +20,13 @@ export default memo(function Stations() {
 
   const isSuperAdmin = user?.role === "super_admin";
   const stations = useMemo(() => data?.data || [], [data]);
+  const { data: hqList = [] } = useHQs();
 
   const handleSubmit = useCallback(async () => {
     if (!form.city.trim() || !form.state) return;
     const name = form.name.trim() || `${form.city.trim()} Station HQ`;
     await createStation.mutateAsync({ name, city: form.city.trim(), state: form.state, officerCount: Number(form.officers) || 0, address: form.address });
-    setForm({ name: "", city: "", state: "Maharashtra", officers: "4", address: "" });
+    setForm({ name: "", city: "", state: "Maharashtra", officers: "4", address: "", hqId: "", hqName: ""   });
     setOpen(false);
   }, [form, createStation]);
 
@@ -68,7 +69,7 @@ export default memo(function Stations() {
       </div>
 
       {/* Add Station Modal */}
-      {open && (
+      {/* {open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
             <div className="flex justify-between items-center mb-4">
@@ -81,8 +82,8 @@ export default memo(function Stations() {
                 <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="e.g. Amravati" className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary" />
                 {form.city && <p className="text-xs text-muted-foreground mt-1">Name: <span className="text-foreground">{form.city} Station HQ</span></p>}
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">State *</label>
+              <div> */}
+                {/* <label className="text-xs font-medium text-muted-foreground">State *</label>
                 <div className="relative mt-1">
                   <select value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary">
                     {STATES.map((s) => (<option key={s}>{s}</option>))}
@@ -105,7 +106,112 @@ export default memo(function Stations() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
+
+  {open && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Add Station HQ</h2>
+        <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="space-y-3">
+
+        {/* HQ dropdown — first */}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground">Headquarters *</label>
+      <div className="relative mt-1">
+      <select
+      value={form.hqId}
+      onChange={(e) => {
+        const selected = hqList.find((h) => h._id === e.target.value);
+        setForm({ ...form, hqId: e.target.value, hqName: selected?.name || "" });
+      }}
+      className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+    >
+      <option value="">Select Headquarters</option>
+      {hqList.map((h) => (
+        <option key={h._id} value={h._id}>{h.name}</option>
+      ))}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+      </div>
+    </div>
+
+
+        {/* State dropdown first */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">State *</label>
+          <div className="relative mt-1">
+            <select
+              value={form.state}
+              onChange={(e) => setForm({ ...form, state: e.target.value })}
+              className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+            >
+              <option value="">Select State</option>
+              {STATES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+          </div>
+        </div>
+
+        {/* City */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">City / Location *</label>
+          <input
+            value={form.city}
+            onChange={(e) => setForm({ ...form, city: e.target.value })}
+            placeholder="e.g. Amravati"
+            className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+          />
+          {form.city && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Name: <span className="text-foreground">{form.city} Station HQ</span>
+            </p>
+          )}
+        </div>
+
+        {/* Number of officers */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Number of Officers</label>
+          <input
+            type="number" min="0" value={form.officers}
+            onChange={(e) => setForm({ ...form, officers: e.target.value })}
+            className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+          />
+        </div>
+
+        {/* Address */}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Address (optional)</label>
+          <textarea
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+            rows={2}
+            className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary resize-none placeholder:text-muted-foreground"
+            placeholder="Full postal address..."
+          />
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={createStation.isPending || !form.city || !form.state || !form.hqId}
+          className="w-full mt-2 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {createStation.isPending
+            ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            : <Plus className="w-4 h-4" />
+          }
+          Add Station
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
 
       {/* Grid */}
       {isLoading ? (

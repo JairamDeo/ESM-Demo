@@ -3,7 +3,7 @@ import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   UserCheck, Printer, ChevronDown, Building2,
-  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,
+  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon,
 } from "lucide-react";
 import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
@@ -52,6 +52,7 @@ function InputField({ value, onChange, placeholder, type="text" }: { value:strin
 
 function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:any; onClose:()=>void }) {
   const [note, setNote] = useState("");
+  const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const updateStatus = useUpdateGrievanceStatus();
   const addComment = useAddComment();
   const { user } = useAuth();
@@ -63,11 +64,24 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   // Merge: use live data when available, fall back to prop
   const grievance = liveGrievance || initialGrievance;
 
+  // const addNote = useCallback(async () => {
+  //   if (!note.trim() || !grievance._id) return;
+  //   await addComment.mutateAsync({ id: grievance._id, message: note, authorName: user?.name || "Admin", authorRole: user?.role || "admin" });
+  //   setNote("");
+  // }, [note, grievance._id, addComment, user]);
+
   const addNote = useCallback(async () => {
-    if (!note.trim() || !grievance._id) return;
-    await addComment.mutateAsync({ id: grievance._id, message: note, authorName: user?.name || "Admin", authorRole: user?.role || "admin" });
-    setNote("");
-  }, [note, grievance._id, addComment, user]);
+  if (!note.trim() && noteFiles.length === 0) return;
+  if (!grievance._id) return;
+  await addComment.mutateAsync({
+    id: grievance._id,
+    message: note || "(attachment)",
+    authorName: user?.name || "Admin",
+    authorRole: user?.role || "admin",
+  });
+  setNote("");
+  setNoteFiles([]);
+}, [note, noteFiles, grievance._id, addComment, user]);
 
   const nextStatus: Record<string, {label:string;status:string;cls:string}|null> = {
     pending: { label:"Start Processing", status:"in-progress", cls:"bg-info/15 text-info hover:bg-info/25" },
@@ -133,12 +147,64 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <input value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="Add a note..." className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />
             <button onClick={addNote} disabled={addComment.isPending || !note.trim()} className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-1.5">
               {addComment.isPending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
-          </div>
+          </div> */}
+          {/* Note attachment files preview */}
+{noteFiles.length > 0 && (
+  <div className="flex flex-wrap gap-1.5 mb-2">
+    {noteFiles.map((file, i) => (
+      <div key={i} className="flex items-center gap-1.5 bg-secondary/50 rounded px-2 py-1">
+        {file.type === "application/pdf"
+          ? <FileText className="w-3 h-3 text-primary" />
+          : <ImageIcon className="w-3 h-3 text-primary" />
+        }
+        <span className="text-xs text-foreground truncate max-w-[100px]">{file.name}</span>
+        <button onClick={() => setNoteFiles((f) => f.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-foreground">
+          <X className="w-2.5 h-2.5" />
+        </button>
+      </div>
+    ))}
+  </div>
+)}
+
+<div className="flex gap-2">
+  {/* Attachment button */}
+  <label className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors text-muted-foreground cursor-pointer shrink-0" title="Attach file">
+    <Paperclip className="w-4 h-4" />
+    <input
+      type="file" multiple accept=".jpg,.jpeg,.png,.pdf"
+      className="hidden"
+      onChange={(e) => {
+        const files = Array.from(e.target.files || []).slice(0, 3);
+        setNoteFiles((prev) => [...prev, ...files].slice(0, 3));
+        e.target.value = "";
+      }}
+    />
+  </label>
+
+  <input
+    value={note}
+    onChange={(e) => setNote(e.target.value)}
+    onKeyDown={(e) => e.key === "Enter" && addNote()}
+    placeholder="Add a note..."
+    className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground"
+  />
+
+  <button
+    onClick={addNote}
+    disabled={addComment.isPending || (!note.trim() && noteFiles.length === 0)}
+    className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+  >
+    {addComment.isPending
+      ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      : <Send className="w-4 h-4" />
+    }
+  </button>
+</div>
         </div>
       </div>
     </Modal>
@@ -149,75 +215,209 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   const createGrievance = useCreateGrievance();
   const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
   const { data: stationsData } = useStations({ limit: 100 });
-  const { data: officersData } = useOfficers({ limit: 100 });
-
   const stations = stationsData?.data || [];
-  const officers = officersData?.data || [];
 
-  const [form, setForm] = useState({ type: "", veteran: "", rank: "", armyNo: "", contact: "", station: "", officer: "", priority: "medium", description: "" });
+  const [form, setForm] = useState({
+    type: "", veteran: "", rank: "", armyNo: "", contact: "",
+    station: "", officer: "", priority: "medium",
+    description: "", attachments: [] as File[]
+  });
   const [errors, setErrors] = useState<Record<string,string>>({});
 
+  // ── Filter officers by selected station ──────────────────────────────────
+  const { data: officersData } = useOfficers({
+    limit: 100,
+    station: form.station || undefined,
+  });
+  const officers = officersData?.data || [];
+
+  // ── Auto-select first case type ──────────────────────────────────────────
   useEffect(() => {
     if (caseTypesList.length && !form.type) {
       setForm((f) => ({ ...f, type: caseTypesList[0].name }));
     }
-  }, [caseTypesList, form.type]);
+  }, [caseTypesList]);
 
+  // ── Auto-select first station ────────────────────────────────────────────
   useEffect(() => {
     if (stations.length && !form.station) {
       setForm((f) => ({ ...f, station: stations[0].name }));
     }
-  }, [stations, form.station]);
+  }, [stations]);
 
+  // ── When station changes → reset officer and auto-select first ───────────
   useEffect(() => {
-    if (officers.length && !form.officer) {
+    if (officers.length) {
       setForm((f) => ({ ...f, officer: officers[0].name }));
+    } else {
+      setForm((f) => ({ ...f, officer: "" }));
     }
-  }, [officers, form.officer]);
+  }, [form.station, officers.length]);
 
-  const set = (k: string, v: string) => { setForm((f) => ({...f,[k]:v})); setErrors((e) => {const n={...e};delete n[k];return n;}); };
+  const set = (k: string, v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => { const n = {...e}; delete n[k]; return n; });
+  };
 
   const submit = useCallback(async () => {
     const e: Record<string,string> = {};
     if (!form.veteran.trim()) e.veteran = "Required";
-    if (!form.rank.trim()) e.rank = "Required";
-    if (!form.armyNo.trim()) e.armyNo = "Required";
+    if (!form.rank.trim())    e.rank    = "Required";
+    if (!form.armyNo.trim())  e.armyNo  = "Required";
     if (Object.keys(e).length) { setErrors(e); return; }
+
     await createGrievance.mutateAsync({
-      type: form.type || (caseTypesList[0]?.name || ""),
-      veteranName: `${form.rank} ${form.veteran}`.trim(),
-      veteranPhone: form.contact,
-      veteranArmyNo: form.armyNo,
-      veteranRank: form.rank,
-      stationName: form.station || (stations[0]?.name || ""),
-      officerName: form.officer || (officers[0]?.name || "Unassigned"),
-      priority: form.priority,
-      description: form.description,
+      type:             form.type || (caseTypesList[0]?.name || ""),
+      veteranName:      `${form.rank} ${form.veteran}`.trim(),
+      veteranPhone:     form.contact,
+      veteranArmyNo:    form.armyNo,
+      veteranRank:      form.rank,
+      stationName:      form.station || (stations[0]?.name || ""),
+      officerName:      form.officer || "Unassigned",
+      priority:         form.priority,
+      description:      form.description,
       submissionSource: "manual",
     });
     onClose();
-  }, [form, createGrievance, onClose, caseTypesList, stations, officers]);
+  }, [form, createGrievance, onClose, caseTypesList, stations]);
 
   return (
     <Modal open onClose={onClose} title="New Grievance" wide>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="Case Type *"><SelectField value={form.type} onChange={(v)=>set("type",v)}>{caseTypesList.map((t: any)=><option key={t._id || t.name} value={t.name}>{t.name}</option>)}</SelectField></FormField>
-          <FormField label="Priority *"><SelectField value={form.priority} onChange={(v)=>set("priority",v)}>{["low","medium","high","critical"].map((p)=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}</SelectField></FormField>
-          <FormField label={`Veteran Name * ${errors.veteran||""}`}><InputField value={form.veteran} onChange={(v)=>set("veteran",v)} placeholder="e.g. R.K. Sharma" /></FormField>
-          <FormField label={`Rank * ${errors.rank||""}`}><InputField value={form.rank} onChange={(v)=>set("rank",v)} placeholder="e.g. Col." /></FormField>
-          <FormField label={`Army No. * ${errors.armyNo||""}`}><InputField value={form.armyNo} onChange={(v)=>set("armyNo",v)} placeholder="e.g. IC-45678" /></FormField>
-          <FormField label="Contact Number"><InputField value={form.contact} onChange={(v)=>set("contact",v)} placeholder="+91 XXXXX XXXXX" /></FormField>
-          <FormField label="Station HQ *"><SelectField value={form.station} onChange={(v)=>set("station",v)}>{stations.map((s: any)=><option key={s._id || s.name} value={s.name}>{s.name}</option>)}</SelectField></FormField>
-          <FormField label="Assign Officer *"><SelectField value={form.officer} onChange={(v)=>set("officer",v)}>{officers.map((o: any)=><option key={o._id || o.name} value={o.name}>{o.name}</option>)}</SelectField></FormField>
+
+          <FormField label="Case Type *">
+            <SelectField value={form.type} onChange={(v) => set("type", v)}>
+              {caseTypesList.map((t: any) => (
+                <option key={t._id || t.name} value={t.name}>{t.name}</option>
+              ))}
+            </SelectField>
+          </FormField>
+
+          <FormField label="Priority *">
+            <SelectField value={form.priority} onChange={(v) => set("priority", v)}>
+              {["low","medium","high","critical"].map((p) => (
+                <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+              ))}
+            </SelectField>
+          </FormField>
+
+          <FormField label={`Veteran Name * ${errors.veteran || ""}`}>
+            <InputField value={form.veteran} onChange={(v) => set("veteran", v)} placeholder="e.g. R.K. Sharma" />
+          </FormField>
+
+          <FormField label={`Rank * ${errors.rank || ""}`}>
+            <InputField value={form.rank} onChange={(v) => set("rank", v)} placeholder="e.g. Col." />
+          </FormField>
+
+          <FormField label={`Army No. * ${errors.armyNo || ""}`}>
+            <InputField value={form.armyNo} onChange={(v) => set("armyNo", v)} placeholder="e.g. IC-45678" />
+          </FormField>
+
+          <FormField label="Contact Number">
+            <InputField value={form.contact} onChange={(v) => set("contact", v)} placeholder="+91 XXXXX XXXXX" />
+          </FormField>
+
+          {/* Station dropdown */}
+          <FormField label="Station HQ *">
+            <SelectField value={form.station} onChange={(v) => set("station", v)}>
+              <option value="">Select Station</option>
+              {stations.map((s: any) => (
+                <option key={s._id || s.name} value={s.name}>{s.name}</option>
+              ))}
+            </SelectField>
+          </FormField>
+
+          {/* Officer dropdown — filters by selected station */}
+          <FormField label="Assign Officer *">
+            <SelectField value={form.officer} onChange={(v) => set("officer", v)}>
+              <option value="">
+                {!form.station
+                  ? "Select station first"
+                  : officers.length === 0
+                  ? "No officers found"
+                  : "Select Officer"}
+              </option>
+              {officers.map((o: any) => (
+                <option key={o._id || o.name} value={o.name}>{o.name}</option>
+              ))}
+            </SelectField>
+          </FormField>
+
         </div>
+
         <FormField label="Description">
-          <textarea value={form.description} onChange={(e)=>set("description",e.target.value)} rows={3} placeholder="Brief description..." className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground resize-none" />
+          <textarea
+            value={form.description}
+            onChange={(e) => set("description", e.target.value)}
+            rows={3}
+            placeholder="Brief description..."
+            className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground resize-none"
+          />
         </FormField>
+
+        {/* Attachments */}
+        <FormField label="Attachments (optional · max 3 · JPG, PNG, PDF · 5MB each)">
+          <label className={`flex items-center gap-2 w-full bg-secondary/50 border border-dashed border-border rounded-lg px-3 py-2.5 cursor-pointer hover:border-primary/50 transition-colors ${form.attachments.length >= 3 ? "opacity-50 cursor-not-allowed" : ""}`}>
+            <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground">
+              {form.attachments.length > 0
+                ? `${form.attachments.length} file(s) — tap to add more`
+                : "Click to attach documents"}
+            </span>
+            <input
+              type="file" multiple accept=".jpg,.jpeg,.png,.pdf"
+              disabled={form.attachments.length >= 3}
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                const valid = files.filter((f) => {
+                  const okType = ["image/jpeg","image/png","image/jpg","application/pdf"].includes(f.type);
+                  const okSize = f.size <= 5 * 1024 * 1024;
+                  return okType && okSize;
+                });
+                set("attachments", [...form.attachments, ...valid].slice(0, 3) as any);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {form.attachments.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {form.attachments.map((file: File, i: number) => (
+                <div key={i} className="flex items-center justify-between bg-secondary/30 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {file.type === "application/pdf"
+                      ? <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+                      : <ImageIcon className="w-3.5 h-3.5 text-primary shrink-0" />
+                    }
+                    <p className="text-xs text-foreground truncate">{file.name}</p>
+                    <p className="text-xs text-muted-foreground shrink-0">{(file.size / 1024).toFixed(0)}KB</p>
+                  </div>
+                  <button
+                    onClick={() => set("attachments", form.attachments.filter((_: any, idx: number) => idx !== i) as any)}
+                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </FormField>
+
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors">Cancel</button>
-          <button onClick={submit} disabled={createGrievance.isPending} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-60">
-            {createGrievance.isPending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <FileText className="w-4 h-4" />}
+          <button onClick={onClose} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={createGrievance.isPending}
+            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-60"
+          >
+            {createGrievance.isPending
+              ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <FileText className="w-4 h-4" />
+            }
             Submit Grievance
           </button>
         </div>
@@ -231,7 +431,7 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
   const [openUpward, setOpenUpward] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const perms = usePermissions();
-  const deleteGrievance = useDeleteGrievance();
+  // const deleteGrievance = useDeleteGrievance();
 
   const handleToggle = () => {
     if (buttonRef.current) { const rect = buttonRef.current.getBoundingClientRect();
@@ -241,21 +441,30 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
     setOpen((o) => !o);
   };
 
-  const actions = [{ label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
+  // const actions = [{ label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
 
+  //   ...(perms.updateGrievanceStatus && grievance.status==="pending"? [{label:"Start Processing", icon:ArrowUpRight, onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]: []),
+  //   ...(perms.escalateGrievance && grievance.status!=="resolved" && grievance.status!=="escalated"? [{label:"Escalate", icon:AlertTriangle, onClick:()=>{onEscalate();setOpen(false);}}]: []),
+  //   ...(perms.updateGrievanceStatus && (grievance.status==="in-progress" || grievance.status==="escalated")? [{label:"Mark Resolved", icon:CheckCircle2, onClick:()=>{onStatusChange("resolved");setOpen(false);} }]: []),
+  //   ...(perms.reassignOfficer && grievance.status !== "resolved"? [{ label: grievance.officerName === "Unassigned" || !grievance.officerName? "Assign Officer": "Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);}}]: []),
+  //   { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);}},
+  //   ...(perms.deleteGrievance? [{label:"Delete Grievance", icon:Trash2, onClick:() => {
+  //           if (window.confirm("Are you sure you want to delete this grievance?")) {
+  //             deleteGrievance.mutate(grievance._id);
+  //           }
+  //           setOpen(false);
+  //         }
+  //       }]
+  //     : []),
+  // ];
+
+
+  const actions = [
+    { label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
     ...(perms.updateGrievanceStatus && grievance.status==="pending"? [{label:"Start Processing", icon:ArrowUpRight, onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]: []),
     ...(perms.escalateGrievance && grievance.status!=="resolved" && grievance.status!=="escalated"? [{label:"Escalate", icon:AlertTriangle, onClick:()=>{onEscalate();setOpen(false);}}]: []),
     ...(perms.updateGrievanceStatus && (grievance.status==="in-progress" || grievance.status==="escalated")? [{label:"Mark Resolved", icon:CheckCircle2, onClick:()=>{onStatusChange("resolved");setOpen(false);} }]: []),
-    ...(perms.reassignOfficer && grievance.status !== "resolved"? [{ label: grievance.officerName === "Unassigned" || !grievance.officerName? "Assign Officer": "Reassign Officer", icon:UserCheck, onClick:()=>{onAssign();setOpen(false);}}]: []),
-    { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);}},
-    ...(perms.deleteGrievance? [{label:"Delete Grievance", icon:Trash2, onClick:() => {
-            if (window.confirm("Are you sure you want to delete this grievance?")) {
-              deleteGrievance.mutate(grievance._id);
-            }
-            setOpen(false);
-          }
-        }]
-      : []),
+    { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);} },
   ];
 
   return (

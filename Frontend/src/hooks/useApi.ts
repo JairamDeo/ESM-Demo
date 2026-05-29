@@ -529,3 +529,27 @@ export const useUpdateProfile = () => {
     },
   });
 };
+
+// ─── Headquarter ─────────────────────────────────────────────────────────────
+
+export const useHQs = () =>
+  useQuery({
+    queryKey: ["hq-master"],
+    queryFn: async () => {
+      const { data } = await api.get("/hq-master");
+      return data.data as { _id: string; name: string; city: string }[];
+    },
+    staleTime: 600_000,
+  });
+
+// ─── States ─────────────────────────────────────────────────────────────
+
+export const useStates = () =>
+  useQuery({
+    queryKey: ["states-master"],
+    queryFn: async () => {
+      const { data } = await api.get("/states-master");
+      return data.data as { _id: string; name: string; code: string }[];
+    },
+    staleTime: 600_000,
+  });
