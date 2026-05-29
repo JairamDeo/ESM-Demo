@@ -6,13 +6,58 @@ import Station from "../models/Station";
 import Officer from "../models/Officer";
 import Notification from "../models/Notification";
 
+// ─── Helper: date filter ─────────────────────────────────────────────────────
+const getDateFilter = (period?: string): any => {
+  if (!period || period === "all") return {};
+  const now = new Date();
+  let from: Date;
+  switch (period) {
+    case "today":
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case "this_week":
+      from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case "this_month":
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case "last_3_months":
+      from = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      break;
+    case "last_6_months":
+      from = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+      break;
+    case "this_year":
+      from = new Date(now.getFullYear(), 0, 1);
+      break;
+    default:
+      return {};
+  }
+  return { createdAt: { $gte: from } };
+};
+
+// ─── Helper: station filter based on role ────────────────────────────────────
+const getStationFilter = (req: Request): any => {
+  const user = (req as any).user;
+  if (!user || user.role === "super_admin") return {};
+  if (user.station && user.station !== "Nagpur Sub-Area") {
+    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
+  }
+  return {};
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CASE TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const getCaseTypes = async (_req: Request, res: Response): Promise<void> => {
+export const getCaseTypes = async (req: Request, res: Response): Promise<void> => {
   try {
-    const caseTypes = await CaseType.find({ isActive: true }).sort({ id: 1 });
+    const { status } = req.query;
+    const filter: any = {};
+    if (status === "active") {
+      filter.isActive = { $ne: false }; // Match active case types
+    }
+    const caseTypes = await CaseType.find(filter).sort({ id: 1 });
     res.status(200).json({ success: true, data: caseTypes });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -57,35 +102,52 @@ export const updateCaseType = async (req: Request, res: Response): Promise<void>
 
 export const getReports = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { months = 6 } = req.query;
+    const { months = 6, period } = req.query;
     const monthsNum = parseInt(months as string);
+
+    // Date filter from period
+    const dateFilter = getDateFilter(period as string);
+
+    // Station filter from role
+    const stationFilter = getStationFilter(req);
+
+    // Base filter combining both
+    const baseFilter = { isDeleted: false, ...stationFilter, ...dateFilter };
+
+    // Start date for monthly chart
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - monthsNum);
+    const monthlyFilter = {
+      createdAt: { $gte: startDate },
+      isDeleted: false,
+      ...stationFilter,
+    };
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     // Monthly received vs resolved
     const monthly = await Grievance.aggregate([
-      { $match: { createdAt: { $gte: startDate }, isDeleted: false } },
+      { $match: monthlyFilter },
       {
         $group: {
           _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
-          received: { $sum: 1 },
-          resolved: { $sum: { $cond: [{ $eq: ["$status", "resolved"] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+          received:  { $sum: 1 },
+          resolved:  { $sum: { $cond: [{ $eq: ["$status", "resolved"]  }, 1, 0] } },
+          pending:   { $sum: { $cond: [{ $eq: ["$status", "pending"]   }, 1, 0] } },
           escalated: { $sum: { $cond: [{ $eq: ["$status", "escalated"] }, 1, 0] } },
         },
       },
       { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-    // SLA compliance — resolved within 15 days
+    // SLA compliance
     const slaCompliance = await Grievance.aggregate([
-      { $match: { status: "resolved", resolvedAt: { $exists: true }, isDeleted: false } },
+      { $match: { ...stationFilter, ...dateFilter, status: "resolved", resolvedAt: { $exists: true }, isDeleted: false } },
       {
         $project: {
           month: { $month: "$createdAt" },
-          year: { $year: "$createdAt" },
+          year:  { $year:  "$createdAt" },
           daysToResolve: {
             $divide: [{ $subtract: ["$resolvedAt", "$createdAt"] }, 1000 * 60 * 60 * 24],
           },
@@ -94,7 +156,7 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
       {
         $group: {
           _id: { year: "$year", month: "$month" },
-          total: { $sum: 1 },
+          total:     { $sum: 1 },
           withinSLA: { $sum: { $cond: [{ $lte: ["$daysToResolve", 15] }, 1, 0] } },
         },
       },
@@ -103,13 +165,13 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
 
     // Station performance
     const stationPerf = await Grievance.aggregate([
-      { $match: { isDeleted: false } },
+      { $match: baseFilter },
       {
         $group: {
-          _id: "$stationName",
-          total: { $sum: 1 },
+          _id:      "$stationName",
+          total:    { $sum: 1 },
           resolved: { $sum: { $cond: [{ $eq: ["$status", "resolved"] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+          pending:  { $sum: { $cond: [{ $eq: ["$status", "pending"]  }, 1, 0] } },
         },
       },
       { $sort: { total: -1 } },
@@ -117,17 +179,17 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
 
     // Case type distribution
     const typeDistribution = await Grievance.aggregate([
-      { $match: { isDeleted: false } },
+      { $match: baseFilter },
       { $group: { _id: "$type", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]);
 
-    // Overall totals
+    // Overall totals — filtered by period + station
     const [totalGrievances, totalResolved, totalPending, totalEscalated, totalOfficers, totalStations] = await Promise.all([
-      Grievance.countDocuments({ isDeleted: false }),
-      Grievance.countDocuments({ status: "resolved", isDeleted: false }),
-      Grievance.countDocuments({ status: "pending", isDeleted: false }),
-      Grievance.countDocuments({ status: "escalated", isDeleted: false }),
+      Grievance.countDocuments(baseFilter),
+      Grievance.countDocuments({ ...baseFilter, status: "resolved"  }),
+      Grievance.countDocuments({ ...baseFilter, status: "pending"   }),
+      Grievance.countDocuments({ ...baseFilter, status: "escalated" }),
       Officer.countDocuments({ status: "active" }),
       Station.countDocuments({ isActive: true }),
     ]);
@@ -137,25 +199,25 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
       data: {
         summary: { totalGrievances, totalResolved, totalPending, totalEscalated, totalOfficers, totalStations },
         monthly: monthly.map((m) => ({
-          month: monthNames[m._id.month - 1],
-          year: m._id.year,
-          received: m.received,
-          resolved: m.resolved,
-          pending: m.pending,
+          month:     monthNames[m._id.month - 1],
+          year:      m._id.year,
+          received:  m.received,
+          resolved:  m.resolved,
+          pending:   m.pending,
           escalated: m.escalated,
         })),
         slaCompliance: slaCompliance.map((s) => ({
-          month: monthNames[s._id.month - 1],
-          sla: Math.round((s.withinSLA / s.total) * 100),
-          total: s.total,
+          month:    monthNames[s._id.month - 1],
+          sla:      Math.round((s.withinSLA / s.total) * 100),
+          total:    s.total,
           withinSLA: s.withinSLA,
         })),
         stationPerformance: stationPerf.map((s) => ({
-          station: s._id,
-          total: s.total,
+          station:  s._id,
+          total:    s.total,
           resolved: s.resolved,
-          pending: s.pending,
-          rate: s.total > 0 ? Math.round((s.resolved / s.total) * 100) : 0,
+          pending:  s.pending,
+          rate:     s.total > 0 ? Math.round((s.resolved / s.total) * 100) : 0,
         })),
         typeDistribution: typeDistribution.map((t) => ({ type: t._id, count: t.count })),
       },
@@ -182,7 +244,11 @@ export const getNotifications = async (req: Request, res: Response): Promise<voi
     if (unreadOnly === "true") query.isRead = false;
 
     const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(30).lean();
-    const unreadCount = await Notification.countDocuments({ recipientId: userId, recipientType: userRole === "user" ? "user" : "admin", isRead: false, });
+    const unreadCount = await Notification.countDocuments({
+      recipientId: userId,
+      recipientType: userRole === "user" ? "user" : "admin",
+      isRead: false,
+    });
 
     res.status(200).json({ success: true, data: notifications, unreadCount });
   } catch (error: any) {

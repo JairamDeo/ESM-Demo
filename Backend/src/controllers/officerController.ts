@@ -22,8 +22,8 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
 
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+        { name:        { $regex: search, $options: "i" } },
+        { email:       { $regex: search, $options: "i" } },
         { stationName: { $regex: search, $options: "i" } },
       ];
     }
@@ -33,19 +33,19 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
     }
     if (status) query.status = status;
 
-    const pageNum = parseInt(page as string);
+    const pageNum  = parseInt(page  as string);
     const limitNum = parseInt(limit as string);
 
     const [officers, total] = await Promise.all([
       Officer.find(query)
-        .populate("stationId", "name city state")
+        .populate("station", "name city stateName")  // ← fixed: stationId → station
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum),
       Officer.countDocuments(query),
     ]);
 
-    // Role-wise counts — also filtered by station for non super_admin
+    // Role-wise counts — filtered by station for non super_admin
     const countFilter = { ...stationFilter };
     const [esmCount, stationCount, recordCount] = await Promise.all([
       Officer.countDocuments({ ...countFilter, role: "ESM Officer" }),
@@ -67,7 +67,8 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
 // ─── GET single officer ──────────────────────────────────────────────────────
 export const getOfficerById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const officer = await Officer.findById(req.params.id).populate("stationId");
+    const officer = await Officer.findById(req.params.id)
+      .populate("station", "name city stateName");  // ← fixed
     if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
     res.status(200).json({ success: true, data: officer });
   } catch (error: any) {
@@ -91,17 +92,23 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const station = await Station.findOne({ name: { $regex: stationName, $options: "i" } });
-
-    const officer = await Officer.create({
-      name: name.trim(), rank: rank?.trim() || "", role,
-      stationId: station?._id,
-      stationName: station?.name || stationName,
-      email: email.toLowerCase().trim(), phone,
+    const stationDoc = await Station.findOne({
+      name: { $regex: stationName, $options: "i" },
+      isActive: true,
     });
 
-    if (station) {
-      await Station.findByIdAndUpdate(station._id, { $inc: { officerCount: 1 } });
+    const officer = await Officer.create({
+      name:        name.trim(),
+      rank:        rank?.trim() || "",
+      role,
+      station:     stationDoc?._id,          // ← fixed: stationId → station
+      stationName: stationDoc?.name || stationName,
+      email:       email.toLowerCase().trim(),
+      phone,
+    });
+
+    if (stationDoc) {
+      await Station.findByIdAndUpdate(stationDoc._id, { $inc: { officerCount: 1 } });
     }
 
     res.status(201).json({ success: true, message: "Officer added successfully", data: officer });
@@ -117,14 +124,19 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
     const updateData: any = { ...rest };
 
     if (stationName) {
-      const station = await Station.findOne({ name: { $regex: stationName, $options: "i" } });
-      updateData.stationName = station?.name || stationName;
-      updateData.stationId = station?._id;
+      const stationDoc = await Station.findOne({
+        name: { $regex: stationName, $options: "i" },
+        isActive: true,
+      });
+      updateData.stationName = stationDoc?.name || stationName;
+      updateData.station     = stationDoc?._id;  // ← fixed: stationId → station
     }
 
-    const officer = await Officer.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
-    if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
+    const officer = await Officer.findByIdAndUpdate(
+      req.params.id, updateData, { new: true, runValidators: true }
+    ).populate("station", "name city stateName");
 
+    if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
     res.status(200).json({ success: true, message: "Officer updated", data: officer });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -152,8 +164,9 @@ export const deleteOfficer = async (req: Request, res: Response): Promise<void> 
     const officer = await Officer.findByIdAndDelete(req.params.id);
     if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
 
-    if (officer.stationId) {
-      await Station.findByIdAndUpdate(officer.stationId, { $inc: { officerCount: -1 } });
+    // ← fixed: stationId → station
+    if (officer.station) {
+      await Station.findByIdAndUpdate(officer.station, { $inc: { officerCount: -1 } });
     }
 
     res.status(200).json({ success: true, message: "Officer deleted" });

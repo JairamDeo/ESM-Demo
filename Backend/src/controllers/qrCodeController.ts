@@ -67,6 +67,7 @@ export const generateQRCode = async (req: Request, res: Response): Promise<void>
     }
 
     const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(stationName)}&code=${code.toUpperCase()}`;
+
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
     let linkedStationId = stationId;

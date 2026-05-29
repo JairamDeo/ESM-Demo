@@ -339,18 +339,16 @@ export default memo(function Dashboard() {
             <ChevronDown className="w-4 h-4 text-secondary-foreground" />
           </button> */}
 
-          <button
-  onClick={() => setDropdownOpen((o) => !o)}
-  className="flex items-center justify-between w-44 px-4 py-2 bg-secondary/50 border border-border rounded-lg text-sm text-foreground hover:bg-secondary/80 transition-colors"
+        <button onClick={() => setDropdownOpen((o) => !o)} className="flex items-center justify-between w-44 px-4 py-2 bg-secondary/50 border border-border rounded-lg text-sm text-foreground hover:bg-secondary/80 transition-colors"
 >
-  <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+          <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
 
-  <span className="flex-1 text-center">
-    {selectedLabel}
-  </span>
+          <span className="flex-1 text-center">
+              {selectedLabel}
+          </span>
 
-  <ChevronDown className="w-4 h-4 text-secondary-foreground shrink-0" />
-</button>
+          <ChevronDown className="w-4 h-4 text-secondary-foreground shrink-0" />
+        </button>
 
           {dropdownOpen && (
             <>
@@ -468,7 +466,7 @@ export default memo(function Dashboard() {
       {canSeeTopStations && (
         <div className="bg-card rounded-xl border border-border p-5">
           <h3 className="font-semibold text-foreground mb-4">Top Stations</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
             {/* Bar Chart */}
             <div className="lg:col-span-2">

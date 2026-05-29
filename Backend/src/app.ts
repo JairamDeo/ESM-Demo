@@ -9,8 +9,9 @@ import grievanceRoutes from "./routes/grievances";
 import {
   stationRouter, qrRouter, officerRouter,
   caseTypeRouter, escalationRouter, reportsRouter,
-  notificationRouter, userRouter,
+  notificationRouter, userRouter, statesRouter, hqRouter,
 } from "./routes/index";
+
 import { errorHandler, notFound } from "./middleware/errorHandler";
 
 const app: Application = express();
@@ -75,6 +76,8 @@ app.get("/health", (_req, res) => {
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use("/api/auth",          authRoutes);
+app.use("/api/states-master", statesRouter);
+app.use("/api/hq-master",     hqRouter);
 app.use("/api/grievances",    grievanceRoutes);
 app.use("/api/stations",      stationRouter);
 app.use("/api/qr-codes",      qrRouter);

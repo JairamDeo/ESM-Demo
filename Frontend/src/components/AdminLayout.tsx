@@ -77,7 +77,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const Sidebar = memo(({ mobile = false }: { mobile?: boolean }) => (
     <>
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-border shrink-0">
+      {/* <div className="flex items-center gap-3 px-4 h-16 border-b border-border shrink-0">
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
           <span className="text-primary-foreground font-bold text-sm">V</span>
         </div>
@@ -92,12 +92,58 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <X className="w-5 h-5" />
           </button>
         )}
-      </div>
+      </div> */}
+
+      <div className="flex items-center px-4 h-16 border-b border-border shrink-0">
+  
+  {/* Logo */}
+  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+    <span className="text-primary-foreground font-bold text-sm">
+      V
+    </span>
+  </div>
+
+  {/* Title */}
+  {(!collapsed || mobile) && (
+    <div className="ml-3">
+      <span className="font-bold text-foreground text-base tracking-tight">
+        Vitric ESM
+      </span>
+    </div>
+  )}
+
+  {/* Collapse Arrow */}
+  {!mobile && (
+    <button
+      onClick={() => setCollapsed(!collapsed)}
+      // className="ml-auto p-1.5 rounded-lg hover:bg-secondary text-muted-foreground transition-colors shrink-0"
+      className={`p-1.5 rounded-lg hover:bg-secondary text-muted-foreground transition-colors shrink-0 ${
+        collapsed ? "ml-2" : "ml-auto"
+      }`}
+    >
+      {collapsed ? (
+        <ChevronRight className="w-4 h-4" />
+      ) : (
+        <ChevronLeft className="w-4 h-4" />
+      )}
+    </button>
+  )}
+
+  {/* Mobile Close */}
+  {mobile && (
+    <button
+      onClick={() => setMobileOpen(false)}
+      className="ml-auto p-1.5 rounded-lg hover:bg-secondary text-muted-foreground"
+    >
+      <X className="w-5 h-5" />
+    </button>
+  )}
+</div>
 
       {/* Role badge */}
       {(!collapsed || mobile) && user && (
         <div className="px-4 py-2.5 border-b border-border">
-          <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-10 py-2">
             <Shield className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-medium text-primary">{roleLabel[user.role || ""] || user.role}</span>
           </div>
@@ -116,7 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </nav>
 
       {/* Only collapse button — logout removed from sidebar */}
-      <div className="p-2 border-t border-border shrink-0">
+      {/* <div className="p-2 border-t border-border shrink-0">
         {!mobile && (
           <button
             onClick={() => setCollapsed(!collapsed)}
@@ -125,14 +171,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /><span>Collapse</span></>}
           </button>
         )}
-      </div>
+      </div> */}
     </>
   ));
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar */}
-      <aside className={`${collapsed ? "w-[72px]" : "w-64"} hidden md:flex flex-col border-r border-border bg-sidebar transition-all duration-300 shrink-0`}>
+      <aside className={`${collapsed ? "w-24" : "w-56"} hidden md:flex flex-col border-r border-border bg-sidebar transition-all duration-300 shrink-0`}>
         <Sidebar />
       </aside>
 
