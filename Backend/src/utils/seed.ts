@@ -382,12 +382,18 @@ const seed = async () => {
   console.log("🗑️  Cleared existing data");
 
   // ── Admins ────────────────────────────────────────────────────────────────
+  // const admins = await Admin.create([
+  // { username: "admin",    password: "admin123",   name: "Admin Officer",    email: "admin@vitric.in",       role: "super_admin",     station: "Nagpur Sub-Area"        },
+  // { username: "esm",      password: "esm123",     name: "Lt. Col. V. Rao",  email: "v.rao@vitric.in",       role: "esm_officer",     station: "Nagpur Station HQ"      },
+  // { username: "station1", password: "station123", name: "Maj. P. Kulkarni", email: "p.kulkarni@vitric.in",  role: "station_officer", station: "Pune Station HQ"      },
+  // { username: "record",   password: "record123",  name: "Maj. T. Nair",     email: "t.nair@vitric.in",      role: "record_office",   station: "Kolhapur Station HQ"    },
+  // ]);
   const admins = await Admin.create([
-  { username: "admin",    password: "admin123",   name: "Admin Officer",    email: "admin@vitric.in",       role: "super_admin",     station: "Nagpur Sub-Area"        },
-  { username: "esm",      password: "esm123",     name: "Lt. Col. V. Rao",  email: "v.rao@vitric.in",       role: "esm_officer",     station: "Nagpur Station HQ"      },
-  { username: "station1", password: "station123", name: "Maj. P. Kulkarni", email: "p.kulkarni@vitric.in",  role: "station_officer", station: "Pune Station HQ"      },
-  { username: "record",   password: "record123",  name: "Maj. T. Nair",     email: "t.nair@vitric.in",      role: "record_office",   station: "Kolhapur Station HQ"    },
-  ]);
+  { username: "admin",       password: "admin123",       name: "Admin Officer",    email: "admin@vitric.in",       role: "super_admin", station: "Nagpur Sub-Area"     },
+  { username: "area",        password: "area123",        name: "Lt. Col. V. Rao",  email: "v.rao@vitric.in",       role: "area",        station: "Nagpur Station HQ"   },
+  { username: "headquarter", password: "headquarter123", name: "Maj. P. Kulkarni", email: "p.kulkarni@vitric.in",  role: "headquarter", station: "Pune Station HQ"     },
+  { username: "stationhq",   password: "stationhq123",   name: "Maj. T. Nair",     email: "t.nair@vitric.in",      role: "station_hq",  station: "Kolhapur Station HQ" },
+]);
   console.log(`👤 Created ${admins.length} admins`);
 
   // ── Case Types ────────────────────────────────────────────────────────────
@@ -710,9 +716,9 @@ const seed = async () => {
   console.log("─────────────────────────────────────────");
   console.log("🔑 Admin Credentials:");
   console.log("   Super Admin  → admin / admin123");
-  console.log("   ESM Officer  → esm / esm123");
-  console.log("   Station HQ   → station1 / station123");
-  console.log("   Record Office→ record / record123");
+  console.log("   Area  → area / area123");
+  console.log("   Headquarter   → headquarter / headquarter123");
+  console.log("   Station HQ → stationhq / stationhq123");
   console.log("─────────────────────────────────────────");
   console.log("📱 Test User Phone: 9876543210 (OTP: 1234)");
   console.log("─────────────────────────────────────────\n");

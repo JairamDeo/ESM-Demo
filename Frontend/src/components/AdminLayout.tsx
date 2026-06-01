@@ -68,12 +68,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     navigate("/admin/login", { replace: true });
   }, [logout, navigate]);
 
+  // const roleLabel: Record<string, string> = {
+  //   super_admin: "Super Admin",
+  //   esm_officer: "ESM Officer",
+  //   station_officer: "Station Officer",
+  //   record_office: "Record Office",
+  // };
+
   const roleLabel: Record<string, string> = {
-    super_admin: "Super Admin",
-    esm_officer: "ESM Officer",
-    station_officer: "Station Officer",
-    record_office: "Record Office",
-  };
+  super_admin: "Super Admin",
+  area:        "Area",
+  headquarter: "Headquarter",
+  station_hq:  "Station HQ",
+};
 
   const Sidebar = memo(({ mobile = false }: { mobile?: boolean }) => (
     <>

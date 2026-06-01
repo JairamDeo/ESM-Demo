@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, ReactNode, useMemo } 
 import api, { setAuthToken, clearAuthToken, setStoredUser, getStoredUser } from "@/lib/api";
 import { queryClient } from "@/App";
 
-export type UserRole = "super_admin" | "esm_officer" | "station_officer" | "record_office" | "user" | null;
+export type UserRole = "super_admin" | "area" | "headquarter" | "station_hq" | "user" | null;
 
 export interface AuthUser {
   id: string;

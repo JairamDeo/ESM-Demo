@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type UserRole = "super_admin" | "esm_officer" | "station_officer" | "record_office" | "user";
+export type UserRole = "super_admin" | "area" | "headquarter" | "station_hq" | "user";
 
 export interface Permission {
   viewDashboard: boolean;
@@ -23,15 +23,15 @@ export interface Permission {
   viewQRCodes: boolean;
   manageQRCodes: boolean;
   viewOfficers: boolean;
-  manageOfficers: boolean; // add/edit/delete officers
+  manageOfficers: boolean;
   viewEscalations: boolean;
   resolveEscalations: boolean;
   viewReports: boolean;
   exportReports: boolean;
   viewSettings: boolean;
-  manageSettings: boolean; // only super_admin
-  manageRoles: boolean;    // only super_admin
-  loginAsVeteran: boolean; // officer can use veteran portal
+  manageSettings: boolean;
+  manageRoles: boolean;
+  loginAsVeteran: boolean;
 }
 
 export type RolePermissions = Record<UserRole, Permission>;
@@ -46,7 +46,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     resolveEscalations: true, viewReports: true, exportReports: true,
     viewSettings: true, manageSettings: true, manageRoles: true, loginAsVeteran: false,
   },
-  esm_officer: {
+  area: {                                          // ← was esm_officer
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
     reassignOfficer: true, viewCaseTypes: true, manageCaseTypes: false,
@@ -55,7 +55,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     resolveEscalations: true, viewReports: true, exportReports: true,
     viewSettings: true, manageSettings: false, manageRoles: false, loginAsVeteran: true,
   },
-  station_officer: {
+  headquarter: {                                   // ← was station_officer
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
     reassignOfficer: false, viewCaseTypes: true, manageCaseTypes: false,
@@ -64,7 +64,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     resolveEscalations: false, viewReports: false, exportReports: false,
     viewSettings: false, manageSettings: false, manageRoles: false, loginAsVeteran: true,
   },
-  record_office: {
+  station_hq: {                                    // ← was record_office
     viewDashboard: true, viewGrievances: true, createGrievance: false,
     updateGrievanceStatus: false, deleteGrievance: false, escalateGrievance: false,
     reassignOfficer: false, viewCaseTypes: true, manageCaseTypes: false,
@@ -112,7 +112,6 @@ export const useRBACStore = create<RBACStore>()(
   )
 );
 
-// ─── Hook to check a single permission ───────────────────────────────────────
 import { useAuth } from "@/contexts/AuthContext";
 
 export function usePermission(permission: keyof Permission): boolean {

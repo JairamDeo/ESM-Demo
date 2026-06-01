@@ -77,7 +77,8 @@ export const restrictTo = (...roles: string[]) => {
 };
 
 // ─── Admin only shortcut ─────────────────────────────────────────────────────
-export const adminOnly = restrictTo("super_admin", "esm_officer", "station_officer", "record_office");
+// export const adminOnly = restrictTo("super_admin", "esm_officer", "station_officer", "record_office");
+export const adminOnly = restrictTo("super_admin", "area", "headquarter", "station_hq");
 
 // ─── Station filter helper ────────────────────────────────────────────────────
 export const getStationFilter = (user: any): string | null => {

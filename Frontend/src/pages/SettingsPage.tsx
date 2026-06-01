@@ -77,11 +77,18 @@ const PERMISSION_GROUPS: { label: string; perms: Array<{ key: keyof Permission; 
   },
 ];
 
+// const ROLES: Array<{ key: UserRole; label: string; color: string }> = [
+//   { key: "super_admin",    label: "Super Admin",      color: "bg-destructive/15 text-destructive" },
+//   { key: "esm_officer",    label: "ESM Officer",      color: "bg-primary/15 text-primary" },
+//   { key: "station_officer",label: "Station Officer",  color: "bg-info/15 text-info" },
+//   { key: "record_office",  label: "Record Office",    color: "bg-warning/15 text-warning" },
+// ];
+
 const ROLES: Array<{ key: UserRole; label: string; color: string }> = [
-  { key: "super_admin",    label: "Super Admin",      color: "bg-destructive/15 text-destructive" },
-  { key: "esm_officer",    label: "ESM Officer",      color: "bg-primary/15 text-primary" },
-  { key: "station_officer",label: "Station Officer",  color: "bg-info/15 text-info" },
-  { key: "record_office",  label: "Record Office",    color: "bg-warning/15 text-warning" },
+  { key: "super_admin", label: "Super Admin", color: "bg-destructive/15 text-destructive" },
+  { key: "area",        label: "Area",        color: "bg-primary/15 text-primary"         },
+  { key: "headquarter", label: "Headquarter", color: "bg-info/15 text-info"               },
+  { key: "station_hq",  label: "Station HQ",  color: "bg-warning/15 text-warning"         },
 ];
 
 // ─── Toggle component ─────────────────────────────────────────────────────────

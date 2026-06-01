@@ -7,7 +7,8 @@ export interface IAdmin extends Document {
   password: string;
   name: string;
   email: string;
-  role: "super_admin" | "esm_officer" | "station_officer" | "record_office";
+  // role: "super_admin" | "esm_officer" | "station_officer" | "record_office";
+  role: "super_admin" | "area" | "headquarter" | "station_hq";
   station?: string;
   isActive: boolean;
   lastLogin?: Date;
@@ -22,10 +23,15 @@ const AdminSchema = new Schema<IAdmin>(
     password: { type: String, required: true, minlength: 6 },
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    // role: {
+    //   type: String,
+    //   enum: ["super_admin", "esm_officer", "station_officer", "record_office"],
+    //   default: "station_officer",
+    // },
     role: {
-      type: String,
-      enum: ["super_admin", "esm_officer", "station_officer", "record_office"],
-      default: "station_officer",
+        type: String,
+        enum: ["super_admin", "area", "headquarter", "station_hq"],
+        default: "station_hq",
     },
     station: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
