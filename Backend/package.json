@@ -4,7 +4,7 @@
   "description": "Vitric ESM Grievance Management System - Backend API (Node.js + Express + MongoDB)",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "ts-node src/utils/seed.ts"
