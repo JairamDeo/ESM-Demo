@@ -2,26 +2,70 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export interface ICaseType extends Document {
   _id: mongoose.Types.ObjectId;
-  id: number;
+  /**
+   * Human-friendly unique id (e.g. "casetype1").
+   * NOTE: older DBs may still contain numeric ids; those will be stringified.
+   */
+  id: string;
   name: string;
   description: string;
+  category: string;
   totalCases: number;
   pendingCases: number;
   resolvedCases: number;
   isActive: boolean;
+  createdBy?: {
+    id: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+  updatedBy?: {
+    id: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+  statusUpdatedBy?: {
+    id: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+  statusUpdatedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const CaseTypeSchema = new Schema<ICaseType>(
   {
-    id: { type: Number, required: true, unique: true },
+    id: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, unique: true, trim: true },
     description: { type: String, default: "" },
+    category: { type: String, required: true, trim: true },
     totalCases: { type: Number, default: 0 },
     pendingCases: { type: Number, default: 0 },
     resolvedCases: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    createdBy: {
+      id: { type: String },
+      name: { type: String },
+      email: { type: String },
+      role: { type: String },
+    },
+    updatedBy: {
+      id: { type: String },
+      name: { type: String },
+      email: { type: String },
+      role: { type: String },
+    },
+    statusUpdatedBy: {
+      id: { type: String },
+      name: { type: String },
+      email: { type: String },
+      role: { type: String },
+    },
+    statusUpdatedAt: { type: Date },
   },
   { timestamps: true }
 );

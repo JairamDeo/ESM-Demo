@@ -159,11 +159,12 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
                       <td key={role.key} className="py-2.5 px-3 text-center">
                         <div className="flex justify-center">
                           <Toggle
-                            value={permissions[role.key][perm.key]}
+                            value={permissions[role.key]?.[perm.key] ?? false}
                             onChange={() => {
                               if (!canEdit) return;
                               if (role.key === "super_admin") return; // super_admin always all true
-                              updateRolePermission(role.key, perm.key, !permissions[role.key][perm.key]);
+                              const currentVal = permissions[role.key]?.[perm.key] ?? false;
+                              updateRolePermission(role.key, perm.key, !currentVal);
                             }}
                             disabled={!canEdit || role.key === "super_admin"}
                           />

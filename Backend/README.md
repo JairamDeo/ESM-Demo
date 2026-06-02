@@ -37,10 +37,10 @@ Server starts at → `http://localhost:5000`
 
 | Role          | Username   | Password     |
 |---------------|------------|--------------|
-| Super Admin   | `admin`    | `admin123`   |
-| ESM Officer   | `esm`      | `esm123`     |
-| Station HQ    | `station1` | `station123` |
-| Record Office | `record`   | `record123`  |
+| Super Admin   | `admin`    | `admin123`   |  vitric
+| ESM Officer   | `area`      | `area123`     |  Area
+| Station HQ    | `headquarter` | `headquarter123` |  HQ
+| Record Office | `stationhq`   | `stationhq123`  |  Station HQ
 
 **Test Veteran Phone:** `9876543210`  
 **OTP (bypass mode):** `1234`

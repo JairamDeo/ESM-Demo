@@ -57,7 +57,18 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
     if (status === "active") {
       filter.isActive = { $ne: false }; // Match active case types
     }
-    const caseTypes = await CaseType.find(filter).sort({ id: 1 });
+    const caseTypesRaw = await CaseType.find(filter).lean();
+    // Sort by casetype<N> numeric suffix if present, else fallback stable.
+    const caseTypes = caseTypesRaw.sort((a: any, b: any) => {
+      const aId = String(a.id ?? "");
+      const bId = String(b.id ?? "");
+      const aMatch = /^casetype(\d+)$/i.exec(aId);
+      const bMatch = /^casetype(\d+)$/i.exec(bId);
+      if (aMatch && bMatch) return Number(aMatch[1]) - Number(bMatch[1]);
+      if (aMatch && !bMatch) return -1;
+      if (!aMatch && bMatch) return 1;
+      return aId.localeCompare(bId);
+    });
     res.status(200).json({ success: true, data: caseTypes });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -76,10 +87,29 @@ export const getCaseTypeById = async (req: Request, res: Response): Promise<void
 
 export const createCaseType = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description } = req.body;
+    const { name, description, category } = req.body;
     if (!name) { res.status(400).json({ success: false, message: "name is required" }); return; }
-    const count = await CaseType.countDocuments();
-    const caseType = await CaseType.create({ id: count + 1, name, description });
+    if (!category) { res.status(400).json({ success: false, message: "category is required" }); return; }
+    // Generate next id like "casetype17" (max+1), safe even if items deleted.
+    const existing = await CaseType.find({ id: { $regex: /^casetype\d+$/i } }, { id: 1 }).lean();
+    const maxN = existing.reduce((max: number, d: any) => {
+      const m = /^casetype(\d+)$/i.exec(String(d.id ?? ""));
+      const n = m ? Number(m[1]) : 0;
+      return Number.isFinite(n) ? Math.max(max, n) : max;
+    }, 0);
+    const nextId = `casetype${maxN + 1}`;
+    const actor = (req as any).user;
+    const createdBy = actor
+      ? { id: actor.id, name: actor.name, email: actor.email, role: actor.role }
+      : undefined;
+    const caseType = await CaseType.create({
+      id: nextId,
+      name,
+      description,
+      category,
+      createdBy,
+      updatedBy: createdBy,
+    });
     res.status(201).json({ success: true, data: caseType });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -88,8 +118,21 @@ export const createCaseType = async (req: Request, res: Response): Promise<void>
 
 export const updateCaseType = async (req: Request, res: Response): Promise<void> => {
   try {
-    const caseType = await CaseType.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!caseType) { res.status(404).json({ success: false, message: "Case type not found" }); return; }
+    const actor = (req as any).user;
+    const updatedBy = actor
+      ? { id: actor.id, name: actor.name, email: actor.email, role: actor.role }
+      : undefined;
+
+    const existing = await CaseType.findById(req.params.id);
+    if (!existing) { res.status(404).json({ success: false, message: "Case type not found" }); return; }
+
+    const update: any = { ...req.body, updatedBy };
+    if (Object.prototype.hasOwnProperty.call(req.body, "isActive") && req.body.isActive !== existing.isActive) {
+      update.statusUpdatedBy = updatedBy;
+      update.statusUpdatedAt = new Date();
+    }
+
+    const caseType = await CaseType.findByIdAndUpdate(req.params.id, update, { new: true });
     res.status(200).json({ success: true, data: caseType });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

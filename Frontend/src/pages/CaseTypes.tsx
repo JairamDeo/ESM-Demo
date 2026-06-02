@@ -3,10 +3,18 @@ import { FileText, Users, CreditCard, Heart, Phone, MapPin, Shield, UserPlus, Re
 import { useCaseTypes, useCreateCaseType, useUpdateCaseType } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 
-const ICONS: Record<number, any> = {
-  1:FileText, 2:Heart, 3:CreditCard, 4:Shield, 5:Phone,
-  6:MapPin, 7:Shield, 8:UserPlus, 9:Receipt, 10:FileCheck,
-  11:Calendar, 12:UserCog, 13:Home, 14:TrendingUp, 15:Locate, 16:Bell
+const ICON_LIST = [
+  FileText, Heart, CreditCard, Shield, Phone, MapPin, UserPlus, Receipt,
+  FileCheck, Calendar, UserCog, Home, TrendingUp, Locate, Bell,
+] as const;
+
+const getDisplayNumber = (rawId: unknown): number | null => {
+  if (typeof rawId === "number" && Number.isFinite(rawId)) return rawId;
+  const s = String(rawId ?? "");
+  const m = /^casetype(\d+)$/i.exec(s);
+  if (m) return Number(m[1]);
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 };
 
 export default memo(function CaseTypes() {
@@ -18,22 +26,34 @@ export default memo(function CaseTypes() {
   const isSuperAdmin = user?.role === "super_admin";
 
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "", category: "" });
+  const [confirmState, setConfirmState] = useState<null | { id: string; name: string; nextIsActive: boolean }>(null);
 
   const handleAdd = useCallback(async () => {
     if (!form.name.trim()) return;
-    await createCaseType.mutateAsync({ name: form.name.trim(), description: form.description.trim() });
-    setForm({ name: "", description: "" });
+    if (!form.category.trim()) return;
+    await createCaseType.mutateAsync({
+      name: form.name.trim(),
+      description: form.description.trim(),
+      category: form.category.trim(),
+    });
+    setForm({ name: "", description: "", category: "" });
     setAddOpen(false);
   }, [form, createCaseType]);
 
-  const handleToggleActive = useCallback(async (ct: any) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to ${ct.isActive ? "deactivate" : "activate"} "${ct.name}"?`
-    );
-    if (!confirmed) return;
-    await updateCaseType.mutateAsync({ id: ct._id, isActive: !ct.isActive });
-  }, [updateCaseType]);
+  const handleToggleActive = useCallback((ct: any) => {
+    setConfirmState({
+      id: ct._id,
+      name: ct.name,
+      nextIsActive: !(ct.isActive !== false),
+    });
+  }, []);
+
+  const confirmToggleActive = useCallback(async () => {
+    if (!confirmState) return;
+    await updateCaseType.mutateAsync({ id: confirmState.id, isActive: confirmState.nextIsActive });
+    setConfirmState(null);
+  }, [confirmState, updateCaseType]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -51,7 +71,7 @@ export default memo(function CaseTypes() {
         {isSuperAdmin && (
           <button
             onClick={() => setAddOpen(true)}
-            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Case Type
           </button>
@@ -64,7 +84,7 @@ export default memo(function CaseTypes() {
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-foreground">Add Case Type</h2>
-              <button onClick={() => setAddOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <button onClick={() => setAddOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -88,17 +108,29 @@ export default memo(function CaseTypes() {
                   className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary resize-none placeholder:text-muted-foreground"
                 />
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Category *</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="" disabled>Select category to assign</option>
+                  {/* Temporary option until categories are integrated dynamically */}
+                  <option value="general">General</option>
+                </select>
+              </div>
               <div className="flex gap-2 pt-1">
                 <button
                   onClick={() => setAddOpen(false)}
-                  className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm"
+                  className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAdd}
-                  disabled={createCaseType.isPending || !form.name.trim()}
-                  className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                  disabled={createCaseType.isPending || !form.name.trim() || !form.category.trim()}
+                  className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {createCaseType.isPending
                     ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -112,13 +144,54 @@ export default memo(function CaseTypes() {
         </div>
       )}
 
+      {/* Confirm Activate/Deactivate Modal */}
+      {confirmState && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold text-foreground">
+                {confirmState.nextIsActive ? "Activate Case Type" : "Deactivate Case Type"}
+              </h2>
+              <button onClick={() => setConfirmState(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to {confirmState.nextIsActive ? "activate" : "deactivate"}{" "}
+              <span className="text-foreground font-medium">“{confirmState.name}”</span>?
+            </p>
+
+            <div className="flex gap-2 pt-5">
+              <button
+                onClick={() => setConfirmState(null)}
+                disabled={updateCaseType.isPending}
+                className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmToggleActive}
+                disabled={updateCaseType.isPending}
+                className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {updateCaseType.isPending
+                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : (confirmState.nextIsActive ? "Activate" : "Deactivate")
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading ? Array(16).fill(0).map((_, i) => (
           <div key={i} className="h-44 bg-card rounded-xl border border-border animate-pulse" />
-        )) : caseTypes.map((ct: any) => {
-          const Icon = ICONS[ct.id] || FileText;
+        )) : caseTypes.map((ct: any, idx: number) => {
+          const Icon = ICON_LIST[idx % ICON_LIST.length] || FileText;
           const isActive = ct.isActive !== false; // default true if not set
+          const displayN = getDisplayNumber(ct.id) ?? (idx + 1);
           return (
             <div
               key={ct._id || ct.id}
@@ -136,7 +209,9 @@ export default memo(function CaseTypes() {
                   >
                     <Icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                   </div>
-                  <span className="text-xs font-mono text-muted-foreground">#{String(ct.id).padStart(2, "0")}</span>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    #{String(displayN).padStart(2, "0")}
+                  </span>
                 </div>
 
                 {/* Active/Inactive badge + toggle */}
@@ -154,7 +229,7 @@ export default memo(function CaseTypes() {
                   {isSuperAdmin && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleToggleActive(ct); }}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       title={isActive ? "Deactivate" : "Activate"}
                     >
                       {isActive

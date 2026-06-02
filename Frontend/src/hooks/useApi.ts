@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getApiBaseUrl } from "@/lib/apiBase";
 import { queryKeys } from "@/lib/queryKeys";
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -302,10 +303,10 @@ export const useToggleQRStatus = () => {
 };
 
 export const getQRDownloadUrl = (id: string) =>
-  `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/qr-codes/${id}/download`;
+  `${getApiBaseUrl()}/qr-codes/${id}/download`;
 
 export const getQRViewUrl = (id: string) =>
-  `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/qr-codes/${id}/view`;
+  `${getApiBaseUrl()}/qr-codes/${id}/view`;
 
 // ─── Officers ─────────────────────────────────────────────────────────────────
 export interface OfficerParams { search?: string; role?: string; station?: string; status?: string; page?: number; limit?: number; }
@@ -401,7 +402,7 @@ export const useCaseTypes = (params?: { status?: string }) =>
   export const useCreateCaseType = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { name: string; description?: string }) => {
+    mutationFn: async (body: { name: string; description?: string; category: string }) => {
       const { data } = await api.post("/case-types", body);
       return data.data;
     },
