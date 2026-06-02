@@ -50,7 +50,8 @@ export interface IOfficer extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
   rank: string;
-  role: "ESM Officer" | "Station HQ Officer" | "Record Office";
+  // role: "ESM Officer" | "Station HQ Officer" | "Record Office";
+  role: "Area Officer" | "Headquarter Officer" | "Station HQ Officer";
   station: mongoose.Types.ObjectId;   // ← now a ref to Station
   stationName: string;                // ← cached for quick display
   email: string;
@@ -69,7 +70,8 @@ const OfficerSchema = new Schema<IOfficer>(
     rank:  { type: String, trim: true, default: "" },
     role:  {
       type: String,
-      enum: ["ESM Officer", "Station HQ Officer", "Record Office"],
+      // enum: ["ESM Officer", "Station HQ Officer", "Record Office"],
+      enum: ["Area Officer", "Headquarter Officer", "Station HQ Officer"],
       required: true,
     },
     station:     { type: Schema.Types.ObjectId, ref: "Station", required: true }, // ← ref

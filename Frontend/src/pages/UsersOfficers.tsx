@@ -4,13 +4,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus, useDeleteOfficer, useStations, useHQs, useStates } from "@/hooks/useApi";
 
-const ROLES = ["ESM Officer", "Station HQ Officer", "Record Office"] as const;
+// const ROLES = ["ESM Officer", "Station HQ Officer", "Record Office"] as const;
+const ROLES = ["Area Officer", "Headquarter Officer", "Station HQ Officer"] as const;
 const RANKS = ["Lt.","Capt.","Maj.","Lt. Col.","Col.","Brig.","Sub.","Hav.","Nk.","Sep."];
 
+// const roleBadge: Record<string, string> = {
+//   "ESM Officer":       "bg-primary/15 text-primary",
+//   "Station HQ Officer":"bg-info/15 text-info",
+//   "Record Office":     "bg-warning/15 text-warning",
+// };
+
 const roleBadge: Record<string, string> = {
-  "ESM Officer":       "bg-primary/15 text-primary",
-  "Station HQ Officer":"bg-info/15 text-info",
-  "Record Office":     "bg-warning/15 text-warning",
+  "Area Officer":        "bg-primary/15 text-primary",
+  "Headquarter Officer": "bg-info/15 text-info",
+  "Station HQ Officer":  "bg-warning/15 text-warning",
 };
 
 // ─── Actions Menu ─────────────────────────────────────────────────────────────
@@ -25,7 +32,7 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: {
   const handleToggle = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setOpenUpward(window.innerHeight - rect.bottom < 180);
+      setOpenUpward(window.innerHeight - rect.bottom < 300);
     }
     setOpen((o) => !o);
   };
@@ -38,7 +45,7 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className={`absolute right-0 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-44 ${openUpward ? "bottom-8" : "top-8"}`}>
+          <div className={`absolute right-0 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-44 ${openUpward ?  "bottom-full mb-1" : "top-full mt-1"}`}>
             {canManage ? (
               <>
                 <button onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60 transition-colors">
@@ -82,21 +89,28 @@ const OfficerModal = ({
   hqData: any[];
   stations: any[];
 }) => {
-  // Dropdown options based on selected assign type
-  const typeOptions = useMemo(() => {
-    if (form.assignType === "area")    return statesData.map((s: any) => ({ _id: s._id, name: s.name }));
-    if (form.assignType === "hq")      return hqData.map((h: any)    => ({ _id: h._id, name: h.name }));
-    if (form.assignType === "station") return stations.map((s: any)  => ({ _id: s._id, name: s.name }));
-    return [];
-  }, [form.assignType, statesData, hqData, stations]);
-
-  const typeLabel: Record<string, string> = {
-    area:    "Select Area / State",
-    hq:      "Select Headquarters",
-    station: "Select Station HQ",
-  };
-
   const isPending = createOfficer.isPending || updateOfficer.isPending;
+
+  // ── Dropdown options + label based on selected ROLE ──────────────────
+  const { dropdownOptions, dropdownLabel } = useMemo(() => {
+    if (form.role === "Area Officer") {
+      return {
+        dropdownOptions: statesData.map((s: any) => ({ _id: s._id, name: s.name })),
+        dropdownLabel:   "Area / State *",
+      };
+    }
+    if (form.role === "Headquarter Officer") {
+      return {
+        dropdownOptions: hqData.map((h: any) => ({ _id: h._id, name: h.name })),
+        dropdownLabel:   "Headquarters *",
+      };
+    }
+    // Station HQ Officer (default)
+    return {
+      dropdownOptions: stations.map((s: any) => ({ _id: s._id, name: s.name })),
+      dropdownLabel:   "Station HQ *",
+    };
+  }, [form.role, statesData, hqData, stations]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -136,77 +150,19 @@ const OfficerModal = ({
             </div>
           </div>
 
-          {/* Assign Type — Area / HQ / Station HQ */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground">Assign To *</label>
-            <div className="flex gap-2 mt-1.5 flex-wrap">
-              {[
-                { value: "area",    label: "Area"         },
-                { value: "hq",      label: "Headquarters" },
-                { value: "station", label: "Station HQ"   },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setForm((p: any) => ({
-                    ...p,
-                    assignType:  opt.value,
-                    stationName: "",
-                    stationId:   "",
-                  }))}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
-                    ${form.assignType === opt.value
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-secondary text-muted-foreground border-border hover:text-foreground"
-                    }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Dynamic dropdown */}
-          {form.assignType && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                {typeLabel[form.assignType]} *
-              </label>
-              <div className="relative mt-1">
-                <select
-                  value={form.stationName}
-                  onChange={(e) => {
-                    const selected = typeOptions.find((o: any) => o.name === e.target.value);
-                    setForm((p: any) => ({
-                      ...p,
-                      stationName: e.target.value,
-                      stationId:   selected?._id || "",
-                    }));
-                  }}
-                  className="w-full px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary appearance-none"
-                >
-                  <option value="">
-                    {typeOptions.length === 0
-                      ? "No options available"
-                      : `Select ${form.assignType === "area" ? "Area" : form.assignType === "hq" ? "HQ" : "Station"}`
-                    }
-                  </option>
-                  {typeOptions.map((opt: any) => (
-                    <option key={opt._id} value={opt.name}>{opt.name}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
-              </div>
-            </div>
-          )}
-
-          {/* Role */}
+          {/* Role — select first so dropdown changes accordingly */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Role *</label>
             <div className="flex gap-2 mt-1.5 flex-wrap">
               {ROLES.map((r) => (
                 <button
                   key={r}
-                  onClick={() => setForm((p: any) => ({ ...p, role: r }))}
+                  onClick={() => setForm((p: any) => ({
+                    ...p,
+                    role:        r,
+                    stationName: "",  // ← reset dropdown when role changes
+                    stationId:   "",
+                  }))}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
                     ${form.role === r
                       ? "bg-primary text-primary-foreground border-primary"
@@ -216,6 +172,38 @@ const OfficerModal = ({
                   {r}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Dynamic dropdown — changes based on role */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">
+              {dropdownLabel}
+            </label>
+            <div className="relative mt-1">
+              <select
+                value={form.stationName}
+                onChange={(e) => {
+                  const selected = dropdownOptions.find((o: any) => o.name === e.target.value);
+                  setForm((p: any) => ({
+                    ...p,
+                    stationName: e.target.value,
+                    stationId:   selected?._id || "",
+                  }));
+                }}
+                className="w-full px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary appearance-none"
+              >
+                <option value="">
+                  {dropdownOptions.length === 0
+                    ? "No options available"
+                    : `Select ${form.role === "Area Officer" ? "Area" : form.role === "Headquarter Officer" ? "HQ" : "Station"}`
+                  }
+                </option>
+                {dropdownOptions.map((opt: any) => (
+                  <option key={opt._id} value={opt.name}>{opt.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
             </div>
           </div>
 
@@ -233,10 +221,7 @@ const OfficerModal = ({
 
           {/* Buttons */}
           <div className="flex gap-2 pt-2">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm"
-            >
+            <button onClick={onClose} className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm">
               Cancel
             </button>
             <button
@@ -279,7 +264,7 @@ export default memo(function UsersOfficers() {
   });
 
   // ── Data fetching ──────────────────────────────────────────────────────
-  const { data,        isLoading }      = useOfficers({ search, role: roleFilter || undefined });
+  const { data,  isLoading }      = useOfficers({ search, role: roleFilter || undefined });
   const { data: summaryData, isLoading: summaryLoading } = useOfficers({});
   const { data: statesData  = [] }      = useStates();
   const { data: hqData      = [] }      = useHQs();
@@ -388,9 +373,12 @@ export default memo(function UsersOfficers() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "ESM Officers",        count: summary.esmOfficers,    icon: Shield },
-          { label: "Station HQ Officers", count: summary.stationOfficers, icon: Users  },
-          { label: "Record Office",       count: summary.recordOffice,   icon: Users  },
+          // { label: "ESM Officers",        count: summary.esmOfficers,    icon: Shield },
+          // { label: "Station HQ Officers", count: summary.stationOfficers, icon: Users  },
+          // { label: "Record Office",       count: summary.recordOffice,   icon: Users  },
+          { label: "Area Officers",        count: summary.esmOfficers,    icon: Shield },
+          { label: "Headquarter Officers", count: summary.stationOfficers, icon: Users  },
+          { label: "Station HQ Officers",  count: summary.recordOffice,   icon: Users  },
         ].map((r) => (
           <div key={r.label} className="bg-card rounded-xl border border-border p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -437,7 +425,7 @@ export default memo(function UsersOfficers() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-visible ">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">

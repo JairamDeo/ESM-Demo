@@ -462,16 +462,16 @@ const seed = async () => {
 
   // ── Officers ──────────────────────────────────────────────────────────────
   const officersData = [
-  { name: "Lt. Col. V. Rao",  rank: "Lt. Col.", role: "ESM Officer",        station: stations[0]._id, stationName: "Nagpur Station HQ",     email: "v.rao@army.in",      activeCases: 42, status: "active"   },
-  { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Station HQ Officer", station: stations[1]._id, stationName: "Pune Station HQ",       email: "p.kulkarni@army.in", activeCases: 35, status: "active"   },
-  { name: "Capt. A. Desai",   rank: "Capt.",    role: "Station HQ Officer", station: stations[3]._id, stationName: "Nashik Station HQ",     email: "a.desai@army.in",    activeCases: 28, status: "active"   },
-  { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Station HQ Officer", station: stations[2]._id, stationName: "Ahmedabad Station HQ",  email: "s.joshi@army.in",    activeCases: 31, status: "active"   },
-  { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Station HQ Officer", station: stations[4]._id, stationName: "Aurangabad Station HQ", email: "r.mehta@army.in",    activeCases: 22, status: "active"   },
-  { name: "Maj. T. Nair",     rank: "Maj.",     role: "Record Office",      station: stations[5]._id, stationName: "Kolhapur Station HQ",   email: "t.nair@army.in",     activeCases: 18, status: "inactive" },
-  { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Station HQ Officer", station: stations[6]._id, stationName: "Solapur Station HQ",    email: "d.pawar@army.in",    activeCases: 24, status: "active"   },
-  { name: "Maj. H. Patel",    rank: "Maj.",     role: "Station HQ Officer", station: stations[7]._id, stationName: "Baroda Station HQ",     email: "h.patel@army.in",    activeCases: 27, status: "active"   },
-  { name: "Col. K. Sharma",   rank: "Col.",     role: "ESM Officer",        station: stations[8]._id, stationName: "Rajkot Station HQ",     email: "k.sharma@army.in",   activeCases: 15, status: "active"   },
-  { name: "Capt. N. Verma",   rank: "Capt.",    role: "Station HQ Officer", station: stations[9]._id, stationName: "Surat Station HQ",      email: "n.verma@army.in",    activeCases: 20, status: "active"   },
+  { name: "Lt. Col. V. Rao",  rank: "Lt. Col.", role: "Area Officer",        station: stations[0]._id, stationName: "Nagpur Station HQ",     email: "v.rao@army.in",      activeCases: 42, status: "active"   },
+  { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Headquarter Officer", station: stations[1]._id, stationName: "Pune Station HQ",       email: "p.kulkarni@army.in", activeCases: 35, status: "active"   },
+  { name: "Capt. A. Desai",   rank: "Capt.",    role: "Headquarter Officer", station: stations[3]._id, stationName: "Nashik Station HQ",     email: "a.desai@army.in",    activeCases: 28, status: "active"   },
+  { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Headquarter Officer", station: stations[2]._id, stationName: "Ahmedabad Station HQ",  email: "s.joshi@army.in",    activeCases: 31, status: "active"   },
+  { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Headquarter Officer", station: stations[4]._id, stationName: "Aurangabad Station HQ", email: "r.mehta@army.in",    activeCases: 22, status: "active"   },
+  { name: "Maj. T. Nair",     rank: "Maj.",     role: "Station HQ Officer",  station: stations[5]._id, stationName: "Kolhapur Station HQ",   email: "t.nair@army.in",     activeCases: 18, status: "inactive" },
+  { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Headquarter Officer", station: stations[6]._id, stationName: "Solapur Station HQ",    email: "d.pawar@army.in",    activeCases: 24, status: "active"   },
+  { name: "Maj. H. Patel",    rank: "Maj.",     role: "Headquarter Officer", station: stations[7]._id, stationName: "Baroda Station HQ",     email: "h.patel@army.in",    activeCases: 27, status: "active"   },
+  { name: "Col. K. Sharma",   rank: "Col.",     role: "Area Officer",        station: stations[8]._id, stationName: "Rajkot Station HQ",     email: "k.sharma@army.in",   activeCases: 15, status: "active"   },
+  { name: "Capt. N. Verma",   rank: "Capt.",    role: "Headquarter Officer", station: stations[9]._id, stationName: "Surat Station HQ",      email: "n.verma@army.in",    activeCases: 20, status: "active"   },
 ];
   const officersWithStation = officersData.map((o) => {
     const station = stations.find((s) => s.name === o.stationName);

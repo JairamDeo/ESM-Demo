@@ -104,7 +104,7 @@ const AdminLoginGuard = memo(() => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <Toaster richColors position="top-right" />
+      <Toaster richColors position="top-right" closeButton duration={5000} />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
