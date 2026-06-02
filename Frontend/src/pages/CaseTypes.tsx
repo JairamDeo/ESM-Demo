@@ -1,6 +1,6 @@
 import { memo, useState, useCallback } from "react";
 import { FileText, Users, CreditCard, Heart, Phone, MapPin, Shield, UserPlus, Receipt, FileCheck, Calendar, UserCog, Home, TrendingUp, Locate, Bell, Plus, X, ToggleLeft, ToggleRight } from "lucide-react";
-import { useCaseTypes, useCreateCaseType, useUpdateCaseType } from "@/hooks/useApi";
+import { useCaseTypes, useCreateCaseType, useUpdateCaseType ,useCategories } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 
 const ICON_LIST = [
@@ -19,6 +19,8 @@ const getDisplayNumber = (rawId: unknown): number | null => {
 
 export default memo(function CaseTypes() {
   const { data: caseTypes = [], isLoading } = useCaseTypes();
+  const { data: categories = [] } = useCategories();
+
   const createCaseType = useCreateCaseType();
   const updateCaseType = useUpdateCaseType();
   const { user } = useAuth();
@@ -120,6 +122,10 @@ export default memo(function CaseTypes() {
                   <option value="Pension & Financial">Pension & Financial</option>
                   <option value="Family Details">Family Details</option>
                   <option value="Requests & Tracking">Requests & Tracking</option>
+                  {/* <option value="" disabled>Select category to assign</option>
+                  {categories.map((cat: any) => (
+                  <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))} */}
                 </select>
               </div>
               <div className="flex gap-2 pt-1">

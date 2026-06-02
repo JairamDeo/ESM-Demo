@@ -554,3 +554,15 @@ export const useStates = () =>
     },
     staleTime: 600_000,
   });
+
+// ─── Categories ─────────────────────────────────────────────────────────────
+
+  export const useCategories = () =>
+  useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data } = await api.get("/categories");
+      return data.data as { _id: string; name: string }[];
+    },
+    staleTime: 600_000,
+  });

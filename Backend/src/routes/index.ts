@@ -18,7 +18,7 @@ import {
   getCaseTypes, getCaseTypeById, createCaseType, updateCaseType,
   getReports,
   getNotifications, markNotificationRead,
-  updateUserProfile,
+  updateUserProfile, getCategories
 } from "../controllers/miscControllers";
 import { protect, adminOnly, restrictTo } from "../middleware/auth";
 
@@ -131,3 +131,10 @@ notificationRouter.patch("/:id/read", protect, markNotificationRead);
 export const userRouter = Router();
 
 userRouter.put("/profile", protect, restrictTo("user"), updateUserProfile);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Category Router
+// ═══════════════════════════════════════════════════════════════════════════════
+export const categoryRouter = Router();
+
+categoryRouter.get("/", protect, getCategories);

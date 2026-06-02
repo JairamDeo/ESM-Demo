@@ -5,6 +5,8 @@ import Escalation from "../models/Escalation";
 import Station from "../models/Station";
 import Officer from "../models/Officer";
 import Notification from "../models/Notification";
+import Category from "../models/Category";
+
 
 // ─── Helper: date filter ─────────────────────────────────────────────────────
 const getDateFilter = (period?: string): any => {
@@ -331,6 +333,20 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
     );
     if (!user) { res.status(404).json({ success: false, message: "User not found" }); return; }
     res.status(200).json({ success: true, message: "Profile updated", data: user });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Get Categories
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const getCategories = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const categories = await Category.find({ isActive: { $ne: false } }).sort({ name: 1 }).lean();
+    res.status(200).json({ success: true, data: categories });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

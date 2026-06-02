@@ -9,7 +9,7 @@ import grievanceRoutes from "./routes/grievances";
 import {
   stationRouter, qrRouter, officerRouter,
   caseTypeRouter, escalationRouter, reportsRouter,
-  notificationRouter, userRouter, statesRouter, hqRouter,
+  notificationRouter, userRouter, statesRouter, hqRouter, categoryRouter
 } from "./routes/index";
 
 import { errorHandler, notFound } from "./middleware/errorHandler";
@@ -90,6 +90,7 @@ app.use("/api/escalations",   escalationRouter);
 app.use("/api/reports",       reportsRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/users",         userRouter);
+app.use("/api/categories",    categoryRouter);
 
 // ─── 404 + Error handler ──────────────────────────────────────────────────────
 app.use(notFound);

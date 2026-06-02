@@ -9,7 +9,7 @@ export interface ICaseType extends Document {
   id: string;
   name: string;
   description: string;
-  category: string;
+  category: mongoose.Types.ObjectId;
   totalCases: number;
   pendingCases: number;
   resolvedCases: number;
@@ -42,8 +42,8 @@ const CaseTypeSchema = new Schema<ICaseType>(
     id: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, unique: true, trim: true },
     description: { type: String, default: "" },
-    category: { type: String, required: true, trim: true },
     totalCases: { type: Number, default: 0 },
+    category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     pendingCases: { type: Number, default: 0 },
     resolvedCases: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
