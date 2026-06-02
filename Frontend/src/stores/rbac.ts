@@ -99,7 +99,8 @@ export const useRBACStore = create<RBACStore>()(
         set((state) => ({
           permissions: {
             ...state.permissions,
-            [role]: { ...state.permissions[role], [permission]: value },
+            // In case older persisted state is missing role keys, fall back to defaults.
+            [role]: { ...(state.permissions[role] ?? DEFAULT_PERMISSIONS[role]), [permission]: value },
           },
         })),
       resetRole: (role) =>
@@ -108,7 +109,22 @@ export const useRBACStore = create<RBACStore>()(
         })),
       resetAll: () => set({ permissions: DEFAULT_PERMISSIONS }),
     }),
-    { name: "vitric-rbac-permissions" }
+    {
+      name: "vitric-rbac-permissions",
+      // Merge persisted permissions with current defaults to avoid runtime crashes
+      // after role-key schema changes.
+      merge: (persistedState: any, currentState: any) => {
+        const persistedPermissions = persistedState?.permissions ?? {};
+        return {
+          ...currentState,
+          ...persistedState,
+          permissions: {
+            ...(currentState?.permissions ?? DEFAULT_PERMISSIONS),
+            ...persistedPermissions,
+          },
+        };
+      },
+    }
   )
 );
 

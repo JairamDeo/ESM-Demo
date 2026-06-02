@@ -398,23 +398,23 @@ const seed = async () => {
 
   // ── Case Types ────────────────────────────────────────────────────────────
   const caseTypesData = [
-    { id: 1,  name: "Update Name",                description: "As per Pt II Order",            totalCases: 87,  pendingCases: 12, resolvedCases: 75  },
-    { id: 2,  name: "Death Intimation",           description: "ESM & Dependents",              totalCases: 45,  pendingCases: 8,  resolvedCases: 37  },
-    { id: 3,  name: "Resolve Pension Issues",     description: "Pension queries & corrections", totalCases: 156, pendingCases: 42, resolvedCases: 114 },
-    { id: 4,  name: "Update Aadhaar & PAN",       description: "Identity document updates",     totalCases: 92,  pendingCases: 15, resolvedCases: 77  },
-    { id: 5,  name: "Update Mobile & Email",      description: "Contact detail updates",        totalCases: 68,  pendingCases: 5,  resolvedCases: 63  },
-    { id: 6,  name: "Update Address",             description: "Residential address changes",   totalCases: 54,  pendingCases: 7,  resolvedCases: 47  },
-    { id: 7,  name: "Stop FMA",                   description: "Fixed Medical Allowance",       totalCases: 31,  pendingCases: 4,  resolvedCases: 27  },
-    { id: 8,  name: "Add Nominee",                description: "Nominee registration",          totalCases: 43,  pendingCases: 6,  resolvedCases: 37  },
-    { id: 9,  name: "Monthly Pay Slip",           description: "Download & view slips",         totalCases: 78,  pendingCases: 3,  resolvedCases: 75  },
-    { id: 10, name: "Pension Payment Order",      description: "PPO access & updates",          totalCases: 62,  pendingCases: 11, resolvedCases: 51  },
-    { id: 11, name: "Update DOB of Spouse",       description: "Date of birth correction",      totalCases: 29,  pendingCases: 4,  resolvedCases: 25  },
-    { id: 12, name: "Update Spouse Details",      description: "Name, PAN, Aadhaar, Email",     totalCases: 38,  pendingCases: 5,  resolvedCases: 33  },
-    { id: 13, name: "Add/Update Family Details",  description: "Family composition records",    totalCases: 47,  pendingCases: 9,  resolvedCases: 38  },
-    { id: 14, name: "Grievance for Increment",    description: "As per Rank & Service",         totalCases: 34,  pendingCases: 8,  resolvedCases: 26  },
-    { id: 15, name: "Track Case Status",          description: "Real-time tracking portal",     totalCases: 210, pendingCases: 0,  resolvedCases: 210 },
-    { id: 16, name: "SMS / Portal Alerts",        description: "Notifications on updates",      totalCases: 173, pendingCases: 0,  resolvedCases: 173 },
-    { id: 17, name: "Medical Certificate",        description: "Notifications on updates",      totalCases: 173, pendingCases: 20,  resolvedCases: 153 },
+    { id: "casetype1",  name: "Update Name",                description: "As per Pt II Order",            totalCases: 87,  pendingCases: 12, resolvedCases: 75  },
+    { id: "casetype2",  name: "Death Intimation",           description: "ESM & Dependents",              totalCases: 45,  pendingCases: 8,  resolvedCases: 37  },
+    { id: "casetype3",  name: "Resolve Pension Issues",     description: "Pension queries & corrections", totalCases: 156, pendingCases: 42, resolvedCases: 114 },
+    { id: "casetype4",  name: "Update Aadhaar & PAN",       description: "Identity document updates",     totalCases: 92,  pendingCases: 15, resolvedCases: 77  },
+    { id: "casetype5",  name: "Update Mobile & Email",      description: "Contact detail updates",        totalCases: 68,  pendingCases: 5,  resolvedCases: 63  },
+    { id: "casetype6",  name: "Update Address",             description: "Residential address changes",   totalCases: 54,  pendingCases: 7,  resolvedCases: 47  },
+    { id: "casetype7",  name: "Stop FMA",                   description: "Fixed Medical Allowance",       totalCases: 31,  pendingCases: 4,  resolvedCases: 27  },
+    { id: "casetype8",  name: "Add Nominee",                description: "Nominee registration",          totalCases: 43,  pendingCases: 6,  resolvedCases: 37  },
+    { id: "casetype9",  name: "Monthly Pay Slip",           description: "Download & view slips",         totalCases: 78,  pendingCases: 3,  resolvedCases: 75  },
+    { id: "casetype10", name: "Pension Payment Order",      description: "PPO access & updates",          totalCases: 62,  pendingCases: 11, resolvedCases: 51  },
+    { id: "casetype11", name: "Update DOB of Spouse",       description: "Date of birth correction",      totalCases: 29,  pendingCases: 4,  resolvedCases: 25  },
+    { id: "casetype12", name: "Update Spouse Details",      description: "Name, PAN, Aadhaar, Email",     totalCases: 38,  pendingCases: 5,  resolvedCases: 33  },
+    { id: "casetype13", name: "Add/Update Family Details",  description: "Family composition records",    totalCases: 47,  pendingCases: 9,  resolvedCases: 38  },
+    { id: "casetype14", name: "Grievance for Increment",    description: "As per Rank & Service",         totalCases: 34,  pendingCases: 8,  resolvedCases: 26  },
+    { id: "casetype15", name: "Track Case Status",          description: "Real-time tracking portal",     totalCases: 210, pendingCases: 0,  resolvedCases: 210 },
+    { id: "casetype16", name: "SMS / Portal Alerts",        description: "Notifications on updates",      totalCases: 173, pendingCases: 0,  resolvedCases: 173 },
+    { id: "casetype17", name: "Medical Certificate",        description: "Notifications on updates",      totalCases: 173, pendingCases: 20,  resolvedCases: 153 },
 
   ];
   const caseTypes = await CaseType.create(caseTypesData);
@@ -477,7 +477,8 @@ const seed = async () => {
     const station = stations.find((s) => s.name === o.stationName);
     return { ...o, stationId: station?._id };
   });
-  const officers = await Officer.create(officersWithStation);
+  // Mongoose typing for create([...]) can get overly strict in TS builds; seed is dev-only.
+  const officers = await (Officer as any).create(officersWithStation as any);
   console.log(`👮 Created ${officers.length} officers`);
 
   // ── QR Codes with real SVGs ───────────────────────────────────────────────
@@ -629,7 +630,7 @@ const seed = async () => {
     },
   ];
 
-  const grievances = await Grievance.create(grievancesData);
+  const grievances = await (Grievance as any).create(grievancesData as any);
   console.log(`📄 Created ${grievances.length} grievances`);
 
   // ── Escalations ───────────────────────────────────────────────────────────

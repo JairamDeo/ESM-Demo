@@ -96,9 +96,9 @@ officerRouter.delete("/:id",              protect, restrictTo("super_admin"), de
 export const caseTypeRouter = Router();
 
 caseTypeRouter.get("/",    protect, getCaseTypes);
-caseTypeRouter.post("/",   protect, restrictTo("super_admin"), createCaseType);
+caseTypeRouter.post("/",   protect, restrictTo("super_admin", "area"), createCaseType);
 caseTypeRouter.get("/:id", protect, adminOnly, getCaseTypeById);
-caseTypeRouter.put("/:id", protect, restrictTo("super_admin"), updateCaseType);
+caseTypeRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCaseType);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ESCALATIONS
