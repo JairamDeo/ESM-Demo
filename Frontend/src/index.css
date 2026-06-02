@@ -111,3 +111,78 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: hsl(255 60% 69%);
 }
+
+/* Custom styling for Sonner toasts */
+[data-sonner-toast] {
+  position: relative;
+  overflow: hidden;
+  padding-bottom: 12px !important;
+}
+
+/* Style and position the close button */
+[data-sonner-toast] [data-close-button] {
+  top: 6px !important;
+  right: 6px !important;
+  left: auto !important;
+  transform: none !important;
+  background: hsl(var(--border)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  opacity: 0.8;
+  transition: opacity 0.2s, background-color 0.2s;
+  cursor: pointer;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  opacity: 1;
+  background: hsl(var(--secondary)) !important;
+}
+
+/* Time ending/loader progress bar */
+[data-sonner-toast]::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background-color: var(--toast-progress-color, hsl(var(--primary)));
+  transform-origin: left;
+  animation: sonner-toast-progress 5s linear forwards;
+}
+
+/* Pause progress bar animation on hover since Sonner pauses toast dismissal */
+[data-sonner-toast]:hover::after {
+  animation-play-state: paused;
+}
+
+/* Color schemes for different toast types based on design system colors */
+[data-sonner-toast][data-type="success"] {
+  --toast-progress-color: hsl(var(--success));
+}
+
+[data-sonner-toast][data-type="error"] {
+  --toast-progress-color: hsl(var(--destructive));
+}
+
+[data-sonner-toast][data-type="warning"] {
+  --toast-progress-color: hsl(var(--warning));
+}
+
+[data-sonner-toast][data-type="info"] {
+  --toast-progress-color: hsl(var(--info));
+}
+
+[data-sonner-toast][data-type="default"] {
+  --toast-progress-color: hsl(var(--primary));
+}
+
+/* Progress bar shrinking animation (right-to-left ending) */
+@keyframes sonner-toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

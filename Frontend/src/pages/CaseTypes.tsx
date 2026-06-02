@@ -116,8 +116,10 @@ export default memo(function CaseTypes() {
                   className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="" disabled>Select category to assign</option>
-                  {/* Temporary option until categories are integrated dynamically */}
-                  <option value="general">General</option>
+                  <option value="Identity & Personal">Identity & Personal</option>
+                  <option value="Pension & Financial">Pension & Financial</option>
+                  <option value="Family Details">Family Details</option>
+                  <option value="Requests & Tracking">Requests & Tracking</option>
                 </select>
               </div>
               <div className="flex gap-2 pt-1">

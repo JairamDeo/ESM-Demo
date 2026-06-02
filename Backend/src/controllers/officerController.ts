@@ -47,11 +47,16 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
 
     // Role-wise counts — filtered by station for non super_admin
     const countFilter = { ...stationFilter };
+    // const [esmCount, stationCount, recordCount] = await Promise.all([
+    //   Officer.countDocuments({ ...countFilter, role: "ESM Officer" }),
+    //   Officer.countDocuments({ ...countFilter, role: "Station HQ Officer" }),
+    //   Officer.countDocuments({ ...countFilter, role: "Record Office" }),
+    // ]);
     const [esmCount, stationCount, recordCount] = await Promise.all([
-      Officer.countDocuments({ ...countFilter, role: "ESM Officer" }),
-      Officer.countDocuments({ ...countFilter, role: "Station HQ Officer" }),
-      Officer.countDocuments({ ...countFilter, role: "Record Office" }),
-    ]);
+    Officer.countDocuments({ ...countFilter, role: "Area Officer" }),
+    Officer.countDocuments({ ...countFilter, role: "Headquarter Officer" }),
+    Officer.countDocuments({ ...countFilter, role: "Station HQ Officer" }),
+   ]);
 
     res.status(200).json({
       success: true,

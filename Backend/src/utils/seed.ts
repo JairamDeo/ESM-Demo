@@ -46,28 +46,24 @@ const seed = async () => {
 
   // ── Case Types ────────────────────────────────────────────────────────────
   const caseTypesData = [
-    // Categories must match the Services page sections.
-    { id: "casetype1",  category: "Identity & personal", name: "Update Name",                description: "As per Pt II Order",            totalCases: 87,  pendingCases: 12, resolvedCases: 75  },
-    { id: "casetype4",  category: "Identity & personal", name: "Update Aadhaar & PAN",       description: "Identity document updates",     totalCases: 92,  pendingCases: 15, resolvedCases: 77  },
-    { id: "casetype5",  category: "Identity & personal", name: "Update Mobile & Email",      description: "Contact detail updates",        totalCases: 68,  pendingCases: 5,  resolvedCases: 63  },
-    { id: "casetype6",  category: "Identity & personal", name: "Update Address",             description: "Residential address changes",   totalCases: 54,  pendingCases: 7,  resolvedCases: 47  },
-
-    { id: "casetype3",  category: "Pension & Financial",  name: "Resolve Pension Issues",     description: "Pension queries & corrections", totalCases: 156, pendingCases: 42, resolvedCases: 114 },
-    { id: "casetype10", category: "Pension & Financial",  name: "Pension Payment Order",      description: "PPO access & updates",          totalCases: 62,  pendingCases: 11, resolvedCases: 51  },
-    { id: "casetype9",  category: "Pension & Financial",  name: "Monthly Pay Slip",           description: "Download & view slips",         totalCases: 78,  pendingCases: 3,  resolvedCases: 75  },
-    { id: "casetype7",  category: "Pension & Financial",  name: "Stop FMA",                   description: "Fixed Medical Allowance",       totalCases: 31,  pendingCases: 4,  resolvedCases: 27  },
-
-    { id: "casetype8",  category: "Family Details",       name: "Add Nominee",                description: "Nominee registration",          totalCases: 43,  pendingCases: 6,  resolvedCases: 37  },
-    { id: "casetype13", category: "Family Details",       name: "Add/Update Family Details",  description: "Family composition records",    totalCases: 47,  pendingCases: 9,  resolvedCases: 38  },
-    { id: "casetype12", category: "Family Details",       name: "Update Spouse Details",      description: "Name, PAN, Aadhaar, Email",     totalCases: 38,  pendingCases: 5,  resolvedCases: 33  },
-    { id: "casetype11", category: "Family Details",       name: "Update DOB of Spouse",       description: "Date of birth correction",      totalCases: 29,  pendingCases: 4,  resolvedCases: 25  },
-
-    { id: "casetype2",  category: "Requests & Tracking",  name: "Death Intimation",           description: "ESM & Dependents",              totalCases: 45,  pendingCases: 8,  resolvedCases: 37  },
-    { id: "casetype14", category: "Requests & Tracking",  name: "Grievance for Increment",    description: "As per Rank & Service",         totalCases: 34,  pendingCases: 8,  resolvedCases: 26  },
-    { id: "casetype15", category: "Requests & Tracking",  name: "Track Case Status",          description: "Real-time tracking portal",     totalCases: 210, pendingCases: 0,  resolvedCases: 210 },
-    { id: "casetype16", category: "Requests & Tracking",  name: "SMS / Portal Alerts",        description: "Notifications on updates",      totalCases: 173, pendingCases: 0,  resolvedCases: 173 },
-    { id: "casetype17", category: "Requests & Tracking",  name: "Medical Certificate",        description: "Medical certificate requests",  totalCases: 173, pendingCases: 20, resolvedCases: 153 },
-
+    // category names match Services page + admin category config ("Identity & Personal", etc.)
+    { id: "casetype1",  name: "Update Name",                description: "As per Pt II Order",            totalCases: 87,  pendingCases: 12, resolvedCases: 75,  category: "Identity & Personal" },
+    { id: "casetype2",  name: "Death Intimation",           description: "ESM & Dependents",              totalCases: 45,  pendingCases: 8,  resolvedCases: 37,  category: "Requests & Tracking" },
+    { id: "casetype3",  name: "Resolve Pension Issues",     description: "Pension queries & corrections", totalCases: 156, pendingCases: 42, resolvedCases: 114, category: "Pension & Financial" },
+    { id: "casetype4",  name: "Update Aadhaar & PAN",       description: "Identity document updates",     totalCases: 92,  pendingCases: 15, resolvedCases: 77,  category: "Identity & Personal" },
+    { id: "casetype5",  name: "Update Mobile & Email",      description: "Contact detail updates",        totalCases: 68,  pendingCases: 5,  resolvedCases: 63,  category: "Identity & Personal" },
+    { id: "casetype6",  name: "Update Address",             description: "Residential address changes",   totalCases: 54,  pendingCases: 7,  resolvedCases: 47,  category: "Identity & Personal" },
+    { id: "casetype7",  name: "Stop FMA",                   description: "Fixed Medical Allowance",       totalCases: 31,  pendingCases: 4,  resolvedCases: 27,  category: "Pension & Financial" },
+    { id: "casetype8",  name: "Add Nominee",                description: "Nominee registration",          totalCases: 43,  pendingCases: 6,  resolvedCases: 37,  category: "Family Details" },
+    { id: "casetype9",  name: "Monthly Pay Slip",           description: "Download & view slips",         totalCases: 78,  pendingCases: 3,  resolvedCases: 75,  category: "Pension & Financial" },
+    { id: "casetype10", name: "Pension Payment Order",      description: "PPO access & updates",          totalCases: 62,  pendingCases: 11, resolvedCases: 51,  category: "Pension & Financial" },
+    { id: "casetype11", name: "Update DOB of Spouse",       description: "Date of birth correction",      totalCases: 29,  pendingCases: 4,  resolvedCases: 25,  category: "Family Details" },
+    { id: "casetype12", name: "Update Spouse Details",      description: "Name, PAN, Aadhaar, Email",     totalCases: 38,  pendingCases: 5,  resolvedCases: 33,  category: "Family Details" },
+    { id: "casetype13", name: "Add/Update Family Details",  description: "Family composition records",    totalCases: 47,  pendingCases: 9,  resolvedCases: 38,  category: "Family Details" },
+    { id: "casetype14", name: "Grievance for Increment",    description: "As per Rank & Service",         totalCases: 34,  pendingCases: 8,  resolvedCases: 26,  category: "Requests & Tracking" },
+    { id: "casetype15", name: "Track Case Status",          description: "Real-time tracking portal",     totalCases: 210, pendingCases: 0,  resolvedCases: 210, category: "Requests & Tracking" },
+    { id: "casetype16", name: "SMS / Portal Alerts",        description: "Notifications on updates",      totalCases: 173, pendingCases: 0,  resolvedCases: 173, category: "Requests & Tracking" },
+    { id: "casetype17", name: "Medical Certificate",        description: "Medical certificate requests",  totalCases: 173, pendingCases: 20, resolvedCases: 153, category: "Requests & Tracking" },
   ];
   const caseTypes = await CaseType.create(caseTypesData);
   console.log(`📋 Created ${caseTypes.length} case types`);
@@ -114,16 +110,16 @@ const seed = async () => {
 
   // ── Officers ──────────────────────────────────────────────────────────────
   const officersData = [
-  { name: "Lt. Col. V. Rao",  rank: "Lt. Col.", role: "ESM Officer",        station: stations[0]._id, stationName: "Nagpur Station HQ",     email: "v.rao@army.in",      activeCases: 42, status: "active"   },
-  { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Station HQ Officer", station: stations[1]._id, stationName: "Pune Station HQ",       email: "p.kulkarni@army.in", activeCases: 35, status: "active"   },
-  { name: "Capt. A. Desai",   rank: "Capt.",    role: "Station HQ Officer", station: stations[3]._id, stationName: "Nashik Station HQ",     email: "a.desai@army.in",    activeCases: 28, status: "active"   },
-  { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Station HQ Officer", station: stations[2]._id, stationName: "Ahmedabad Station HQ",  email: "s.joshi@army.in",    activeCases: 31, status: "active"   },
-  { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Station HQ Officer", station: stations[4]._id, stationName: "Aurangabad Station HQ", email: "r.mehta@army.in",    activeCases: 22, status: "active"   },
-  { name: "Maj. T. Nair",     rank: "Maj.",     role: "Record Office",      station: stations[5]._id, stationName: "Kolhapur Station HQ",   email: "t.nair@army.in",     activeCases: 18, status: "inactive" },
-  { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Station HQ Officer", station: stations[6]._id, stationName: "Solapur Station HQ",    email: "d.pawar@army.in",    activeCases: 24, status: "active"   },
-  { name: "Maj. H. Patel",    rank: "Maj.",     role: "Station HQ Officer", station: stations[7]._id, stationName: "Baroda Station HQ",     email: "h.patel@army.in",    activeCases: 27, status: "active"   },
-  { name: "Col. K. Sharma",   rank: "Col.",     role: "ESM Officer",        station: stations[8]._id, stationName: "Rajkot Station HQ",     email: "k.sharma@army.in",   activeCases: 15, status: "active"   },
-  { name: "Capt. N. Verma",   rank: "Capt.",    role: "Station HQ Officer", station: stations[9]._id, stationName: "Surat Station HQ",      email: "n.verma@army.in",    activeCases: 20, status: "active"   },
+  { name: "Lt. Col. V. Rao",  rank: "Lt. Col.", role: "Area Officer",        station: stations[0]._id, stationName: "Nagpur Station HQ",     email: "v.rao@army.in",      activeCases: 42, status: "active"   },
+  { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Headquarter Officer", station: stations[1]._id, stationName: "Pune Station HQ",       email: "p.kulkarni@army.in", activeCases: 35, status: "active"   },
+  { name: "Capt. A. Desai",   rank: "Capt.",    role: "Headquarter Officer", station: stations[3]._id, stationName: "Nashik Station HQ",     email: "a.desai@army.in",    activeCases: 28, status: "active"   },
+  { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Headquarter Officer", station: stations[2]._id, stationName: "Ahmedabad Station HQ",  email: "s.joshi@army.in",    activeCases: 31, status: "active"   },
+  { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Headquarter Officer", station: stations[4]._id, stationName: "Aurangabad Station HQ", email: "r.mehta@army.in",    activeCases: 22, status: "active"   },
+  { name: "Maj. T. Nair",     rank: "Maj.",     role: "Station HQ Officer",  station: stations[5]._id, stationName: "Kolhapur Station HQ",   email: "t.nair@army.in",     activeCases: 18, status: "inactive" },
+  { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Headquarter Officer", station: stations[6]._id, stationName: "Solapur Station HQ",    email: "d.pawar@army.in",    activeCases: 24, status: "active"   },
+  { name: "Maj. H. Patel",    rank: "Maj.",     role: "Headquarter Officer", station: stations[7]._id, stationName: "Baroda Station HQ",     email: "h.patel@army.in",    activeCases: 27, status: "active"   },
+  { name: "Col. K. Sharma",   rank: "Col.",     role: "Area Officer",        station: stations[8]._id, stationName: "Rajkot Station HQ",     email: "k.sharma@army.in",   activeCases: 15, status: "active"   },
+  { name: "Capt. N. Verma",   rank: "Capt.",    role: "Headquarter Officer", station: stations[9]._id, stationName: "Surat Station HQ",      email: "n.verma@army.in",    activeCases: 20, status: "active"   },
 ];
   const officersWithStation = officersData.map((o) => {
     const station = stations.find((s) => s.name === o.stationName);
