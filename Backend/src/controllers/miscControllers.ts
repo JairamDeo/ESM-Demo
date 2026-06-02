@@ -59,18 +59,27 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
     if (status === "active") {
       filter.isActive = { $ne: false }; // Match active case types
     }
-    const caseTypesRaw = await CaseType.find(filter).lean();
+    const caseTypesRaw = await CaseType.find(filter).populate("category", "name isActive").lean();
     // Sort by casetype<N> numeric suffix if present, else fallback stable.
-    const caseTypes = caseTypesRaw.sort((a: any, b: any) => {
-      const aId = String(a.id ?? "");
-      const bId = String(b.id ?? "");
-      const aMatch = /^casetype(\d+)$/i.exec(aId);
-      const bMatch = /^casetype(\d+)$/i.exec(bId);
-      if (aMatch && bMatch) return Number(aMatch[1]) - Number(bMatch[1]);
-      if (aMatch && !bMatch) return -1;
-      if (!aMatch && bMatch) return 1;
-      return aId.localeCompare(bId);
-    });
+    const caseTypes = caseTypesRaw
+      .sort((a: any, b: any) => {
+        const aId = String(a.id ?? "");
+        const bId = String(b.id ?? "");
+        const aMatch = /^casetype(\d+)$/i.exec(aId);
+        const bMatch = /^casetype(\d+)$/i.exec(bId);
+        if (aMatch && bMatch) return Number(aMatch[1]) - Number(bMatch[1]);
+        if (aMatch && !bMatch) return -1;
+        if (!aMatch && bMatch) return 1;
+        return aId.localeCompare(bId);
+      })
+      .map((ct: any) => {
+        const populated = ct.category && typeof ct.category === "object" ? ct.category : null;
+        return {
+          ...ct,
+          categoryId: populated?._id ?? ct.category,
+          categoryName: populated?.name ?? "Other",
+        };
+      });
     res.status(200).json({ success: true, data: caseTypes });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

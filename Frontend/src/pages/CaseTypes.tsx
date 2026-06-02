@@ -118,14 +118,9 @@ export default memo(function CaseTypes() {
                   className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="" disabled>Select category to assign</option>
-                  <option value="Identity & Personal">Identity & Personal</option>
-                  <option value="Pension & Financial">Pension & Financial</option>
-                  <option value="Family Details">Family Details</option>
-                  <option value="Requests & Tracking">Requests & Tracking</option>
-                  {/* <option value="" disabled>Select category to assign</option>
-                  {categories.map((cat: any) => (
-                  <option key={cat._id} value={cat._id}>{cat.name}</option>
-                  ))} */}
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex gap-2 pt-1">
