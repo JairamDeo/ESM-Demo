@@ -10,6 +10,7 @@ import Officer from "../models/Officer";
 import Grievance from "../models/Grievance";
 import Escalation from "../models/Escalation";
 import CaseType from "../models/CaseType";
+import Category from "../models/Category";
 import QRCode from "../models/QRCode";
 import Notification from "../models/Notification";
 import qrcode from "qrcode";
@@ -25,7 +26,7 @@ const seed = async () => {
   await Promise.all([
     Admin.deleteMany({}), User.deleteMany({}), HQ.deleteMany({}), State.deleteMany({}), Station.deleteMany({}),
     Officer.deleteMany({}), Grievance.deleteMany({}), Escalation.deleteMany({}),
-    CaseType.deleteMany({}), QRCode.deleteMany({}), Notification.deleteMany({}),
+    Category.deleteMany({}), CaseType.deleteMany({}), QRCode.deleteMany({}), Notification.deleteMany({}),
   ]);
   console.log("🗑️  Cleared existing data");
 
@@ -44,26 +45,35 @@ const seed = async () => {
 ]);
   console.log(`👤 Created ${admins.length} admins`);
 
+  // ── Categories (referenced by case types) ─────────────────────────────────
+  const categories = await Category.insertMany([
+    { name: "Identity & Personal" },
+    { name: "Pension & Financial" },
+    { name: "Family Details" },
+    { name: "Requests & Tracking" },
+  ]);
+  console.log(`🏷️  Created ${categories.length} categories`);
+  const categoryByName = Object.fromEntries(categories.map((c) => [c.name, c._id]));
+
   // ── Case Types ────────────────────────────────────────────────────────────
   const caseTypesData = [
-    // category names match Services page + admin category config ("Identity & Personal", etc.)
-    { id: "casetype1",  name: "Update Name",                description: "As per Pt II Order",            totalCases: 87,  pendingCases: 12, resolvedCases: 75,  category: "Identity & Personal" },
-    { id: "casetype2",  name: "Death Intimation",           description: "ESM & Dependents",              totalCases: 45,  pendingCases: 8,  resolvedCases: 37,  category: "Requests & Tracking" },
-    { id: "casetype3",  name: "Resolve Pension Issues",     description: "Pension queries & corrections", totalCases: 156, pendingCases: 42, resolvedCases: 114, category: "Pension & Financial" },
-    { id: "casetype4",  name: "Update Aadhaar & PAN",       description: "Identity document updates",     totalCases: 92,  pendingCases: 15, resolvedCases: 77,  category: "Identity & Personal" },
-    { id: "casetype5",  name: "Update Mobile & Email",      description: "Contact detail updates",        totalCases: 68,  pendingCases: 5,  resolvedCases: 63,  category: "Identity & Personal" },
-    { id: "casetype6",  name: "Update Address",             description: "Residential address changes",   totalCases: 54,  pendingCases: 7,  resolvedCases: 47,  category: "Identity & Personal" },
-    { id: "casetype7",  name: "Stop FMA",                   description: "Fixed Medical Allowance",       totalCases: 31,  pendingCases: 4,  resolvedCases: 27,  category: "Pension & Financial" },
-    { id: "casetype8",  name: "Add Nominee",                description: "Nominee registration",          totalCases: 43,  pendingCases: 6,  resolvedCases: 37,  category: "Family Details" },
-    { id: "casetype9",  name: "Monthly Pay Slip",           description: "Download & view slips",         totalCases: 78,  pendingCases: 3,  resolvedCases: 75,  category: "Pension & Financial" },
-    { id: "casetype10", name: "Pension Payment Order",      description: "PPO access & updates",          totalCases: 62,  pendingCases: 11, resolvedCases: 51,  category: "Pension & Financial" },
-    { id: "casetype11", name: "Update DOB of Spouse",       description: "Date of birth correction",      totalCases: 29,  pendingCases: 4,  resolvedCases: 25,  category: "Family Details" },
-    { id: "casetype12", name: "Update Spouse Details",      description: "Name, PAN, Aadhaar, Email",     totalCases: 38,  pendingCases: 5,  resolvedCases: 33,  category: "Family Details" },
-    { id: "casetype13", name: "Add/Update Family Details",  description: "Family composition records",    totalCases: 47,  pendingCases: 9,  resolvedCases: 38,  category: "Family Details" },
-    { id: "casetype14", name: "Grievance for Increment",    description: "As per Rank & Service",         totalCases: 34,  pendingCases: 8,  resolvedCases: 26,  category: "Requests & Tracking" },
-    { id: "casetype15", name: "Track Case Status",          description: "Real-time tracking portal",     totalCases: 210, pendingCases: 0,  resolvedCases: 210, category: "Requests & Tracking" },
-    { id: "casetype16", name: "SMS / Portal Alerts",        description: "Notifications on updates",      totalCases: 173, pendingCases: 0,  resolvedCases: 173, category: "Requests & Tracking" },
-    { id: "casetype17", name: "Medical Certificate",        description: "Medical certificate requests",  totalCases: 173, pendingCases: 20, resolvedCases: 153, category: "Requests & Tracking" },
+    { id: "casetype1",  name: "Update Name",                description: "As per Pt II Order",            totalCases: 87,  pendingCases: 12, resolvedCases: 75,  category: categoryByName["Identity & Personal"] },
+    { id: "casetype2",  name: "Death Intimation",           description: "ESM & Dependents",              totalCases: 45,  pendingCases: 8,  resolvedCases: 37,  category: categoryByName["Requests & Tracking"] },
+    { id: "casetype3",  name: "Resolve Pension Issues",     description: "Pension queries & corrections", totalCases: 156, pendingCases: 42, resolvedCases: 114, category: categoryByName["Pension & Financial"] },
+    { id: "casetype4",  name: "Update Aadhaar & PAN",       description: "Identity document updates",     totalCases: 92,  pendingCases: 15, resolvedCases: 77,  category: categoryByName["Identity & Personal"] },
+    { id: "casetype5",  name: "Update Mobile & Email",      description: "Contact detail updates",        totalCases: 68,  pendingCases: 5,  resolvedCases: 63,  category: categoryByName["Identity & Personal"] },
+    { id: "casetype6",  name: "Update Address",             description: "Residential address changes",   totalCases: 54,  pendingCases: 7,  resolvedCases: 47,  category: categoryByName["Identity & Personal"] },
+    { id: "casetype7",  name: "Stop FMA",                   description: "Fixed Medical Allowance",       totalCases: 31,  pendingCases: 4,  resolvedCases: 27,  category: categoryByName["Pension & Financial"] },
+    { id: "casetype8",  name: "Add Nominee",                description: "Nominee registration",          totalCases: 43,  pendingCases: 6,  resolvedCases: 37,  category: categoryByName["Family Details"] },
+    { id: "casetype9",  name: "Monthly Pay Slip",           description: "Download & view slips",         totalCases: 78,  pendingCases: 3,  resolvedCases: 75,  category: categoryByName["Pension & Financial"] },
+    { id: "casetype10", name: "Pension Payment Order",      description: "PPO access & updates",          totalCases: 62,  pendingCases: 11, resolvedCases: 51,  category: categoryByName["Pension & Financial"] },
+    { id: "casetype11", name: "Update DOB of Spouse",       description: "Date of birth correction",      totalCases: 29,  pendingCases: 4,  resolvedCases: 25,  category: categoryByName["Family Details"] },
+    { id: "casetype12", name: "Update Spouse Details",      description: "Name, PAN, Aadhaar, Email",     totalCases: 38,  pendingCases: 5,  resolvedCases: 33,  category: categoryByName["Family Details"] },
+    { id: "casetype13", name: "Add/Update Family Details",  description: "Family composition records",    totalCases: 47,  pendingCases: 9,  resolvedCases: 38,  category: categoryByName["Family Details"] },
+    { id: "casetype14", name: "Grievance for Increment",    description: "As per Rank & Service",         totalCases: 34,  pendingCases: 8,  resolvedCases: 26,  category: categoryByName["Requests & Tracking"] },
+    { id: "casetype15", name: "Track Case Status",          description: "Real-time tracking portal",     totalCases: 210, pendingCases: 0,  resolvedCases: 210, category: categoryByName["Requests & Tracking"] },
+    { id: "casetype16", name: "SMS / Portal Alerts",        description: "Notifications on updates",      totalCases: 173, pendingCases: 0,  resolvedCases: 173, category: categoryByName["Requests & Tracking"] },
+    { id: "casetype17", name: "Medical Certificate",        description: "Medical certificate requests",  totalCases: 173, pendingCases: 20, resolvedCases: 153, category: categoryByName["Requests & Tracking"] },
   ];
   const caseTypes = await CaseType.create(caseTypesData);
   console.log(`📋 Created ${caseTypes.length} case types`);

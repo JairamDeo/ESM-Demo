@@ -59,6 +59,12 @@ const categorySortIndex = (name: string) => {
   return idx === -1 ? 999 : idx;
 };
 
+/** Category label from API (populated categoryName or legacy string field). */
+const getCaseTypeCategoryLabel = (ct: any) =>
+  ct?.categoryName ??
+  (typeof ct?.category === "object" && ct?.category?.name ? ct.category.name : null) ??
+  (typeof ct?.category === "string" ? ct.category : "Other");
+
 const getCategoryMeta = (categoryName: string) => {
   const meta = CATEGORY_CONFIG.find(
     (c) => normalizeCategory(c.key) === normalizeCategory(categoryName)
@@ -79,14 +85,14 @@ export default function Services() {
       ? list.filter((ct: any) => {
           const name = String(ct?.name ?? "").toLowerCase();
           const desc = String(ct?.description ?? "").toLowerCase();
-          const category = String(ct?.category ?? "").toLowerCase();
+          const category = getCaseTypeCategoryLabel(ct).toLowerCase();
           return name.includes(q) || desc.includes(q) || category.includes(q);
         })
       : list;
 
     const byCategory = new Map<string, any[]>();
     for (const ct of filtered) {
-      const category = String(ct?.category ?? "Other").trim() || "Other";
+      const category = getCaseTypeCategoryLabel(ct).trim() || "Other";
       if (!byCategory.has(category)) byCategory.set(category, []);
       byCategory.get(category)!.push(ct);
     }
