@@ -175,24 +175,24 @@ export default function Services() {
       {!isLoading &&
         !isError &&
         groupedCategories.map((cat) => (
-          <div key={cat.key} className="rounded-xl bg-[#1B1B1B] p-3 lg:h-[150px]">
-            <div className="flex items-center gap-2 mb-3 lg:gap-4 lg:mb-2">
+          <div key={cat.key} className="rounded-xl bg-[#1B1B1B] p-3 lg:p-5 ">
+            <div className="flex items-center gap-2 mb-3 lg:gap-4 lg:mb-4">
               <span className="text-lg flex items-center justify-center">{cat.icon}</span>
-              <h2 className="font-semibold text-sm text-foreground lg:text-md lg:font-bold">{cat.title}</h2>
+              <h2 className="font-semibold text-sm text-foreground lg:text-base lg:font-bold">{cat.title}</h2>
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 lg:gap-4">
               {cat.items.map((item) => (
                 <Link
                   key={item.id}
                   to="/user/raise-grievance"
                   state={{ caseType: item.label }}
-                  className="flex flex-col items-center gap-1.5 group cursor-pointer"
+                  className="flex flex-col items-center gap-1.5 lg:gap-2 group cursor-pointer"
                 >
-                  <div className="w-14 h-14 lg:mt-2 lg:w-18 lg:h-18 rounded-sm bg-[#222223] flex items-center justify-center group-hover:border-primary/30 transition-colors">
+                  <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-sm bg-[#222223] flex items-center justify-center group-hover:border-primary/30 transition-colors">
                     <img
                       src={item.icon}
                       alt={item.label}
-                      className="w-[24px] h-[24px] object-contain transition-transform group-hover:scale-110"
+                      className="w-[24px] h-[24px] lg:w-[28px] lg:h-[28px] object-contain transition-transform group-hover:scale-110"
                     />
                   </div>
                   <span className="text-[10px] lg:text-[12px] text-foreground/80 text-center leading-tight">

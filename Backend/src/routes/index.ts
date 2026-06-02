@@ -18,7 +18,7 @@ import {
   getCaseTypes, getCaseTypeById, createCaseType, updateCaseType,
   getReports,
   getNotifications, markNotificationRead,
-  updateUserProfile, getCategories
+  updateUserProfile, getCategories, createCategory, updateCategory
 } from "../controllers/miscControllers";
 import { protect, adminOnly, restrictTo } from "../middleware/auth";
 
@@ -138,3 +138,5 @@ userRouter.put("/profile", protect, restrictTo("user"), updateUserProfile);
 export const categoryRouter = Router();
 
 categoryRouter.get("/", protect, getCategories);
+categoryRouter.post("/", protect, restrictTo("super_admin", "area"), createCategory);
+categoryRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCategory);

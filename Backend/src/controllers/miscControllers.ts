@@ -354,8 +354,81 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
 
 export const getCategories = async (req: Request, res: Response): Promise<void> => {
   try {
-    const categories = await Category.find({ isActive: { $ne: false } }).sort({ name: 1 }).lean();
+    // Auto-seed categories if none exist
+    const count = await Category.countDocuments();
+    if (count === 0) {
+      const defaultCategories = [
+        { name: "Identity & Personal", isActive: true },
+        { name: "Pension & Financial", isActive: true },
+        { name: "Family Details", isActive: true },
+        { name: "Requests & Tracking", isActive: true },
+      ];
+      const inserted = await Category.insertMany(defaultCategories);
+      
+      // Fix orphaned CaseTypes based on known names
+      const categoryByName = Object.fromEntries(inserted.map(c => [c.name, c._id]));
+      const caseTypeMapping: Record<string, string> = {
+        "Update Name": "Identity & Personal",
+        "Update Aadhaar & PAN": "Identity & Personal",
+        "Update Mobile & Email": "Identity & Personal",
+        "Update Address": "Identity & Personal",
+        "Resolve Pension Issues": "Pension & Financial",
+        "Stop FMA": "Pension & Financial",
+        "Monthly Pay Slip": "Pension & Financial",
+        "Pension Payment Order": "Pension & Financial",
+        "Add Nominee": "Family Details",
+        "Update DOB of Spouse": "Family Details",
+        "Update Spouse Details": "Family Details",
+        "Add/Update Family Details": "Family Details",
+        "Death Intimation": "Requests & Tracking",
+        "Grievance for Increment": "Requests & Tracking",
+        "Track Case Status": "Requests & Tracking",
+        "SMS / Portal Alerts": "Requests & Tracking",
+        "Medical Certificate": "Requests & Tracking"
+      };
+
+      const allCaseTypes = await CaseType.find();
+      for (const ct of allCaseTypes) {
+        const catName = caseTypeMapping[ct.name] || "Identity & Personal";
+        ct.category = categoryByName[catName];
+        await ct.save();
+      }
+    }
+
+    const { status } = req.query;
+    const filter: any = {};
+    if (status !== "all") {
+      filter.isActive = { $ne: false };
+    }
+    const categories = await Category.find(filter).sort({ name: 1 }).lean();
     res.status(200).json({ success: true, data: categories });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const createCategory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, isActive } = req.body;
+    if (!name) { res.status(400).json({ success: false, message: "name is required" }); return; }
+    
+    const existing = await Category.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+    if (existing) { res.status(400).json({ success: false, message: "Category with this name already exists" }); return; }
+
+    const category = await Category.create({ name, isActive: isActive !== undefined ? isActive : true });
+    res.status(201).json({ success: true, data: category });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateCategory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const existing = await Category.findById(req.params.id);
+    if (!existing) { res.status(404).json({ success: false, message: "Category not found" }); return; }
+
+    const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json({ success: true, data: category });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

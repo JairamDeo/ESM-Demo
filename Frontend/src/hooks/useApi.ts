@@ -557,12 +557,46 @@ export const useStates = () =>
 
 // ─── Categories ─────────────────────────────────────────────────────────────
 
-  export const useCategories = () =>
+  export const useCategories = (params?: { status?: string }) =>
   useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories", params],
     queryFn: async () => {
-      const { data } = await api.get("/categories");
-      return data.data as { _id: string; name: string }[];
+      const { data } = await api.get("/categories", { params });
+      return data.data as { _id: string; name: string; isActive?: boolean }[];
     },
     staleTime: 600_000,
   });
+
+  export const useCreateCategory = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; isActive?: boolean }) => {
+      const { data } = await api.post("/categories", body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Category added successfully!");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to add category");
+    },
+  });
+};
+
+export const useUpdateCategory = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: { id: string; [key: string]: any }) => {
+      const { data } = await api.put(`/categories/${id}`, body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      toast.success("Category updated");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to update category");
+    },
+  });
+};

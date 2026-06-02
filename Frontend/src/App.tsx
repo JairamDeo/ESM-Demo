@@ -11,6 +11,7 @@ const UserLayout    = lazy(() => import("@/components/UserLayout"));
 const AdminLogin    = lazy(() => import("@/pages/AdminLogin"));
 const Dashboard     = lazy(() => import("@/pages/Dashboard"));
 const Grievances    = lazy(() => import("@/pages/Grievances"));
+const Categories    = lazy(() => import("@/pages/Categories"));
 const CaseTypes     = lazy(() => import("@/pages/CaseTypes"));
 const Stations      = lazy(() => import("@/pages/Stations"));
 const QRCodes       = lazy(() => import("@/pages/QRCodes"));
@@ -57,6 +58,7 @@ const AdminGuard = memo(() => {
       <Routes>
         <Route path="/"            element={<S><Dashboard /></S>} />
         <Route path="/grievances"  element={<S><Grievances /></S>} />
+        <Route path="/categories"  element={<S><Categories /></S>} />
         <Route path="/case-types"  element={<S><CaseTypes /></S>} />
         <Route path="/stations"    element={<S><Stations /></S>} />
         <Route path="/qr-codes"    element={<S><QRCodes /></S>} />
