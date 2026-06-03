@@ -2,7 +2,7 @@ import { useState, useCallback, memo, Fragment } from "react";
 import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronUp, RotateCcw, Check } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRBACStore, type UserRole, type Permission, DEFAULT_PERMISSIONS } from "@/stores/rbac";
+import { useRBACStore, usePermissions, type UserRole, type Permission, DEFAULT_PERMISSIONS } from "@/stores/rbac";
 import { toast } from "sonner";
 
 // ─── Permission display labels ────────────────────────────────────────────────
@@ -22,6 +22,13 @@ const PERMISSION_GROUPS: { label: string; perms: Array<{ key: keyof Permission; 
       { key: "escalateGrievance",     label: "Escalate cases"                   },
       { key: "reassignOfficer",       label: "Reassign officer on a case"       },
       { key: "deleteGrievance",       label: "Delete grievances", danger: true  },
+    ],
+  },
+  {
+    label: "Categories Master",
+    perms: [
+      { key: "viewCategories",   label: "View categories master"    },
+      { key: "manageCategories", label: "Add / edit categories"     },
     ],
   },
   {
@@ -106,6 +113,32 @@ const Toggle = memo(({ value, onChange, disabled }: { value: boolean; onChange: 
 const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
   const { permissions, updateRolePermission, resetRole } = useRBACStore();
   const [expandedGroup, setExpandedGroup] = useState<string | null>("Grievances");
+  const [saving, setSaving] = useState(false);
+
+  const handleToggle = useCallback(async (role: UserRole, permKey: keyof Permission, currentVal: boolean) => {
+    if (!canEdit || role === "super_admin" || saving) return;
+    setSaving(true);
+    try {
+      await updateRolePermission(role, permKey, !currentVal);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to update permission");
+    } finally {
+      setSaving(false);
+    }
+  }, [canEdit, saving, updateRolePermission]);
+
+  const handleResetRole = useCallback(async (role: UserRole, label: string) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await resetRole(role);
+      toast.success(`${label} permissions reset`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to reset role");
+    } finally {
+      setSaving(false);
+    }
+  }, [resetRole, saving]);
 
   return (
     <div className="space-y-4">
@@ -121,8 +154,9 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${role.color}`}>{role.label}</span>
                     {canEdit && role.key !== "super_admin" && (
                       <button
-                        onClick={() => { resetRole(role.key); toast.success(`${role.label} permissions reset`); }}
-                        className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                        onClick={() => handleResetRole(role.key, role.label)}
+                        disabled={saving}
+                        className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-50"
                       >
                         <RotateCcw className="w-2.5 h-2.5" /> Reset
                       </button>
@@ -161,12 +195,10 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
                           <Toggle
                             value={permissions[role.key]?.[perm.key] ?? false}
                             onChange={() => {
-                              if (!canEdit) return;
-                              if (role.key === "super_admin") return; // super_admin always all true
                               const currentVal = permissions[role.key]?.[perm.key] ?? false;
-                              updateRolePermission(role.key, perm.key, !currentVal);
+                              handleToggle(role.key, perm.key, currentVal);
                             }}
-                            disabled={!canEdit || role.key === "super_admin"}
+                            disabled={!canEdit || role.key === "super_admin" || saving}
                           />
                         </div>
                       </td>
@@ -214,13 +246,18 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { resetAll } = useRBACStore();
 
+  const permissions = usePermissions();
   const isSuperAdmin = user?.role === "super_admin";
-  const canManageRoles = user?.role === "super_admin";
+  const canManageRoles = permissions.manageRoles;
 
-  const handleResetAll = useCallback(() => {
+  const handleResetAll = useCallback(async () => {
     if (!canManageRoles) return;
-    resetAll();
-    toast.success("All role permissions reset to defaults");
+    try {
+      await resetAll();
+      toast.success("All role permissions reset to defaults");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to reset permissions");
+    }
   }, [canManageRoles, resetAll]);
 
   return (

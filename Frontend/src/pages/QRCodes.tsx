@@ -8,6 +8,9 @@ import { toast } from "sonner";
 const STATIONS = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Solapur Station HQ","Baroda Station HQ","Rajkot Station HQ","Surat Station HQ"];
 
 export default memo(function QRCodes() {
+  const permissions = usePermissions();
+  const canManageQRCodes = permissions.manageQRCodes;
+
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [open, setOpen] = useState(false);
@@ -64,9 +67,11 @@ export default memo(function QRCodes() {
           <h1 className="text-2xl font-bold text-foreground">QR Codes</h1>
           <p className="text-muted-foreground text-sm mt-1">QR codes installed at all {qrCodes.length} Station HQs for digital grievance submission</p>
         </div>
-        <button onClick={() => setOpen(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 self-start sm:self-auto">
-          <QrCode className="w-4 h-4" /> Generate New
-        </button>
+        {canManageQRCodes && (
+          <button onClick={() => setOpen(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 self-start sm:self-auto">
+            <QrCode className="w-4 h-4" /> Generate New
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -170,7 +175,9 @@ export default memo(function QRCodes() {
                   <Download className="w-3.5 h-3.5" /> Download
                 </button>
                 <button onClick={() => setSelectedQR(qr)} className="p-2 rounded-lg bg-secondary text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
-                <button onClick={() => handleRegenerate(qr)} className="p-2 rounded-lg bg-secondary text-muted-foreground hover:text-foreground transition-colors"><RefreshCw className="w-4 h-4" /></button>
+                {canManageQRCodes && (
+                  <button onClick={() => handleRegenerate(qr)} className="p-2 rounded-lg bg-secondary text-muted-foreground hover:text-foreground transition-colors"><RefreshCw className="w-4 h-4" /></button>
+                )}
               </div>
             </div>
           ))}

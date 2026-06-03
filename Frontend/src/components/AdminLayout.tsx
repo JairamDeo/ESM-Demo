@@ -13,7 +13,7 @@ import { usePermissions } from "@/stores/rbac";
 const ALL_NAV = [
   { icon: LayoutDashboard, label: "Dashboard",     path: "/",            perm: "viewDashboard"   },
   { icon: FileText,        label: "Grievances",    path: "/grievances",  perm: "viewGrievances"  },
-  { icon: ListTree,        label: "Categories-Master",    path: "/categories",  perm: "viewCaseTypes"   },
+  { icon: ListTree,        label: "Categories-Master",    path: "/categories",  perm: "viewCategories"  },
   { icon: ClipboardList,   label: "Case Types",    path: "/case-types",  perm: "viewCaseTypes"   },
   { icon: Building2,       label: "Station HQs",   path: "/stations",    perm: "viewStations"    },
   { icon: QrCode,          label: "QR Codes",      path: "/qr-codes",    perm: "viewQRCodes"     },

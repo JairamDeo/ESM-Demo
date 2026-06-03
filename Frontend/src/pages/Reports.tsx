@@ -2,6 +2,7 @@ import { useState, memo, useMemo } from "react";
 import { Download, FileText, TrendingUp, CheckCircle2, AlertTriangle, Clock, ChevronDown } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { useReports } from "@/hooks/useApi";
+import { usePermissions } from "@/stores/rbac";
 
 const TT = { background: "hsl(240 3% 12%)", border: "1px solid hsl(240 3% 20%)", borderRadius: "8px", color: "#fff" };
 
@@ -16,6 +17,9 @@ const PERIOD_OPTIONS = [
 ];
 
 export default memo(function Reports() {
+  const permissions = usePermissions();
+  const canExport = permissions.exportReports;
+
   const [period, setPeriod] = useState("all");
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -103,13 +107,14 @@ export default memo(function Reports() {
           )}
           </div>
 
-          {/* Export */}
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" /> Export JSON
-          </button>
+          {canExport && (
+            <button
+              onClick={handleExport}
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" /> Export JSON
+            </button>
+          )}
 
         </div>
       </div>
@@ -202,7 +207,12 @@ export default memo(function Reports() {
         <h3 className="font-semibold text-foreground mb-4">Available Reports</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {["Monthly Summary Report", "Station-wise Performance", "Case Type Analysis", "Escalation Report", "Officer Workload Report", "Veteran Satisfaction Report"].map((r) => (
-            <button key={r} onClick={handleExport} className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/30 transition-colors cursor-pointer text-left">
+            <button
+              key={r}
+              onClick={canExport ? handleExport : undefined}
+              disabled={!canExport}
+              className={`flex items-center justify-between p-4 rounded-lg border border-border transition-colors text-left ${canExport ? "hover:border-primary/30 cursor-pointer" : "opacity-60 cursor-not-allowed"}`}
+            >
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-primary" />
                 <span className="text-sm text-foreground">{r}</span>

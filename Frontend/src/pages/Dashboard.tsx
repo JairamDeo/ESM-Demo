@@ -3,7 +3,7 @@ import { FileText, Clock, CheckCircle2, AlertTriangle, TrendingUp, Building2, Us
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useDashboard } from "@/hooks/useApi";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/stores/rbac";
 
 const PIE_COLORS = ["hsl(255 60% 69%)", "hsl(199 89% 48%)", "hsl(142 71% 45%)", "hsl(38 92% 50%)", "hsl(240 3% 40%)"];
 const TT_STYLE = { background: "hsl(240 3% 12%)", border: "1px solid hsl(240 3% 20%)", borderRadius: "8px", color: "#fff" };
@@ -37,11 +37,8 @@ export default memo(function Dashboard() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { data, isLoading } = useDashboard(period);
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  // Only super_admin and esm_officer see Top Stations
-  // const canSeeTopStations = user?.role === "super_admin" || user?.role === "esm_officer";
-  const canSeeTopStations = user?.role === "super_admin" || user?.role === "area";
+  const permissions = usePermissions();
+  const canSeeTopStations = permissions.viewStations;
 
   const selectedLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label || "All Time";
 

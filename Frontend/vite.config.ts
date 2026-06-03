@@ -25,8 +25,8 @@ export default defineConfig({
     },
   },
   server: {
-    host: true, // listen on 0.0.0.0 so other devices on LAN can open http://<your-ip>:5173
-    port: 5173,
+    host: true, // listen on 0.0.0.0 so other devices on LAN can open http://<your-ip>:5174
+    port: 5174,
     strictPort: true,
     proxy: {
       "/api": {

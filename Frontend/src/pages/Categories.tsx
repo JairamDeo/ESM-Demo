@@ -2,6 +2,7 @@ import { memo, useState, useCallback } from "react";
 import { ListTree, Plus, X, ToggleLeft, ToggleRight, Pencil, Eye, Trash2 } from "lucide-react";
 import { useCategories, useCreateCategory, useUpdateCategory, useCaseTypes, useDeleteCaseType } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/stores/rbac";
 
 export default memo(function Categories() {
   const { data: categories = [], isLoading } = useCategories({ status: "all" });
@@ -9,6 +10,8 @@ export default memo(function Categories() {
 
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
+  const permissions = usePermissions();
+  const canManageCategories = permissions.manageCategories;
   const deleteCaseType = useDeleteCaseType();
   const { user } = useAuth();
 
@@ -72,8 +75,7 @@ export default memo(function Categories() {
           </p>
         </div>
 
-        {/* Add button — super_admin only */}
-        {isSuperAdmin && (
+        {canManageCategories && (
           <button
             onClick={() => setAddOpen(true)}
             className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 cursor-pointer"
@@ -330,8 +332,7 @@ export default memo(function Categories() {
                     {isActive ? "Active" : "Inactive"}
                   </span>
 
-                  {/* Toggle button — super_admin only */}
-                  {isSuperAdmin && (
+                  {canManageCategories && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleToggleActive(cat); }}
                       className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"

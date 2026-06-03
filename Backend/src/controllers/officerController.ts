@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Officer from "../models/Officer";
 import Station from "../models/Station";
+import { getPermissionsForOfficerRole } from "../services/rbacService";
 
 // ─── Helper: get station filter based on role ────────────────────────────────
 const getStationFilter = (req: Request): any => {
@@ -84,7 +85,7 @@ export const getOfficerById = async (req: Request, res: Response): Promise<void>
 // ─── CREATE officer ──────────────────────────────────────────────────────────
 export const createOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, rank, role, stationName, email, phone } = req.body;
+    const { name, rank, role, stationName, email, phone, permissions } = req.body;
 
     if (!name || !role || !email || !stationName) {
       res.status(400).json({ success: false, message: "name, role, email and stationName are required" });
@@ -102,14 +103,21 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       isActive: true,
     });
 
+    const defaultPermissions = await getPermissionsForOfficerRole(role);
+    const officerPermissions =
+      permissions && typeof permissions === "object"
+        ? { ...defaultPermissions, ...permissions }
+        : defaultPermissions;
+
     const officer = await Officer.create({
       name:        name.trim(),
       rank:        rank?.trim() || "",
       role,
-      station:     stationDoc?._id,          // ← fixed: stationId → station
+      station:     stationDoc?._id,
       stationName: stationDoc?.name || stationName,
       email:       email.toLowerCase().trim(),
       phone,
+      permissions: officerPermissions,
     });
 
     if (stationDoc) {
@@ -125,8 +133,12 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
 // ─── UPDATE officer ──────────────────────────────────────────────────────────
 export const updateOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { stationName, ...rest } = req.body;
+    const { stationName, permissions, ...rest } = req.body;
     const updateData: any = { ...rest };
+
+    if (permissions && typeof permissions === "object") {
+      updateData.permissions = permissions;
+    }
 
     if (stationName) {
       const stationDoc = await Station.findOne({

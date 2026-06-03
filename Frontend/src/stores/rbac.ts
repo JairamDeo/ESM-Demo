@@ -1,10 +1,10 @@
 // ─── Role-Based Access Control ───────────────────────────────────────────────
-// Central store for what each role can do.
-// super_admin can change these at runtime via Settings page.
-// Stored in localStorage so they persist across refreshes.
+// Permissions are loaded from the backend (MongoDB) and cached in memory.
+// super_admin can change role templates via Settings page.
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type UserRole = "super_admin" | "area" | "headquarter" | "station_hq" | "user";
 
@@ -18,6 +18,8 @@ export interface Permission {
   reassignOfficer: boolean;
   viewCaseTypes: boolean;
   manageCaseTypes: boolean;
+  viewCategories: boolean;
+  manageCategories: boolean;
   viewStations: boolean;
   manageStations: boolean;
   viewQRCodes: boolean;
@@ -36,38 +38,48 @@ export interface Permission {
 
 export type RolePermissions = Record<UserRole, Permission>;
 
+export const OFFICER_ROLE_TO_RBAC: Record<string, UserRole> = {
+  "Area Officer": "area",
+  "Headquarter Officer": "headquarter",
+  "Station HQ Officer": "station_hq",
+};
+
 const DEFAULT_PERMISSIONS: RolePermissions = {
   super_admin: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: true, escalateGrievance: true,
     reassignOfficer: true, viewCaseTypes: true, manageCaseTypes: true,
+    viewCategories: true, manageCategories: true,
     viewStations: true, manageStations: true, viewQRCodes: true, manageQRCodes: true,
     viewOfficers: true, manageOfficers: true, viewEscalations: true,
     resolveEscalations: true, viewReports: true, exportReports: true,
     viewSettings: true, manageSettings: true, manageRoles: true, loginAsVeteran: false,
   },
-  area: {                                          // ← was esm_officer
+  area: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
     reassignOfficer: true, viewCaseTypes: true, manageCaseTypes: false,
-    viewStations: true, manageStations: false, viewQRCodes: true, manageQRCodes: false,
+    viewCategories: true, manageCategories: false,
+    viewStations: true, manageStations: true, viewQRCodes: true, manageQRCodes: false,
     viewOfficers: true, manageOfficers: false, viewEscalations: true,
     resolveEscalations: true, viewReports: true, exportReports: true,
     viewSettings: true, manageSettings: false, manageRoles: false, loginAsVeteran: true,
   },
-  headquarter: {                                   // ← was station_officer
+  headquarter: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
     reassignOfficer: false, viewCaseTypes: true, manageCaseTypes: false,
+    viewCategories: true, manageCategories: false,
     viewStations: false, manageStations: false, viewQRCodes: true, manageQRCodes: false,
     viewOfficers: false, manageOfficers: false, viewEscalations: false,
     resolveEscalations: false, viewReports: false, exportReports: false,
     viewSettings: false, manageSettings: false, manageRoles: false, loginAsVeteran: true,
   },
-  station_hq: {                                    // ← was record_office
+  station_hq: {
     viewDashboard: true, viewGrievances: true, createGrievance: false,
     updateGrievanceStatus: false, deleteGrievance: false, escalateGrievance: false,
     reassignOfficer: false, viewCaseTypes: true, manageCaseTypes: false,
+    viewCategories: true, manageCategories: false,
     viewStations: false, manageStations: false, viewQRCodes: false, manageQRCodes: false,
     viewOfficers: false, manageOfficers: false, viewEscalations: false,
     resolveEscalations: false, viewReports: true, exportReports: true,
@@ -77,6 +89,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     viewDashboard: false, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: false, deleteGrievance: false, escalateGrievance: false,
     reassignOfficer: false, viewCaseTypes: false, manageCaseTypes: false,
+    viewCategories: false, manageCategories: false,
     viewStations: false, manageStations: false, viewQRCodes: false, manageQRCodes: false,
     viewOfficers: false, manageOfficers: false, viewEscalations: false,
     resolveEscalations: false, viewReports: false, exportReports: false,
@@ -84,51 +97,95 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
   },
 };
 
-interface RBACStore {
-  permissions: RolePermissions;
-  updateRolePermission: (role: UserRole, permission: keyof Permission, value: boolean) => void;
-  resetRole: (role: UserRole) => void;
-  resetAll: () => void;
+function mergeWithDefaults(fetched: Partial<RolePermissions>): RolePermissions {
+  const merged = { ...DEFAULT_PERMISSIONS };
+  for (const role of Object.keys(DEFAULT_PERMISSIONS) as UserRole[]) {
+    merged[role] = { ...DEFAULT_PERMISSIONS[role], ...(fetched[role] ?? {}) };
+  }
+  return merged;
 }
 
-export const useRBACStore = create<RBACStore>()(
-  persist(
-    (set) => ({
-      permissions: DEFAULT_PERMISSIONS,
-      updateRolePermission: (role, permission, value) =>
-        set((state) => ({
-          permissions: {
-            ...state.permissions,
-            // In case older persisted state is missing role keys, fall back to defaults.
-            [role]: { ...(state.permissions[role] ?? DEFAULT_PERMISSIONS[role]), [permission]: value },
-          },
-        })),
-      resetRole: (role) =>
-        set((state) => ({
-          permissions: { ...state.permissions, [role]: DEFAULT_PERMISSIONS[role] },
-        })),
-      resetAll: () => set({ permissions: DEFAULT_PERMISSIONS }),
-    }),
-    {
-      name: "vitric-rbac-permissions",
-      // Merge persisted permissions with current defaults to avoid runtime crashes
-      // after role-key schema changes.
-      merge: (persistedState: any, currentState: any) => {
-        const persistedPermissions = persistedState?.permissions ?? {};
-        return {
-          ...currentState,
-          ...persistedState,
-          permissions: {
-            ...(currentState?.permissions ?? DEFAULT_PERMISSIONS),
-            ...persistedPermissions,
-          },
-        };
-      },
-    }
-  )
-);
+interface RBACStore {
+  permissions: RolePermissions;
+  loaded: boolean;
+  setPermissions: (permissions: RolePermissions) => void;
+  fetchPermissions: () => Promise<void>;
+  updateRolePermission: (role: UserRole, permission: keyof Permission, value: boolean) => Promise<void>;
+  resetRole: (role: UserRole) => Promise<void>;
+  resetAll: () => Promise<void>;
+}
 
-import { useAuth } from "@/contexts/AuthContext";
+export const useRBACStore = create<RBACStore>((set, get) => ({
+  permissions: DEFAULT_PERMISSIONS,
+  loaded: false,
+
+  setPermissions: (permissions) => set({ permissions: mergeWithDefaults(permissions), loaded: true }),
+
+  fetchPermissions: async () => {
+    try {
+      const { data } = await api.get("/rbac/permissions");
+      if (data.success && data.data) {
+        set({ permissions: mergeWithDefaults(data.data), loaded: true });
+      }
+    } catch {
+      // Keep in-memory defaults if API unavailable
+    }
+  },
+
+  updateRolePermission: async (role, permission, value) => {
+    const prev = get().permissions;
+    set((state) => ({
+      permissions: {
+        ...state.permissions,
+        [role]: { ...(state.permissions[role] ?? DEFAULT_PERMISSIONS[role]), [permission]: value },
+      },
+    }));
+    try {
+      const { data } = await api.patch(`/rbac/roles/${role}`, { permission, value });
+      if (data.success && data.data?.all) {
+        set({ permissions: mergeWithDefaults(data.data.all) });
+      }
+    } catch (err) {
+      set({ permissions: prev });
+      throw err;
+    }
+  },
+
+  resetRole: async (role) => {
+    const prev = get().permissions;
+    set((state) => ({
+      permissions: { ...state.permissions, [role]: DEFAULT_PERMISSIONS[role] },
+    }));
+    try {
+      const { data } = await api.post(`/rbac/roles/${role}/reset`);
+      if (data.success && data.data) {
+        set({ permissions: mergeWithDefaults(data.data) });
+      }
+    } catch (err) {
+      set({ permissions: prev });
+      throw err;
+    }
+  },
+
+  resetAll: async () => {
+    const prev = get().permissions;
+    set({ permissions: DEFAULT_PERMISSIONS });
+    try {
+      const { data } = await api.post("/rbac/reset-all");
+      if (data.success && data.data) {
+        set({ permissions: mergeWithDefaults(data.data) });
+      }
+    } catch (err) {
+      set({ permissions: prev });
+      throw err;
+    }
+  },
+}));
+
+export function getTemplateForOfficerRole(officerRole: string): Permission {
+  const rbacRole = OFFICER_ROLE_TO_RBAC[officerRole] ?? "station_hq";
+  return useRBACStore.getState().permissions[rbacRole] ?? DEFAULT_PERMISSIONS[rbacRole];
+}
 
 export function usePermission(permission: keyof Permission): boolean {
   const { user } = useAuth();
