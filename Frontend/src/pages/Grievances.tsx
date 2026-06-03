@@ -464,6 +464,11 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
     ...(perms.updateGrievanceStatus && grievance.status==="pending"? [{label:"Start Processing", icon:ArrowUpRight, onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]: []),
     ...(perms.escalateGrievance && grievance.status!=="resolved" && grievance.status!=="escalated"? [{label:"Escalate", icon:AlertTriangle, onClick:()=>{onEscalate();setOpen(false);}}]: []),
     ...(perms.updateGrievanceStatus && (grievance.status==="in-progress" || grievance.status==="escalated")? [{label:"Mark Resolved", icon:CheckCircle2, onClick:()=>{onStatusChange("resolved");setOpen(false);} }]: []),
+    ...(perms.reassignOfficer && grievance.status !== "resolved"? [{
+      label: grievance.officerName === "Unassigned" || !grievance.officerName ? "Assign Officer" : "Reassign Officer",
+      icon: UserCheck,
+      onClick: () => { onAssign(); setOpen(false); },
+    }] : []),
     { label:"Print Case", icon:Printer, onClick:()=>{window.print();setOpen(false);} },
   ];
 
@@ -603,15 +608,17 @@ export default memo(function Grievances() {
           <p className="text-muted-foreground text-sm mt-1">Manage and track all veteran grievance cases</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <button onClick={()=>setExportOpen((o)=>!o)} className="px-4 py-2 text-sm bg-secondary/50 text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors flex items-center gap-2">
-              <Download className="w-4 h-4" /> Export <ChevronDown className="w-4 h-4 " />
-            </button>
-            {exportOpen && (<><div className="fixed inset-0 z-10" onClick={()=>setExportOpen(false)}/><div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-40">
-              <button onClick={()=>{const c=toCSV(grievances);const b=new Blob([c],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`grievances-${Date.now()}.csv`;a.click();setExportOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60"><FileText className="w-3.5 h-3.5 text-muted-foreground"/>Export CSV</button>
-              <button onClick={()=>{const b=new Blob([JSON.stringify(grievances,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`grievances-${Date.now()}.json`;a.click();setExportOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60"><FileText className="w-3.5 h-3.5 text-muted-foreground"/>Export JSON</button>
-            </div></>)}
-          </div>
+          {permissions.exportReports && (
+            <div className="relative">
+              <button onClick={()=>setExportOpen((o)=>!o)} className="px-4 py-2 text-sm bg-secondary/50 text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors flex items-center gap-2">
+                <Download className="w-4 h-4" /> Export <ChevronDown className="w-4 h-4 " />
+              </button>
+              {exportOpen && (<><div className="fixed inset-0 z-10" onClick={()=>setExportOpen(false)}/><div className="absolute right-0 top-10 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-40">
+                <button onClick={()=>{const c=toCSV(grievances);const b=new Blob([c],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`grievances-${Date.now()}.csv`;a.click();setExportOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60"><FileText className="w-3.5 h-3.5 text-muted-foreground"/>Export CSV</button>
+                <button onClick={()=>{const b=new Blob([JSON.stringify(grievances,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`grievances-${Date.now()}.json`;a.click();setExportOpen(false);}} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground hover:bg-secondary/60"><FileText className="w-3.5 h-3.5 text-muted-foreground"/>Export JSON</button>
+              </div></>)}
+            </div>
+          )}
           {permissions.createGrievance && <button onClick={()=>setShowNewGrievance(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"><FileText className="w-4 h-4"/> New Grievance</button>}
         </div>
       </div>

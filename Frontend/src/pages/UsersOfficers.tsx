@@ -1,5 +1,5 @@
 import { useState, memo, useRef, useCallback, useMemo } from "react";
-import { usePermissions } from "@/stores/rbac";
+import { usePermissions, getTemplateForOfficerRole, type Permission } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus, useDeleteOfficer, useStations, useHQs, useStates } from "@/hooks/useApi";
@@ -7,6 +7,34 @@ import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus
 // const ROLES = ["ESM Officer", "Station HQ Officer", "Record Office"] as const;
 const ROLES = ["Area Officer", "Headquarter Officer", "Station HQ Officer"] as const;
 const RANKS = ["Lt.","Capt.","Maj.","Lt. Col.","Col.","Brig.","Sub.","Hav.","Nk.","Sep."];
+
+const PERM_LABELS: Array<{ key: keyof Permission; label: string }> = [
+  { key: "viewDashboard", label: "View dashboard" },
+  { key: "viewGrievances", label: "View grievances" },
+  { key: "createGrievance", label: "Create grievances" },
+  { key: "updateGrievanceStatus", label: "Update status" },
+  { key: "deleteGrievance", label: "Delete grievances" },
+  { key: "escalateGrievance", label: "Escalate cases" },
+  { key: "reassignOfficer", label: "Reassign officer" },
+  { key: "viewCategories", label: "View categories" },
+  { key: "manageCategories", label: "Manage categories" },
+  { key: "viewCaseTypes", label: "View case types" },
+  { key: "manageCaseTypes", label: "Manage case types" },
+  { key: "viewStations", label: "View stations" },
+  { key: "manageStations", label: "Manage stations" },
+  { key: "viewQRCodes", label: "View QR codes" },
+  { key: "manageQRCodes", label: "Manage QR codes" },
+  { key: "viewOfficers", label: "View officers" },
+  { key: "manageOfficers", label: "Manage officers" },
+  { key: "viewEscalations", label: "View escalations" },
+  { key: "resolveEscalations", label: "Resolve escalations" },
+  { key: "viewReports", label: "View reports" },
+  { key: "exportReports", label: "Export reports" },
+  { key: "viewSettings", label: "View settings" },
+  { key: "manageSettings", label: "Manage settings" },
+  { key: "manageRoles", label: "Manage roles" },
+  { key: "loginAsVeteran", label: "Veteran portal login" },
+];
 
 // const roleBadge: Record<string, string> = {
 //   "ESM Officer":       "bg-primary/15 text-primary",
@@ -160,8 +188,9 @@ const OfficerModal = ({
                   onClick={() => setForm((p: any) => ({
                     ...p,
                     role:        r,
-                    stationName: "",  // ← reset dropdown when role changes
+                    stationName: "",
                     stationId:   "",
+                    permissions: { ...getTemplateForOfficerRole(r) },
                   }))}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
                     ${form.role === r
@@ -219,6 +248,33 @@ const OfficerModal = ({
             />
           </div>
 
+          {/* Permissions */}
+          <div className="border border-border rounded-lg p-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Officer Permissions
+            </p>
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Defaults from role template. Toggle per officer as needed.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+              {PERM_LABELS.map(({ key, label }) => (
+                <label key={key} className="flex items-center justify-between gap-2 text-xs py-1">
+                  <span className="text-foreground">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p: any) => ({
+                      ...p,
+                      permissions: { ...p.permissions, [key]: !p.permissions?.[key] },
+                    }))}
+                    className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.permissions?.[key] ? "bg-primary" : "bg-secondary border border-border"}`}
+                  >
+                    <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-all ${form.permissions?.[key] ? "right-0.5" : "left-0.5"}`} />
+                  </button>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {/* Buttons */}
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm">
@@ -261,6 +317,7 @@ export default memo(function UsersOfficers() {
     stationName: "",
     stationId:   "",
     email:       "",
+    permissions: getTemplateForOfficerRole("Station HQ Officer") as Permission,
   });
 
   // ── Data fetching ──────────────────────────────────────────────────────
@@ -286,14 +343,17 @@ export default memo(function UsersOfficers() {
     setForm({
       rank: "Maj.", name: "", assignType: "station",
       role: "Station HQ Officer", stationName: "", stationId: "", email: "",
+      permissions: getTemplateForOfficerRole("Station HQ Officer"),
     });
   }, []);
 
   const openEdit = useCallback((o: any) => {
+    const template = getTemplateForOfficerRole(o.role);
     setForm({
       rank: "", name: o.name, assignType: "station",
       role: o.role, stationName: o.stationName,
       stationId: "", email: o.email,
+      permissions: { ...template, ...(o.permissions ?? {}) },
     });
     setEditOfficer(o);
   }, []);
@@ -302,7 +362,11 @@ export default memo(function UsersOfficers() {
     if (!form.name.trim() || !form.email.trim()) return;
     const confirmed = window.confirm(`Add officer "${form.rank} ${form.name}" to ${form.stationName}?`);
     if (!confirmed) return;
-    await createOfficer.mutateAsync({ ...form, name: `${form.rank} ${form.name}`.trim() });
+    await createOfficer.mutateAsync({
+      ...form,
+      name: `${form.rank} ${form.name}`.trim(),
+      permissions: form.permissions,
+    });
     resetForm();
     setAddOpen(false);
   }, [form, createOfficer, resetForm]);
@@ -311,7 +375,14 @@ export default memo(function UsersOfficers() {
     if (!editOfficer?._id) return;
     const confirmed = window.confirm(`Save changes to "${form.name}"?`);
     if (!confirmed) return;
-    await updateOfficer.mutateAsync({ id: editOfficer._id, ...form });
+    await updateOfficer.mutateAsync({
+      id: editOfficer._id,
+      name: form.name,
+      role: form.role,
+      stationName: form.stationName,
+      email: form.email,
+      permissions: form.permissions,
+    });
     setEditOfficer(null);
     resetForm();
   }, [editOfficer, form, updateOfficer, resetForm]);

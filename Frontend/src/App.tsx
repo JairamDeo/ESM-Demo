@@ -5,6 +5,8 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useRBACStore } from "@/stores/rbac";
+import RBACHydrator from "@/components/RBACHydrator";
+import PermissionRouteGuard from "@/components/PermissionRouteGuard";
 
 const AdminLayout   = lazy(() => import("@/components/AdminLayout"));
 const UserLayout    = lazy(() => import("@/components/UserLayout"));
@@ -55,19 +57,21 @@ const AdminGuard = memo(() => {
   
   return (
     <S><AdminLayout>
-      <Routes>
-        <Route path="/"            element={<S><Dashboard /></S>} />
-        <Route path="/grievances"  element={<S><Grievances /></S>} />
-        <Route path="/categories"  element={<S><Categories /></S>} />
-        <Route path="/case-types"  element={<S><CaseTypes /></S>} />
-        <Route path="/stations"    element={<S><Stations /></S>} />
-        <Route path="/qr-codes"    element={<S><QRCodes /></S>} />
-        <Route path="/users"       element={<S><UsersOfficers /></S>} />
-        <Route path="/escalations" element={<S><Escalations /></S>} />
-        <Route path="/reports"     element={<S><Reports /></S>} />
-        <Route path="/settings"    element={<S><SettingsPage /></S>} />
-        <Route path="*"            element={<S><NotFound /></S>} />
-      </Routes>
+      <PermissionRouteGuard>
+        <Routes>
+          <Route path="/"            element={<S><Dashboard /></S>} />
+          <Route path="/grievances"  element={<S><Grievances /></S>} />
+          <Route path="/categories"  element={<S><Categories /></S>} />
+          <Route path="/case-types"  element={<S><CaseTypes /></S>} />
+          <Route path="/stations"    element={<S><Stations /></S>} />
+          <Route path="/qr-codes"    element={<S><QRCodes /></S>} />
+          <Route path="/users"       element={<S><UsersOfficers /></S>} />
+          <Route path="/escalations" element={<S><Escalations /></S>} />
+          <Route path="/reports"     element={<S><Reports /></S>} />
+          <Route path="/settings"    element={<S><SettingsPage /></S>} />
+          <Route path="*"            element={<S><NotFound /></S>} />
+        </Routes>
+      </PermissionRouteGuard>
     </AdminLayout></S>
   );
 });
@@ -109,6 +113,7 @@ const App = () => (
       <Toaster richColors position="top-right" closeButton duration={5000} />
       <BrowserRouter>
         <AuthProvider>
+          <RBACHydrator />
           <Routes>
             <Route path="/admin/login"     element={<AdminLoginGuard />} />
             <Route path="/user/login"      element={<S><Login /></S>} />

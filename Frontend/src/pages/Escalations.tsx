@@ -4,6 +4,9 @@ import { AlertTriangle, Clock, ArrowUpRight, CheckCircle2, Search, X, ChevronDow
 import { useEscalations, useResolveEscalation } from "@/hooks/useApi";
 
 export default memo(function Escalations() {
+  const permissions = usePermissions();
+  const canResolve = permissions.resolveEscalations;
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [resolveModal, setResolveModal] = useState<any>(null);
@@ -113,7 +116,7 @@ export default memo(function Escalations() {
             <div className="text-right shrink-0 flex flex-col items-end gap-2">
               <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${e.status === "open" ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>{e.status}</span>
               <p className="text-xs text-muted-foreground">{e.daysOpen} days open</p>
-              {e.status === "open" && e._id && (
+              {canResolve && e.status === "open" && e._id && (
                 <button onClick={() => setResolveModal(e)} className="text-xs px-2.5 py-1 bg-success/15 text-success rounded-full hover:bg-success/25 transition-colors">Resolve</button>
               )}
             </div>

@@ -3,6 +3,7 @@ dotenv.config();
 
 import app from "./app";
 import connectDB from "./config/database";
+import { ensureRolePermissionsSeeded } from "./services/rbacService";
 import { getLanIPv4Addresses } from "./utils/network";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
@@ -12,6 +13,7 @@ const startServer = async () => {
   try {
     // Connect to MongoDB first
     await connectDB();
+    await ensureRolePermissionsSeeded();
 
     // Start Express server
     const server = app.listen(PORT, HOST, () => {

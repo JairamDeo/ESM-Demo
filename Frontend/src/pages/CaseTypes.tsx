@@ -1,7 +1,7 @@
 import { memo, useState, useCallback } from "react";
 import { FileText, Users, CreditCard, Heart, Phone, MapPin, Shield, UserPlus, Receipt, FileCheck, Calendar, UserCog, Home, TrendingUp, Locate, Bell, Plus, X, ToggleLeft, ToggleRight } from "lucide-react";
 import { useCaseTypes, useCreateCaseType, useUpdateCaseType ,useCategories } from "@/hooks/useApi";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/stores/rbac";
 
 const ICON_LIST = [
   FileText, Heart, CreditCard, Shield, Phone, MapPin, UserPlus, Receipt,
@@ -23,9 +23,8 @@ export default memo(function CaseTypes() {
 
   const createCaseType = useCreateCaseType();
   const updateCaseType = useUpdateCaseType();
-  const { user } = useAuth();
-
-  const isSuperAdmin = user?.role === "super_admin";
+  const permissions = usePermissions();
+  const canManageCaseTypes = permissions.manageCaseTypes;
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", category: "" });
@@ -69,8 +68,7 @@ export default memo(function CaseTypes() {
           </p>
         </div>
 
-        {/* Add button — super_admin only */}
-        {isSuperAdmin && (
+        {canManageCaseTypes && (
           <button
             onClick={() => setAddOpen(true)}
             className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 cursor-pointer"
@@ -228,8 +226,7 @@ export default memo(function CaseTypes() {
                     {isActive ? "Active" : "Inactive"}
                   </span>
 
-                  {/* Toggle button — super_admin only */}
-                  {isSuperAdmin && (
+                  {canManageCaseTypes && (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleToggleActive(ct); }}
                       className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"

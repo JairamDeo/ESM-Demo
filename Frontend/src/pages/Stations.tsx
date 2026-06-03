@@ -2,7 +2,6 @@ import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
 import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus, ChevronDown, Trash2 } from "lucide-react";
 import { useStations, useCreateStation, useDeleteStation, useHQs  } from "@/hooks/useApi";
-import { useAuth } from "@/contexts/AuthContext";
 
 const STATES = ["Maharashtra", "Gujarat", "Karnataka", "Rajasthan", "Madhya Pradesh", "Uttar Pradesh", "Punjab", "Haryana", "Delhi", "Telangana"];
 
@@ -16,9 +15,8 @@ export default memo(function Stations() {
   const { data, isLoading } = useStations({ search, state: filterState || undefined });
   const createStation = useCreateStation();
   const deleteStation = useDeleteStation();
-  const { user } = useAuth();
-
-  const isSuperAdmin = user?.role === "super_admin";
+  const permissions = usePermissions();
+  const canManageStations = permissions.manageStations;
   const stations = useMemo(() => data?.data || [], [data]);
   const { data: hqList = [] } = useHQs();
 
@@ -46,7 +44,7 @@ export default memo(function Stations() {
           <h1 className="text-2xl font-bold text-foreground">Station Headquarters</h1>
           <p className="text-muted-foreground text-sm mt-1">{stations.length} Station HQs across Maharashtra & Gujarat</p>
         </div>
-        {isSuperAdmin && (
+        {canManageStations && (
           <button onClick={() => setOpen(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 self-start sm:self-auto">
             <Building2 className="w-4 h-4" /> Add Station
           </button>
@@ -247,8 +245,7 @@ export default memo(function Stations() {
                       <span className="text-xs text-muted-foreground">{s.qrActive ? "QR Active" : "QR Inactive"}</span>
                     </div>
 
-                    {/* Delete button — super_admin only */}
-                    {isSuperAdmin && (
+                    {canManageStations && (
                       <button
                         onClick={() => { setDeletingId(s._id); handleDelete(s); }}
                         disabled={isDeleting}

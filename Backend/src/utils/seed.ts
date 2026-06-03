@@ -16,6 +16,8 @@ import Notification from "../models/Notification";
 import qrcode from "qrcode";
 import HQ from "../models/HeadQuarter";
 import State from "../models/State";
+import RolePermission from "../models/RolePermission";
+import { DEFAULT_ROLE_PERMISSIONS, OFFICER_ROLE_TO_RBAC } from "../constants/permissions";
 
 
 const seed = async () => {
@@ -27,6 +29,7 @@ const seed = async () => {
     Admin.deleteMany({}), User.deleteMany({}), HQ.deleteMany({}), State.deleteMany({}), Station.deleteMany({}),
     Officer.deleteMany({}), Grievance.deleteMany({}), Escalation.deleteMany({}),
     Category.deleteMany({}), CaseType.deleteMany({}), QRCode.deleteMany({}), Notification.deleteMany({}),
+    RolePermission.deleteMany({}),
   ]);
   console.log("🗑️  Cleared existing data");
 
@@ -44,6 +47,15 @@ const seed = async () => {
   { username: "stationhq",   password: "stationhq123",   name: "Maj. T. Nair",     email: "t.nair@vitric.in",      role: "station_hq",  station: "Kolhapur Station HQ" },
 ]);
   console.log(`👤 Created ${admins.length} admins`);
+
+  // ── Role permissions (RBAC matrix) ────────────────────────────────────────
+  await RolePermission.insertMany(
+    (Object.keys(DEFAULT_ROLE_PERMISSIONS) as Array<keyof typeof DEFAULT_ROLE_PERMISSIONS>).map((role) => ({
+      role,
+      permissions: DEFAULT_ROLE_PERMISSIONS[role],
+    }))
+  );
+  console.log(`🔐 Seeded ${Object.keys(DEFAULT_ROLE_PERMISSIONS).length} role permission profiles`);
 
   // ── Categories (referenced by case types) ─────────────────────────────────
   const categories = await Category.insertMany([
@@ -133,7 +145,12 @@ const seed = async () => {
 ];
   const officersWithStation = officersData.map((o) => {
     const station = stations.find((s) => s.name === o.stationName);
-    return { ...o, stationId: station?._id };
+    const rbacRole = OFFICER_ROLE_TO_RBAC[o.role] ?? "station_hq";
+    return {
+      ...o,
+      stationId: station?._id,
+      permissions: { ...DEFAULT_ROLE_PERMISSIONS[rbacRole] },
+    };
   });
   // Mongoose typing for create([...]) can get overly strict in TS builds; seed is dev-only.
   const officers = await (Officer as any).create(officersWithStation as any);

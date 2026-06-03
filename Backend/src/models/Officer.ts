@@ -46,20 +46,22 @@
 
 import mongoose, { Document, Schema } from "mongoose";
 
+import { permissionSchemaFields } from "../constants/permissions";
+
 export interface IOfficer extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
   rank: string;
-  // role: "ESM Officer" | "Station HQ Officer" | "Record Office";
   role: "Area Officer" | "Headquarter Officer" | "Station HQ Officer";
-  station: mongoose.Types.ObjectId;   // ← now a ref to Station
-  stationName: string;                // ← cached for quick display
+  station: mongoose.Types.ObjectId;
+  stationName: string;
   email: string;
   phone?: string;
   activeCases: number;
   totalCasesHandled: number;
   status: "active" | "inactive";
   adminRef?: mongoose.Types.ObjectId;
+  permissions: Record<string, boolean>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -82,6 +84,7 @@ const OfficerSchema = new Schema<IOfficer>(
     totalCasesHandled: { type: Number, default: 0, min: 0 },
     status:   { type: String, enum: ["active", "inactive"], default: "active" },
     adminRef: { type: Schema.Types.ObjectId, ref: "Admin" },
+    permissions: { type: permissionSchemaFields, default: () => ({}) },
   },
   { timestamps: true }
 );
