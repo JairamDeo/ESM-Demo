@@ -150,6 +150,18 @@ export const updateCaseType = async (req: Request, res: Response): Promise<void>
   }
 };
 
+export const deleteCaseType = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const existing = await CaseType.findById(req.params.id);
+    if (!existing) { res.status(404).json({ success: false, message: "Case type not found" }); return; }
+
+    await CaseType.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: "Case type deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // REPORTS & ANALYTICS
 // ═══════════════════════════════════════════════════════════════════════════════
