@@ -21,6 +21,7 @@ const UsersOfficers = lazy(() => import("@/pages/UsersOfficers"));
 const Escalations   = lazy(() => import("@/pages/Escalations"));
 const Reports       = lazy(() => import("@/pages/Reports"));
 const SettingsPage  = lazy(() => import("@/pages/SettingsPage"));
+const Announcements = lazy(() => import("@/pages/Announcements"));
 const NotFound      = lazy(() => import("@/pages/NotFound"));
 const Login          = lazy(() => import("@/pages/user/Login"));
 const VerifyOTP      = lazy(() => import("@/pages/user/VerifyOTP"));
@@ -68,6 +69,7 @@ const AdminGuard = memo(() => {
           <Route path="/users"       element={<S><UsersOfficers /></S>} />
           <Route path="/escalations" element={<S><Escalations /></S>} />
           <Route path="/reports"     element={<S><Reports /></S>} />
+          <Route path="/announcements" element={<S><Announcements /></S>} />
           <Route path="/settings"    element={<S><SettingsPage /></S>} />
           <Route path="*"            element={<S><NotFound /></S>} />
         </Routes>

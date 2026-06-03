@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, FileText, Building2, Users, Settings, Bell,
   ChevronLeft, ChevronRight, ChevronDown, LogOut, Search, Moon, Sun, QrCode,
-  BarChart3, AlertTriangle, ClipboardList, Menu, X, Shield, ListTree
+  BarChart3, AlertTriangle, ClipboardList, Menu, X, Shield, ListTree, Megaphone
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,7 @@ const ALL_NAV = [
   { icon: QrCode,          label: "QR Codes",      path: "/qr-codes",    perm: "viewQRCodes"     },
   { icon: Users,           label: "Officers",      path: "/users",       perm: "viewOfficers"    },
   { icon: AlertTriangle,   label: "Escalations",   path: "/escalations", perm: "viewEscalations" },
+  { icon: Megaphone,       label: "Announcements", path: "/announcements",perm: "headquarterOnly" },
   { icon: BarChart3,       label: "Reports",       path: "/reports",     perm: "viewReports"     },
   { icon: Settings,        label: "Settings",      path: "/settings",    perm: "viewSettings"    },
 ] as const;
@@ -50,8 +51,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Filter nav items by role permissions
   const navItems = useMemo(() =>
-    ALL_NAV.filter((item) => permissions[item.perm as keyof typeof permissions]),
-    [permissions]
+    ALL_NAV.filter((item) => {
+      if (item.perm === "headquarterOnly") {
+        return user?.role === "super_admin" || user?.role === "area" || user?.role === "headquarter";
+      }
+      return permissions[item.perm as keyof typeof permissions];
+    }),
+    [permissions, user]
   );
 
   // Live unread notification count

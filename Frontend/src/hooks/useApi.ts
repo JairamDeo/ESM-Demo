@@ -617,3 +617,31 @@ export const useUpdateCategory = () => {
     },
   });
 };
+
+// ─── Announcements ────────────────────────────────────────────────────────────
+export const useAnnouncements = () =>
+  useQuery({
+    queryKey: ["announcements"],
+    queryFn: async () => {
+      const { data } = await api.get("/announcements");
+      return data.data;
+    },
+    staleTime: 60_000,
+  });
+
+export const useCreateAnnouncement = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: any) => {
+      const { data } = await api.post("/announcements", body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Announcement sent successfully!");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to send announcement");
+    },
+  });
+};

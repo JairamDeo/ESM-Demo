@@ -20,6 +20,9 @@ import {
   getNotifications, markNotificationRead,
   updateUserProfile, getCategories, createCategory, updateCategory
 } from "../controllers/miscControllers";
+import {
+  getAnnouncements, createAnnouncement
+} from "../controllers/announcementController";
 import { protect, adminOnly, restrictTo } from "../middleware/auth";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -141,3 +144,11 @@ export const categoryRouter = Router();
 categoryRouter.get("/", protect, getCategories);
 categoryRouter.post("/", protect, restrictTo("super_admin", "area"), createCategory);
 categoryRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCategory);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANNOUNCEMENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+export const announcementRouter = Router();
+
+announcementRouter.get("/", protect, restrictTo("super_admin", "area", "headquarter"), getAnnouncements);
+announcementRouter.post("/", protect, restrictTo("super_admin", "area", "headquarter"), createAnnouncement);

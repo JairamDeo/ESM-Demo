@@ -1,5 +1,5 @@
 import { useState, useCallback, memo, Fragment } from "react";
-import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronUp, RotateCcw, Check } from "lucide-react";
+import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronUp, RotateCcw, Check, X } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRBACStore, usePermissions, type UserRole, type Permission, DEFAULT_PERMISSIONS } from "@/stores/rbac";
@@ -84,12 +84,6 @@ const PERMISSION_GROUPS: { label: string; perms: Array<{ key: keyof Permission; 
   },
 ];
 
-// const ROLES: Array<{ key: UserRole; label: string; color: string }> = [
-//   { key: "super_admin",    label: "Super Admin",      color: "bg-destructive/15 text-destructive" },
-//   { key: "esm_officer",    label: "ESM Officer",      color: "bg-primary/15 text-primary" },
-//   { key: "station_officer",label: "Station Officer",  color: "bg-info/15 text-info" },
-//   { key: "record_office",  label: "Record Office",    color: "bg-warning/15 text-warning" },
-// ];
 
 const ROLES: Array<{ key: UserRole; label: string; color: string }> = [
   { key: "super_admin", label: "Super Admin", color: "bg-destructive/15 text-destructive" },
@@ -127,18 +121,21 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
     }
   }, [canEdit, saving, updateRolePermission]);
 
-  const handleResetRole = useCallback(async (role: UserRole, label: string) => {
-    if (saving) return;
+  const [confirmResetRoleState, setConfirmResetRoleState] = useState<{ role: UserRole, label: string } | null>(null);
+
+  const confirmResetRole = useCallback(async () => {
+    if (saving || !confirmResetRoleState) return;
     setSaving(true);
     try {
-      await resetRole(role);
-      toast.success(`${label} permissions reset`);
+      await resetRole(confirmResetRoleState.role);
+      toast.success(`${confirmResetRoleState.label} permissions reset`);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to reset role");
     } finally {
       setSaving(false);
+      setConfirmResetRoleState(null);
     }
-  }, [resetRole, saving]);
+  }, [resetRole, saving, confirmResetRoleState]);
 
   return (
     <div className="space-y-4">
@@ -154,7 +151,7 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${role.color}`}>{role.label}</span>
                     {canEdit && role.key !== "super_admin" && (
                       <button
-                        onClick={() => handleResetRole(role.key, role.label)}
+                        onClick={() => setConfirmResetRoleState({ role: role.key, label: role.label })}
                         disabled={saving}
                         className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-50"
                       >
@@ -210,6 +207,46 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
           </tbody>
         </table>
       </div>
+
+      {confirmResetRoleState && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in text-left">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold text-destructive">Reset Role Permissions</h2>
+              <button onClick={() => setConfirmResetRoleState(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to reset <span className="text-foreground font-medium">“{confirmResetRoleState.label}”</span> to its default permissions?
+              <br/><br/>
+              <span className="text-xs text-destructive bg-destructive/10 p-2 rounded block">
+                Warning: Any custom permissions for this role will be lost.
+              </span>
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setConfirmResetRoleState(null)}
+                disabled={saving}
+                className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmResetRole}
+                disabled={saving}
+                className="flex-1 py-2.5 bg-destructive text-destructive-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {saving
+                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : "Reset"
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -250,13 +287,17 @@ export default function SettingsPage() {
   const isSuperAdmin = user?.role === "super_admin";
   const canManageRoles = permissions.manageRoles;
 
-  const handleResetAll = useCallback(async () => {
+  const [confirmResetAllState, setConfirmResetAllState] = useState(false);
+
+  const confirmResetAll = useCallback(async () => {
     if (!canManageRoles) return;
     try {
       await resetAll();
       toast.success("All role permissions reset to defaults");
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to reset permissions");
+    } finally {
+      setConfirmResetAllState(false);
     }
   }, [canManageRoles, resetAll]);
 
@@ -340,7 +381,7 @@ export default function SettingsPage() {
           </div>
           {canManageRoles && (
             <button
-              onClick={handleResetAll}
+              onClick={() => setConfirmResetAllState(true)}
               className="flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded-lg hover:bg-secondary transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" /> Reset All
@@ -395,6 +436,41 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {confirmResetAllState && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in text-left">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold text-destructive">Reset All Permissions</h2>
+              <button onClick={() => setConfirmResetAllState(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to reset <strong>ALL</strong> roles to their default permissions?
+              <br/><br/>
+              <span className="text-xs text-destructive bg-destructive/10 p-2 rounded block">
+                Warning: Any custom permissions for all roles will be lost.
+              </span>
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setConfirmResetAllState(false)}
+                className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmResetAll}
+                className="flex-1 py-2.5 bg-destructive text-destructive-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                Reset All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
