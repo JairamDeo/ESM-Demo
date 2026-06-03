@@ -433,6 +433,23 @@ export const useUpdateCaseType = () => {
   });
 };
 
+export const useDeleteCaseType = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/case-types/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["case-types"] });
+      toast.success("Case type deleted successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to delete case type");
+    },
+  });
+};
+
 // ─── Escalations ──────────────────────────────────────────────────────────────
 export interface EscalationParams { status?: string; station?: string; search?: string; page?: number; }
 

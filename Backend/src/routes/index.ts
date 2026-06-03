@@ -15,7 +15,7 @@ import {
   getEscalations, getEscalationById, createEscalation, resolveEscalation,
 } from "../controllers/escalationController";
 import {
-  getCaseTypes, getCaseTypeById, createCaseType, updateCaseType,
+  getCaseTypes, getCaseTypeById, createCaseType, updateCaseType, deleteCaseType,
   getReports,
   getNotifications, markNotificationRead,
   updateUserProfile, getCategories, createCategory, updateCategory
@@ -99,6 +99,7 @@ caseTypeRouter.get("/",    protect, getCaseTypes);
 caseTypeRouter.post("/",   protect, restrictTo("super_admin", "area"), createCaseType);
 caseTypeRouter.get("/:id", protect, adminOnly, getCaseTypeById);
 caseTypeRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCaseType);
+caseTypeRouter.delete("/:id", protect, restrictTo("super_admin", "area"), deleteCaseType);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ESCALATIONS

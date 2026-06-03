@@ -1,6 +1,7 @@
 import { memo, useState, useCallback } from "react";
-import { ListTree, Plus, X, ToggleLeft, ToggleRight } from "lucide-react";
-import { useCategories, useCreateCategory, useUpdateCategory, useCaseTypes } from "@/hooks/useApi";
+import { ListTree, Plus, X, ToggleLeft, ToggleRight, Pencil, Eye, Trash2 } from "lucide-react";
+import { useCategories, useCreateCategory, useUpdateCategory, useCaseTypes, useDeleteCaseType } from "@/hooks/useApi";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/stores/rbac";
 
 export default memo(function Categories() {
@@ -11,10 +12,21 @@ export default memo(function Categories() {
   const updateCategory = useUpdateCategory();
   const permissions = usePermissions();
   const canManageCategories = permissions.manageCategories;
+  const deleteCaseType = useDeleteCaseType();
+  const { user } = useAuth();
+
+  const isSuperAdmin = user?.role === "super_admin";
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ name: "" });
+
+  const [editOpen, setEditOpen] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ name: "" });
+
   const [confirmState, setConfirmState] = useState<null | { id: string; name: string; nextIsActive: boolean }>(null);
+
+  const [viewCategory, setViewCategory] = useState<any>(null);
+  const [confirmRemoveCaseType, setConfirmRemoveCaseType] = useState<any>(null);
 
   const handleAdd = useCallback(async () => {
     if (!form.name.trim()) return;
@@ -24,6 +36,13 @@ export default memo(function Categories() {
     setForm({ name: "" });
     setAddOpen(false);
   }, [form, createCategory]);
+
+  const handleEdit = useCallback(async () => {
+    if (!editForm.name.trim() || !editOpen) return;
+    await updateCategory.mutateAsync({ id: editOpen._id, name: editForm.name.trim() });
+    setEditForm({ name: "" });
+    setEditOpen(null);
+  }, [editForm, editOpen, updateCategory]);
 
   const handleToggleActive = useCallback((cat: any) => {
     setConfirmState({
@@ -38,6 +57,12 @@ export default memo(function Categories() {
     await updateCategory.mutateAsync({ id: confirmState.id, isActive: confirmState.nextIsActive });
     setConfirmState(null);
   }, [confirmState, updateCategory]);
+
+  const handleRemoveCaseType = useCallback(async () => {
+    if (!confirmRemoveCaseType) return;
+    await deleteCaseType.mutateAsync(confirmRemoveCaseType._id);
+    setConfirmRemoveCaseType(null);
+  }, [confirmRemoveCaseType, deleteCaseType]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -104,6 +129,49 @@ export default memo(function Categories() {
         </div>
       )}
 
+      {/* Edit Modal */}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Edit Category Name</h2>
+              <button onClick={() => setEditOpen(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Name *</label>
+                <input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ name: e.target.value })}
+                  placeholder="e.g. Welfare"
+                  className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setEditOpen(null)}
+                  className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEdit}
+                  disabled={updateCategory.isPending || !editForm.name.trim()}
+                  className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {updateCategory.isPending
+                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : "Save"
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirm Activate/Deactivate Modal */}
       {confirmState && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -144,17 +212,100 @@ export default memo(function Categories() {
         </div>
       )}
 
+      {/* View Case Types Modal */}
+      {viewCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-2xl animate-fade-in max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Case Types for {viewCategory.name}</h2>
+                <p className="text-sm text-muted-foreground">{Array.isArray(caseTypes) ? caseTypes.filter((ct: any) => ct.categoryId === viewCategory._id).length : 0} case types in this category</p>
+              </div>
+              <button onClick={() => setViewCategory(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {(() => {
+                const related = Array.isArray(caseTypes) ? caseTypes.filter((ct: any) => ct.categoryId === viewCategory._id) : [];
+                if (related.length === 0) {
+                  return <p className="text-center text-sm text-muted-foreground py-8">No case types found in this category.</p>;
+                }
+                return related.map((ct: any) => (
+                  <div key={ct._id} className="flex items-center justify-between p-4 border border-border rounded-lg bg-secondary/30">
+                    <div>
+                      <p className="font-medium text-sm text-foreground">{ct.name}</p>
+                      {ct.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{ct.description}</p>}
+                    </div>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => setConfirmRemoveCaseType(ct)}
+                        className="text-destructive hover:bg-destructive/10 p-2 rounded-md transition-colors cursor-pointer"
+                        title="Remove Case Type"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Remove Case Type Modal */}
+      {confirmRemoveCaseType && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold text-destructive">Remove Case Type</h2>
+              <button onClick={() => setConfirmRemoveCaseType(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Do you really want to remove the case type <span className="text-foreground font-medium">“{confirmRemoveCaseType.name}”</span> from this category?
+              <br/><br/>
+              <span className="text-xs text-destructive bg-destructive/10 p-2 rounded block">
+                Warning: This will permanently delete the case type everywhere in the system.
+              </span>
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setConfirmRemoveCaseType(null)}
+                disabled={deleteCaseType.isPending}
+                className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveCaseType}
+                disabled={deleteCaseType.isPending}
+                className="flex-1 py-2.5 bg-destructive text-destructive-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {deleteCaseType.isPending
+                  ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : "Remove"
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading ? Array(8).fill(0).map((_, i) => (
-          <div key={i} className="h-32 bg-card rounded-xl border border-border animate-pulse" />
+          <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
         )) : categories.map((cat: any) => {
           const isActive = cat.isActive !== false; // default true if not set
           const relatedCaseTypes = Array.isArray(caseTypes) ? caseTypes.filter((ct: any) => ct.categoryId === cat._id) : [];
           return (
             <div
               key={cat._id}
-              className={`bg-card rounded-xl border p-5 transition-all group cursor-pointer
+              className={`bg-card rounded-xl border p-5 transition-all group flex flex-col
                 ${isActive
                   ? "border-border hover:border-primary/30"
                   : "border-border/50 opacity-60"
@@ -196,28 +347,36 @@ export default memo(function Categories() {
                 </div>
               </div>
 
-              {/* Name */}
-              <h3 className="font-semibold text-foreground text-sm">{cat.name}</h3>
-
-              {/* Stats & Case Types */}
-              <div className="mt-4 pt-3 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-2">
-                  {relatedCaseTypes.length} Case Type{relatedCaseTypes.length !== 1 ? 's' : ''}
-                </p>
-                {relatedCaseTypes.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {relatedCaseTypes.slice(0, 3).map((ct: any) => (
-                      <span key={ct._id || ct.id} className="text-[10px] px-2 py-0.5 bg-secondary text-muted-foreground rounded-md border border-border/50">
-                        {ct.name}
-                      </span>
-                    ))}
-                    {relatedCaseTypes.length > 3 && (
-                      <span className="text-[10px] px-2 py-0.5 bg-secondary text-muted-foreground rounded-md border border-border/50">
-                        +{relatedCaseTypes.length - 3} more
-                      </span>
-                    )}
-                  </div>
+              {/* Name & Edit */}
+              <div className="flex items-center justify-between flex-1">
+                <h3 className="font-semibold text-foreground text-sm pr-2">{cat.name}</h3>
+                {isSuperAdmin && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditForm({ name: cat.name });
+                      setEditOpen(cat);
+                    }}
+                    className="text-muted-foreground hover:text-primary transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                    title="Edit Name"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                 )}
+              </div>
+
+              {/* View Case Types Button */}
+              <div className="mt-4 pt-3 border-t border-border">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewCategory(cat);
+                  }}
+                  className="w-full py-2 bg-secondary/50 hover:bg-secondary text-foreground text-xs rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  View Case Types ({relatedCaseTypes.length})
+                </button>
               </div>
             </div>
           );
