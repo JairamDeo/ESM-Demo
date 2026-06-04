@@ -1,5 +1,5 @@
 import { memo, useState, useCallback } from "react";
-import { FileText, Users, CreditCard, Heart, Phone, MapPin, Shield, UserPlus, Receipt, FileCheck, Calendar, UserCog, Home, TrendingUp, Locate, Bell, Plus, X, ToggleLeft, ToggleRight } from "lucide-react";
+import { FileText, Users, CreditCard, Heart, Phone, MapPin, Shield, UserPlus, Receipt, FileCheck, Calendar, UserCog, Home, TrendingUp, Locate, Bell, Plus, X, ToggleLeft, ToggleRight, ChevronDown } from "lucide-react";
 import { useCaseTypes, useCreateCaseType, useUpdateCaseType ,useCategories } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 
@@ -110,16 +110,27 @@ export default memo(function CaseTypes() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Category *</label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary cursor-pointer"
-                >
-                  <option value="" disabled>Select category to assign</option>
-                  {categories.map((cat) => (
-                    <option key={cat._id} value={cat._id}>{cat.name}</option>
-                  ))}
-                </select>
+               <div className="relative">
+  <select
+    value={form.category}
+    onChange={(e) => setForm({ ...form, category: e.target.value })}
+    className="mt-1 w-full px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary cursor-pointer appearance-none"
+  >
+    <option value="" disabled>
+      Select category to assign
+    </option>
+    {categories.map((cat) => (
+      <option key={cat._id} value={cat._id}>
+        {cat.name}
+      </option>
+    ))}
+  </select>
+
+  <ChevronDown
+    size={18}
+    className="absolute right-5 top-1/2 -translate-y-1/2 text-foreground pointer-events-none mt-1"
+  />
+</div>
               </div>
               <div className="flex gap-2 pt-1">
                 <button

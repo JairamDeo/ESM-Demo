@@ -25,6 +25,8 @@ export const PERMISSION_KEYS = [
   "manageSettings",
   "manageRoles",
   "loginAsVeteran",
+  "viewAnnouncements",
+  "manageAnnouncements",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -73,6 +75,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RbacRole, PermissionMap> = {
     manageSettings: true,
     manageRoles: true,
     loginAsVeteran: false,
+    viewAnnouncements: true,
+    manageAnnouncements: true,
   },
   area: {
     viewDashboard: true,
@@ -100,6 +104,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RbacRole, PermissionMap> = {
     manageSettings: false,
     manageRoles: false,
     loginAsVeteran: true,
+    viewAnnouncements: true,
+    manageAnnouncements: false,
   },
   headquarter: {
     viewDashboard: true,
@@ -127,6 +133,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RbacRole, PermissionMap> = {
     manageSettings: false,
     manageRoles: false,
     loginAsVeteran: true,
+    viewAnnouncements: true,
+    manageAnnouncements: true,
   },
   station_hq: {
     viewDashboard: true,
@@ -154,6 +162,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RbacRole, PermissionMap> = {
     manageSettings: false,
     manageRoles: false,
     loginAsVeteran: true,
+    viewAnnouncements: false,
+    manageAnnouncements: false,
   },
   user: {
     viewDashboard: false,
@@ -181,6 +191,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RbacRole, PermissionMap> = {
     manageSettings: false,
     manageRoles: false,
     loginAsVeteran: false,
+    viewAnnouncements: false,
+    manageAnnouncements: false,
   },
 };
 

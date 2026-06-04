@@ -150,5 +150,5 @@ categoryRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCat
 // ═══════════════════════════════════════════════════════════════════════════════
 export const announcementRouter = Router();
 
-announcementRouter.get("/", protect, restrictTo("super_admin", "area", "headquarter"), getAnnouncements);
-announcementRouter.post("/", protect, restrictTo("super_admin", "area", "headquarter"), createAnnouncement);
+announcementRouter.get("/", protect, adminOnly, getAnnouncements);
+announcementRouter.post("/", protect, adminOnly, createAnnouncement);

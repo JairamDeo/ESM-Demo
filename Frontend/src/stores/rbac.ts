@@ -34,6 +34,8 @@ export interface Permission {
   manageSettings: boolean;
   manageRoles: boolean;
   loginAsVeteran: boolean;
+  viewAnnouncements: boolean;
+  manageAnnouncements: boolean;
 }
 
 export type RolePermissions = Record<UserRole, Permission>;
@@ -54,6 +56,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     viewOfficers: true, manageOfficers: true, viewEscalations: true,
     resolveEscalations: true, viewReports: true, exportReports: true,
     viewSettings: true, manageSettings: true, manageRoles: true, loginAsVeteran: false,
+    viewAnnouncements: true, manageAnnouncements: true,
   },
   area: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
@@ -64,6 +67,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     viewOfficers: true, manageOfficers: false, viewEscalations: true,
     resolveEscalations: true, viewReports: true, exportReports: true,
     viewSettings: true, manageSettings: false, manageRoles: false, loginAsVeteran: true,
+    viewAnnouncements: true, manageAnnouncements: false,
   },
   headquarter: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
@@ -74,6 +78,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     viewOfficers: false, manageOfficers: false, viewEscalations: false,
     resolveEscalations: false, viewReports: false, exportReports: false,
     viewSettings: false, manageSettings: false, manageRoles: false, loginAsVeteran: true,
+    viewAnnouncements: true, manageAnnouncements: true,
   },
   station_hq: {
     viewDashboard: true, viewGrievances: true, createGrievance: false,
@@ -84,6 +89,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     viewOfficers: false, manageOfficers: false, viewEscalations: false,
     resolveEscalations: false, viewReports: true, exportReports: true,
     viewSettings: false, manageSettings: false, manageRoles: false, loginAsVeteran: true,
+    viewAnnouncements: false, manageAnnouncements: false,
   },
   user: {
     viewDashboard: false, viewGrievances: true, createGrievance: true,
@@ -94,6 +100,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     viewOfficers: false, manageOfficers: false, viewEscalations: false,
     resolveEscalations: false, viewReports: false, exportReports: false,
     viewSettings: false, manageSettings: false, manageRoles: false, loginAsVeteran: false,
+    viewAnnouncements: false, manageAnnouncements: false,
   },
 };
 

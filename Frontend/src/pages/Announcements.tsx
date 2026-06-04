@@ -1,11 +1,13 @@
 import { memo, useState } from "react";
-import { Megaphone, Send, Clock, Check, Building2, Bell, Smartphone } from "lucide-react";
+import { Megaphone, Send, Clock, Check, Building2, Bell, Smartphone, ShieldAlert } from "lucide-react";
 import { useAnnouncements, useCreateAnnouncement, useStations } from "@/hooks/useApi";
+import { usePermission } from "@/stores/rbac";
 
 export default memo(function Announcements() {
   const { data: announcements = [], isLoading: loadingAnnouncements } = useAnnouncements();
   const { data: stationsData, isLoading: loadingStations } = useStations({ limit: 1000 });
   const createAnnouncement = useCreateAnnouncement();
+  const canManage = usePermission("manageAnnouncements");
 
   const [form, setForm] = useState({
     title:            "",
@@ -57,9 +59,10 @@ export default memo(function Announcements() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${canManage ? "lg:grid-cols-2" : ""} gap-6`}>
 
         {/* ── Create Announcement Form ── */}
+        {canManage && (
         <div className="bg-card rounded-xl border border-border p-6 space-y-4 h-fit">
           <h2 className="text-base font-semibold text-foreground">New Announcement</h2>
 
@@ -231,6 +234,7 @@ export default memo(function Announcements() {
 
           </form>
         </div>
+        )}
 
         {/* ── Past Announcements ── */}
         <div className="bg-card rounded-xl border border-border flex flex-col" style={{ maxHeight: "700px" }}>

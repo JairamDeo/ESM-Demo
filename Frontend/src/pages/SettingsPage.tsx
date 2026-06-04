@@ -74,6 +74,13 @@ const PERMISSION_GROUPS: { label: string; perms: Array<{ key: keyof Permission; 
     ],
   },
   {
+    label: "Announcements",
+    perms: [
+      { key: "viewAnnouncements",   label: "View announcements"          },
+      { key: "manageAnnouncements", label: "Create / send announcements" },
+    ],
+  },
+  {
     label: "Settings & System",
     perms: [
       { key: "viewSettings",   label: "View settings page"                              },
