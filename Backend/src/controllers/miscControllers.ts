@@ -38,15 +38,7 @@ const getDateFilter = (period?: string): any => {
   return { createdAt: { $gte: from } };
 };
 
-// ─── Helper: station filter based on role ────────────────────────────────────
-const getStationFilter = (req: Request): any => {
-  const user = (req as any).user;
-  if (!user || user.role === "super_admin") return {};
-  if (user.station && user.station !== "Nagpur Sub-Area") {
-    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
-  }
-  return {};
-};
+import { getGrievanceScopeFilter } from "../utils/scopeFilter";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CASE TYPES
@@ -175,7 +167,7 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
     const dateFilter = getDateFilter(period as string);
 
     // Station filter from role
-    const stationFilter = getStationFilter(req);
+    const stationFilter = await getGrievanceScopeFilter((req as any).user);
 
     // Base filter combining both
     const baseFilter = { isDeleted: false, ...stationFilter, ...dateFilter };

@@ -5,8 +5,14 @@
 import { create } from "zustand";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  OFFICER_ROLE_TO_RBAC,
+  resolveRbacRole,
+  type UserRole,
+} from "@/lib/rbacRole";
 
-export type UserRole = "super_admin" | "area" | "headquarter" | "station_hq" | "user";
+export type { UserRole };
+export { OFFICER_ROLE_TO_RBAC, resolveRbacRole };
 
 export interface Permission {
   viewDashboard: boolean;
@@ -39,12 +45,6 @@ export interface Permission {
 }
 
 export type RolePermissions = Record<UserRole, Permission>;
-
-export const OFFICER_ROLE_TO_RBAC: Record<string, UserRole> = {
-  "Area Officer": "area",
-  "Headquarter Officer": "headquarter",
-  "Station HQ Officer": "station_hq",
-};
 
 const DEFAULT_PERMISSIONS: RolePermissions = {
   super_admin: {
@@ -198,16 +198,16 @@ export function usePermission(permission: keyof Permission): boolean {
   const { user } = useAuth();
   const { permissions } = useRBACStore();
   if (!user) return false;
-  const role = (user.role as UserRole) || "user";
-  return permissions[role]?.[permission] ?? false;
+  const role = resolveRbacRole(user.role);
+  return permissions[role]?.[permission] ?? DEFAULT_PERMISSIONS[role]?.[permission] ?? false;
 }
 
 export function usePermissions(): Permission {
   const { user } = useAuth();
   const { permissions } = useRBACStore();
   if (!user) return DEFAULT_PERMISSIONS.user;
-  const role = (user.role as UserRole) || "user";
-  return permissions[role] ?? DEFAULT_PERMISSIONS.user;
+  const role = resolveRbacRole(user.role);
+  return permissions[role] ?? DEFAULT_PERMISSIONS[role] ?? DEFAULT_PERMISSIONS.user;
 }
 
 export { DEFAULT_PERMISSIONS };

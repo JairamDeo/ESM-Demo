@@ -1,68 +1,79 @@
 import { Request, Response } from "express";
 import Officer, { OFFICER_LEVELS } from "../models/Officer";
 import Station from "../models/Station";
-import { getPermissionsForOfficerRole } from "../services/rbacService";
+import { buildOfficerAssignment } from "../services/officerAssignment";
+import { rbacRoleFromJobRole } from "../constants/officerRoles";
+import { getOfficerListFilter } from "../utils/scopeFilter";
 
-// ─── Helper: get station filter based on role ────────────────────────────────
-const getStationFilter = (req: Request): any => {
-  const user = (req as any).user;
-  if (!user || user.role === "super_admin") return {};
-  if (user.station && user.station !== "Nagpur Sub-Area") {
-    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
+function assignmentDisplay(o: { role: string; stateName?: string; hqName?: string; stationName?: string }): string {
+  if (o.role === "Area Officer") return o.stateName || "—";
+  if (o.role === "Headquarter Officer") return o.hqName || "—";
+  if (o.role === "Station HQ Officer") {
+    return o.stationName ? `${o.stationName}${o.hqName ? ` · ${o.hqName}` : ""}` : "—";
   }
-  return {};
-};
+  if (o.role === "Super Admin") return "All areas";
+  return o.stationName || "—";
+}
 
-// ─── GET all officers ────────────────────────────────────────────────────────
 export const getOfficers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { search, role, station, status, page = 1, limit = 20 } = req.query;
-
-    const stationFilter = getStationFilter(req);
-    const query: any = { ...stationFilter };
+    const scopeFilter = getOfficerListFilter((req as any).user);
+    const query: any = { ...scopeFilter };
 
     if (search) {
       query.$or = [
-        { name:        { $regex: search, $options: "i" } },
-        { email:       { $regex: search, $options: "i" } },
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
         { stationName: { $regex: search, $options: "i" } },
+        { stateName: { $regex: search, $options: "i" } },
+        { hqName: { $regex: search, $options: "i" } },
       ];
     }
     if (role) query.role = role;
     if (station && (req as any).user?.role === "super_admin") {
-      query.stationName = { $regex: station, $options: "i" };
+      query.$or = [
+        { stationName: { $regex: station, $options: "i" } },
+        { stateName: { $regex: station, $options: "i" } },
+        { hqName: { $regex: station, $options: "i" } },
+      ];
     }
     if (status) query.status = status;
 
-    const pageNum  = parseInt(page  as string);
+    const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
 
     const [officers, total] = await Promise.all([
       Officer.find(query)
-        .populate("station", "name city stateName")  // ← fixed: stationId → station
+        .populate("station", "name city stateName hqName")
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum),
       Officer.countDocuments(query),
     ]);
 
-    // Role-wise counts — filtered by station for non super_admin
-    const countFilter = { ...stationFilter };
-    // const [esmCount, stationCount, recordCount] = await Promise.all([
-    //   Officer.countDocuments({ ...countFilter, role: "ESM Officer" }),
-    //   Officer.countDocuments({ ...countFilter, role: "Station HQ Officer" }),
-    //   Officer.countDocuments({ ...countFilter, role: "Record Office" }),
-    // ]);
-    const [esmCount, stationCount, recordCount] = await Promise.all([
-    Officer.countDocuments({ ...countFilter, role: "Area Officer" }),
-    Officer.countDocuments({ ...countFilter, role: "Headquarter Officer" }),
-    Officer.countDocuments({ ...countFilter, role: "Station HQ Officer" }),
-   ]);
+    const countFilter = { ...scopeFilter };
+    const [areaCount, hqCount, stationCount, superCount] = await Promise.all([
+      Officer.countDocuments({ ...countFilter, role: "Area Officer" }),
+      Officer.countDocuments({ ...countFilter, role: "Headquarter Officer" }),
+      Officer.countDocuments({ ...countFilter, role: "Station HQ Officer" }),
+      Officer.countDocuments({ ...countFilter, role: "Super Admin" }),
+    ]);
+
+    const data = officers.map((o) => ({
+      ...o.toJSON(),
+      assignmentLabel: assignmentDisplay(o),
+    }));
 
     res.status(200).json({
       success: true,
-      data: officers,
-      summary: { esmOfficers: esmCount, stationOfficers: stationCount, recordOffice: recordCount },
+      data,
+      summary: {
+        esmOfficers: areaCount,
+        stationOfficers: hqCount,
+        recordOffice: stationCount,
+        superAdmins: superCount,
+      },
       pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
     });
   } catch (error: any) {
@@ -70,31 +81,49 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-// ─── GET single officer ──────────────────────────────────────────────────────
 export const getOfficerById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const officer = await Officer.findById(req.params.id)
-      .populate("station", "name city stateName");  // ← fixed
-    if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
-    res.status(200).json({ success: true, data: officer });
+    const officer = await Officer.findById(req.params.id).populate("station", "name city stateName hqName");
+    if (!officer) {
+      res.status(404).json({ success: false, message: "Officer not found" });
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      data: { ...officer.toJSON(), assignmentLabel: assignmentDisplay(officer) },
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── CREATE officer ──────────────────────────────────────────────────────────
 export const createOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, rank, role, stationName, email, phone, permissions, level } = req.body;
+    const {
+      name,
+      rank,
+      role,
+      email,
+      phone,
+      level,
+      stateId,
+      hqId,
+      stationId,
+      username,
+      password,
+      canLogin,
+    } = req.body;
 
-    if (!name || !role || !email || !stationName) {
-      res.status(400).json({ success: false, message: "name, role, email and stationName are required" });
+    if (!name || !role || !email) {
+      res.status(400).json({ success: false, message: "name, role and email are required" });
       return;
     }
 
-    if (!level || !OFFICER_LEVELS.includes(level)) {
-      res.status(400).json({ success: false, message: "level must be L1, L2, or L3" });
-      return;
+    if (role !== "Super Admin") {
+      if (!level || !OFFICER_LEVELS.includes(level)) {
+        res.status(400).json({ success: false, message: "level must be L1, L2, or L3" });
+        return;
+      }
     }
 
     const existing = await Officer.findOne({ email: email.toLowerCase() });
@@ -103,31 +132,42 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const stationDoc = await Station.findOne({
-      name: { $regex: stationName, $options: "i" },
-      isActive: true,
-    });
+    let assignment;
+    try {
+      assignment = await buildOfficerAssignment({ role, stateId, hqId, stationId });
+    } catch (e: any) {
+      res.status(400).json({ success: false, message: e.message });
+      return;
+    }
 
-    const defaultPermissions = await getPermissionsForOfficerRole(role);
-    const officerPermissions =
-      permissions && typeof permissions === "object"
-        ? { ...defaultPermissions, ...permissions }
-        : defaultPermissions;
+    const wantsLogin = !!canLogin || !!username;
+    if (wantsLogin) {
+      if (!username || !password) {
+        res.status(400).json({ success: false, message: "username and password required for portal login" });
+        return;
+      }
+      const dup = await Officer.findOne({ username: username.toLowerCase() });
+      if (dup) {
+        res.status(409).json({ success: false, message: "Username already taken" });
+        return;
+      }
+    }
 
     const officer = await Officer.create({
-      name:        name.trim(),
-      rank:        rank?.trim() || "",
+      ...assignment,
+      name: name.trim(),
+      rank: rank?.trim() || "",
       role,
-      level,
-      station:     stationDoc?._id,
-      stationName: stationDoc?.name || stationName,
-      email:       email.toLowerCase().trim(),
+      level: role === "Super Admin" ? undefined : level,
+      email: email.toLowerCase().trim(),
       phone,
-      permissions: officerPermissions,
+      canLogin: wantsLogin,
+      username: wantsLogin ? username.toLowerCase().trim() : undefined,
+      password: wantsLogin ? password : undefined,
     });
 
-    if (stationDoc) {
-      await Station.findByIdAndUpdate(stationDoc._id, { $inc: { officerCount: 1 } });
+    if (officer.station) {
+      await Station.findByIdAndUpdate(officer.station, { $inc: { officerCount: 1 } });
     }
 
     res.status(201).json({ success: true, message: "Officer added successfully", data: officer });
@@ -136,69 +176,137 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// ─── UPDATE officer ──────────────────────────────────────────────────────────
 export const updateOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { stationName, permissions, ...rest } = req.body;
-    const updateData: any = { ...rest };
-
-    if (permissions && typeof permissions === "object") {
-      updateData.permissions = permissions;
+    const existing = await Officer.findById(req.params.id);
+    if (!existing) {
+      res.status(404).json({ success: false, message: "Officer not found" });
+      return;
     }
 
-    if (updateData.level !== undefined) {
-      if (updateData.level && !OFFICER_LEVELS.includes(updateData.level)) {
+    const {
+      name,
+      rank,
+      role,
+      email,
+      phone,
+      level,
+      status,
+      stateId,
+      hqId,
+      stationId,
+      username,
+      password,
+      canLogin,
+    } = req.body;
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (rank !== undefined) updateData.rank = rank?.trim() || "";
+    if (email !== undefined) updateData.email = email.toLowerCase().trim();
+    if (phone !== undefined) updateData.phone = phone;
+    if (status !== undefined) updateData.status = status;
+
+    const nextRole = role ?? existing.role;
+    if (role !== undefined) {
+      updateData.role = role;
+      updateData.rbacRole = rbacRoleFromJobRole(role);
+    }
+
+    if (level !== undefined) {
+      if (nextRole !== "Super Admin" && level && !OFFICER_LEVELS.includes(level)) {
         res.status(400).json({ success: false, message: "level must be L1, L2, or L3" });
+        return;
+      }
+      updateData.level = nextRole === "Super Admin" ? undefined : level;
+    }
+
+    const assignmentInput = {
+      role: nextRole,
+      stateId: stateId ?? existing.stateId?.toString(),
+      hqId: hqId ?? existing.hqId?.toString(),
+      stationId: stationId ?? existing.station?.toString(),
+    };
+
+    if (stateId !== undefined || hqId !== undefined || stationId !== undefined || role !== undefined) {
+      try {
+        const assignment = await buildOfficerAssignment(assignmentInput);
+        Object.assign(updateData, assignment);
+        const newStationId = "station" in assignment ? assignment.station : undefined;
+        if (existing.station && newStationId?.toString() !== existing.station.toString()) {
+          await Station.findByIdAndUpdate(existing.station, { $inc: { officerCount: -1 } });
+        }
+        if (newStationId) {
+          await Station.findByIdAndUpdate(newStationId, { $inc: { officerCount: 1 } });
+        }
+      } catch (e: any) {
+        res.status(400).json({ success: false, message: e.message });
         return;
       }
     }
 
-    if (stationName) {
-      const stationDoc = await Station.findOne({
-        name: { $regex: stationName, $options: "i" },
-        isActive: true,
-      });
-      updateData.stationName = stationDoc?.name || stationName;
-      updateData.station     = stationDoc?._id;  // ← fixed: stationId → station
+    if (canLogin !== undefined || username !== undefined || password !== undefined) {
+      const wantsLogin = canLogin ?? existing.canLogin;
+      updateData.canLogin = wantsLogin;
+      if (wantsLogin) {
+        if (username) {
+          const dup = await Officer.findOne({
+            username: username.toLowerCase(),
+            _id: { $ne: existing._id },
+          });
+          if (dup) {
+            res.status(409).json({ success: false, message: "Username already taken" });
+            return;
+          }
+          updateData.username = username.toLowerCase().trim();
+        }
+        if (password) updateData.password = password;
+      } else {
+        updateData.username = undefined;
+        updateData.password = undefined;
+      }
     }
 
-    const officer = await Officer.findByIdAndUpdate(
-      req.params.id, updateData, { new: true, runValidators: true }
-    ).populate("station", "name city stateName");
+    const officer = await Officer.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate("station", "name city stateName hqName");
 
-    if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
+    if (!officer) {
+      res.status(404).json({ success: false, message: "Officer not found" });
+      return;
+    }
     res.status(200).json({ success: true, message: "Officer updated", data: officer });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── TOGGLE officer status ───────────────────────────────────────────────────
 export const toggleOfficerStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const officer = await Officer.findById(req.params.id);
-    if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
-
+    if (!officer) {
+      res.status(404).json({ success: false, message: "Officer not found" });
+      return;
+    }
     officer.status = officer.status === "active" ? "inactive" : "active";
     await officer.save();
-
     res.status(200).json({ success: true, message: `Officer ${officer.status}`, data: officer });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── DELETE officer ──────────────────────────────────────────────────────────
 export const deleteOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
     const officer = await Officer.findByIdAndDelete(req.params.id);
-    if (!officer) { res.status(404).json({ success: false, message: "Officer not found" }); return; }
-
-    // ← fixed: stationId → station
+    if (!officer) {
+      res.status(404).json({ success: false, message: "Officer not found" });
+      return;
+    }
     if (officer.station) {
       await Station.findByIdAndUpdate(officer.station, { $inc: { officerCount: -1 } });
     }
-
     res.status(200).json({ success: true, message: "Officer deleted" });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

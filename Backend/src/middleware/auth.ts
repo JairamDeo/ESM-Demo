@@ -1,17 +1,20 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import Admin from "../models/Admin";
+import Officer from "../models/Officer";
 import User from "../models/User";
 
 interface JwtPayload {
-        id:      string;
-        role:    string;
-        station?: string;  // ← add this
-        iat:     number;
-        exp:     number;
+  id: string;
+  role: string;
+  station?: string;
+  stateId?: string;
+  hqId?: string;
+  stationId?: string;
+  stationName?: string;
+  iat: number;
+  exp: number;
 }
 
-// ─── Attach user to request ──────────────────────────────────────────────────
 export const protect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     let token: string | undefined;
@@ -32,7 +35,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
     if (decoded.role === "user") {
       currentUser = await User.findById(decoded.id).select("-otp -otpExpiry");
     } else {
-      currentUser = await Admin.findById(decoded.id);
+      currentUser = await Officer.findById(decoded.id);
     }
 
     if (!currentUser) {
@@ -40,18 +43,38 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
       return;
     }
 
-    if (decoded.role !== "user" && !currentUser.isActive) {
-      res.status(401).json({ success: false, message: "Your account has been deactivated." });
-      return;
+    if (decoded.role !== "user") {
+      if (!currentUser.canLogin || currentUser.status !== "active") {
+        res.status(401).json({ success: false, message: "Your account has been deactivated." });
+        return;
+      }
     }
 
-    (req as any).user = {
-        id:      currentUser._id.toString(),
-        name:    currentUser.name || currentUser.username,
-        role:    decoded.role,
-        email:   currentUser.email,
-        station: decoded.station || currentUser.station || currentUser.stationHQ,
-    };
+    if (decoded.role === "user") {
+      (req as any).user = {
+        id: currentUser._id.toString(),
+        name: currentUser.name || `+91 ${currentUser.phone}`,
+        role: "user",
+        phone: currentUser.phone,
+        station: currentUser.stationHQ,
+      };
+    } else {
+      (req as any).user = {
+        id: currentUser._id.toString(),
+        name: currentUser.name,
+        role: decoded.role,
+        jobRole: currentUser.role,
+        email: currentUser.email,
+        level: currentUser.level,
+        station: decoded.station || currentUser.stationName || currentUser.stateName || currentUser.hqName,
+        stateId: decoded.stateId || currentUser.stateId?.toString(),
+        stateName: currentUser.stateName,
+        hqId: decoded.hqId || currentUser.hqId?.toString(),
+        hqName: currentUser.hqName,
+        stationId: decoded.stationId || currentUser.station?.toString(),
+        stationName: decoded.stationName || currentUser.stationName,
+      };
+    }
 
     next();
   } catch (error: any) {
@@ -65,7 +88,6 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
   }
 };
 
-// ─── Role guard ──────────────────────────────────────────────────────────────
 export const restrictTo = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!roles.includes((req as any).user.role)) {
@@ -76,12 +98,9 @@ export const restrictTo = (...roles: string[]) => {
   };
 };
 
-// ─── Admin only shortcut ─────────────────────────────────────────────────────
-// export const adminOnly = restrictTo("super_admin", "esm_officer", "station_officer", "record_office");
 export const adminOnly = restrictTo("super_admin", "area", "headquarter", "station_hq");
 
-// ─── Station filter helper ────────────────────────────────────────────────────
 export const getStationFilter = (user: any): string | null => {
-  if (user.role === "super_admin") return null; // no filter
-  return user.station || null; // filter by their station
+  if (user.role === "super_admin") return null;
+  return user.station || null;
 };

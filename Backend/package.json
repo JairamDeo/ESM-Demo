@@ -7,7 +7,8 @@
     "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/index.js",
-    "seed": "ts-node src/utils/seed.ts"
+    "seed": "ts-node src/utils/seed.ts",
+    "migrate:officers": "ts-node src/scripts/migrate-admins-to-officers.ts"
   },
   "keywords": [],
   "author": "",
