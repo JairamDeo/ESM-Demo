@@ -23,7 +23,15 @@ export default memo(function Stations() {
   const handleSubmit = useCallback(async () => {
     if (!form.city.trim() || !form.state) return;
     const name = form.name.trim() || `${form.city.trim()} Station HQ`;
-    await createStation.mutateAsync({ name, city: form.city.trim(), state: form.state, officerCount: Number(form.officers) || 0, address: form.address });
+    await createStation.mutateAsync({
+      name,
+      city: form.city.trim(),
+      state: form.state,
+      hqId: form.hqId,
+      hqName: form.hqName,
+      officerCount: Number(form.officers) || 0,
+      address: form.address,
+    });
     setForm({ name: "", city: "", state: "Maharashtra", officers: "4", address: "", hqId: "", hqName: ""   });
     setOpen(false);
   }, [form, createStation]);
@@ -233,7 +241,8 @@ export default memo(function Stations() {
                     <div>
                       <h3 className="font-semibold text-foreground">{s.name}</h3>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                        <MapPin className="w-3 h-3" /> {s.state}
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        {s.hqName || s.hqId?.name || "—"} · {s.stateName || s.state?.name || s.state}
                       </div>
                     </div>
                   </div>

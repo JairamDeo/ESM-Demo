@@ -2,11 +2,16 @@ import mongoose, { Document, Schema } from "mongoose";
 
 import { permissionSchemaFields } from "../constants/permissions";
 
+export const OFFICER_LEVELS = ["L1", "L2", "L3"] as const;
+export type OfficerLevel = (typeof OFFICER_LEVELS)[number];
+
 export interface IOfficer extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
   rank: string;
   role: "Area Officer" | "Headquarter Officer" | "Station HQ Officer";
+  /** Escalation tier for Area / HQ / Station HQ officers (not used for Vitric super admin). */
+  level?: OfficerLevel;
   station: mongoose.Types.ObjectId;
   stationName: string;
   email: string;
@@ -26,9 +31,13 @@ const OfficerSchema = new Schema<IOfficer>(
     rank:  { type: String, trim: true, default: "" },
     role:  {
       type: String,
-      // enum: ["ESM Officer", "Station HQ Officer", "Record Office"],
       enum: ["Area Officer", "Headquarter Officer", "Station HQ Officer"],
       required: true,
+    },
+    level: {
+      type: String,
+      enum: OFFICER_LEVELS,
+      required: false,
     },
     station:     { type: Schema.Types.ObjectId, ref: "Station", required: true }, // ← ref
     stationName: { type: String, required: true },  // ← cached
