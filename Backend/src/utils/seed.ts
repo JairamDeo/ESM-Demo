@@ -116,19 +116,23 @@ const seed = async () => {
 
   // ── Stations ──────────────────────────────────────────────────────────────
   const stationsData = [
-  { name: "Nagpur Station HQ",     city: "Nagpur",     state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 6,  totalCases: 187, resolvedCases: 145, qrActive: true,  qrCode: "NAG-QR-001" },
-  { name: "Pune Station HQ",       city: "Pune",       state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 5,  totalCases: 156, resolvedCases: 128, qrActive: true,  qrCode: "PUN-QR-001" },
-  { name: "Ahmedabad Station HQ",  city: "Ahmedabad",  state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 5,  totalCases: 143, resolvedCases: 112, qrActive: true,  qrCode: "AHM-QR-001" },
-  { name: "Nashik Station HQ",     city: "Nashik",     state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 112, resolvedCases: 89,  qrActive: true,  qrCode: "NAS-QR-001" },
-  { name: "Aurangabad Station HQ", city: "Aurangabad", state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 5,  totalCases: 98,  resolvedCases: 76,  qrActive: true,  qrCode: "AUR-QR-001" },
-  { name: "Kolhapur Station HQ",   city: "Kolhapur",   state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 87,  resolvedCases: 72,  qrActive: true,  qrCode: "KOL-QR-001" },
-  { name: "Solapur Station HQ",    city: "Solapur",    state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 82,  resolvedCases: 65,  qrActive: true,  qrCode: "SOL-QR-001" },
-  { name: "Baroda Station HQ",     city: "Baroda",     state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 5,  totalCases: 95,  resolvedCases: 78,  qrActive: true,  qrCode: "BAR-QR-001" },
-  { name: "Rajkot Station HQ",     city: "Rajkot",     state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 74,  resolvedCases: 58,  qrActive: false, qrCode: "RAJ-QR-001" },
-  { name: "Surat Station HQ",      city: "Surat",      state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 113, resolvedCases: 91,  qrActive: true,  qrCode: "SUR-QR-001" },
+  { name: "Nagpur Station HQ",     city: "Nagpur",     hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 6,  totalCases: 187, resolvedCases: 145, qrActive: true,  qrCode: "NAG-QR-001" },
+  { name: "Pune Station HQ",       city: "Pune",       hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 5,  totalCases: 156, resolvedCases: 128, qrActive: true,  qrCode: "PUN-QR-001" },
+  { name: "Ahmedabad Station HQ",  city: "Ahmedabad",  hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 5,  totalCases: 143, resolvedCases: 112, qrActive: true,  qrCode: "AHM-QR-001" },
+  { name: "Nashik Station HQ",     city: "Nashik",     hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 112, resolvedCases: 89,  qrActive: true,  qrCode: "NAS-QR-001" },
+  { name: "Aurangabad Station HQ", city: "Aurangabad", hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 5,  totalCases: 98,  resolvedCases: 76,  qrActive: true,  qrCode: "AUR-QR-001" },
+  { name: "Kolhapur Station HQ",   city: "Kolhapur",   hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 87,  resolvedCases: 72,  qrActive: true,  qrCode: "KOL-QR-001" },
+  { name: "Solapur Station HQ",    city: "Solapur",    hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 82,  resolvedCases: 65,  qrActive: true,  qrCode: "SOL-QR-001" },
+  { name: "Baroda Station HQ",     city: "Baroda",     hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 5,  totalCases: 95,  resolvedCases: 78,  qrActive: true,  qrCode: "BAR-QR-001" },
+  { name: "Rajkot Station HQ",     city: "Rajkot",     hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 74,  resolvedCases: 58,  qrActive: false, qrCode: "RAJ-QR-001" },
+  { name: "Surat Station HQ",      city: "Surat",      hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 113, resolvedCases: 91,  qrActive: true,  qrCode: "SUR-QR-001" },
 ];
   const stations = await Station.create(stationsData);
   console.log(`🏢 Created ${stations.length} stations`);
+
+  const { rebuildHQStationsList } = await import("../services/hqStationSync");
+  await rebuildHQStationsList(mainHQ._id);
+  console.log(`🔗 Linked ${stations.length} stations to HQ "${mainHQ.name}"`);
 
   // ── Officers ──────────────────────────────────────────────────────────────
   const officersData = [
