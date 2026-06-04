@@ -1,22 +1,31 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import Admin from "../models/Admin";
+import Officer from "../models/Officer";
 import User from "../models/User";
+import { loginScopeLabel } from "../services/officerAssignment";
+import { rbacRoleFromJobRole } from "../constants/officerRoles";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+const signToken = (
+  id: string,
+  role: string,
+  scope?: {
+    station?: string;
+    stateId?: string;
+    hqId?: string;
+    stationId?: string;
+    stationName?: string;
+  }
+): string =>
+  jwt.sign(
+    { id, role, ...scope },
+    process.env.JWT_SECRET as string,
+    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
+  );
 
-const signToken = (id: string, role: string, station?: string): string =>
-  jwt.sign({ id, role, station }, process.env.JWT_SECRET as string, {
-  expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-  } as jwt.SignOptions);
-
-const generateOTP = (): string =>
-  Math.floor(1000 + Math.random() * 9000).toString();
-
-// ─── Admin Auth ──────────────────────────────────────────────────────────────
+const generateOTP = (): string => Math.floor(1000 + Math.random() * 9000).toString();
 
 /**
- * POST /api/auth/admin/login
+ * POST /api/auth/admin/login — portal login via officers collection (canLogin: true).
  */
 export const adminLogin = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -27,35 +36,55 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const admin = await Admin.findOne({ username: username.toLowerCase(), isActive: true }).select("+password");
-    if (!admin) {
+    const officer = await Officer.findOne({
+      username: username.toLowerCase(),
+      canLogin: true,
+      status: "active",
+    }).select("+password");
+
+    if (!officer) {
       res.status(401).json({ success: false, message: "Invalid credentials" });
       return;
     }
 
-    // const isMatch = await admin.comparePassword(password);
-    // if (!isMatch) {
-    //   res.status(401).json({ success: false, message: "Invalid credentials" });
-    //   return;
-    // }
+    const isMatch = await officer.comparePassword(password);
+    if (!isMatch) {
+      res.status(401).json({ success: false, message: "Invalid credentials" });
+      return;
+    }
 
-    // Update last login
-    admin.lastLogin = new Date();
-    await admin.save({ validateBeforeSave: false });
+    officer.lastLogin = new Date();
+    await officer.save({ validateBeforeSave: false });
 
-    const token = signToken(admin._id.toString(), admin.role, admin.station);
-    
+    const scopeLabel = loginScopeLabel({
+      rbacRole: officer.rbacRole,
+      stateName: officer.stateName,
+      hqName: officer.hqName,
+      stationName: officer.stationName,
+    });
+
+    const rbacRole = officer.rbacRole || rbacRoleFromJobRole(officer.role);
+    const token = signToken(officer._id.toString(), rbacRole, {
+      station: scopeLabel,
+      stateId: officer.stateId?.toString(),
+      hqId: officer.hqId?.toString(),
+      stationId: officer.station?.toString(),
+      stationName: officer.stationName,
+    });
+
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
       admin: {
-        id: admin._id,
-        username: admin.username,
-        name: admin.name,
-        email: admin.email,
-        role: admin.role,
-        station: admin.station,
+        id: officer._id.toString(),
+        username: officer.username,
+        name: officer.name,
+        email: officer.email,
+        role: rbacRole,
+        jobRole: officer.role,
+        station: scopeLabel,
+        level: officer.level,
       },
     });
   } catch (error: any) {
@@ -68,30 +97,44 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
  */
 export const getAdminMe = async (req: Request, res: Response): Promise<void> => {
   try {
-    const admin = await Admin.findById((req as any).user.id);
-    if (!admin) {
-      res.status(404).json({ success: false, message: "Admin not found" });
+    const officer = await Officer.findById((req as any).user.id);
+    if (!officer || !officer.canLogin) {
+      res.status(404).json({ success: false, message: "Officer account not found" });
       return;
     }
-    res.status(200).json({ success: true, admin });
+    res.status(200).json({
+      success: true,
+      admin: {
+        id: officer._id.toString(),
+        username: officer.username,
+        name: officer.name,
+        email: officer.email,
+        role: officer.rbacRole || rbacRoleFromJobRole(officer.role),
+        jobRole: officer.role,
+        station: loginScopeLabel({
+          rbacRole: officer.rbacRole || rbacRoleFromJobRole(officer.role),
+          stateName: officer.stateName,
+          hqName: officer.hqName,
+          stationName: officer.stationName,
+        }),
+        level: officer.level,
+        stateId: officer.stateId,
+        stateName: officer.stateName,
+        hqId: officer.hqId,
+        hqName: officer.hqName,
+        stationId: officer.station,
+        stationName: officer.stationName,
+      },
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
- * POST /api/auth/admin/logout
- */
 export const adminLogout = (_req: Request, res: Response): void => {
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
-// ─── User (Veteran) OTP Auth ─────────────────────────────────────────────────
-
-/**
- * POST /api/auth/user/send-otp
- * Body: { phone }
- */
 export const sendOTP = async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone } = req.body;
@@ -101,20 +144,19 @@ export const sendOTP = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const otp = process.env.OTP_BYPASS === "true"
-      ? (process.env.OTP_BYPASS_CODE || "1234")
-      : generateOTP();
+    const otp =
+      process.env.OTP_BYPASS === "true"
+        ? process.env.OTP_BYPASS_CODE || "1234"
+        : generateOTP();
 
-    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Upsert user
-    const user = await User.findOneAndUpdate(
+    await User.findOneAndUpdate(
       { phone },
       { phone, otp, otpExpiry, isActive: true },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // In production, send SMS here via SMS gateway
     console.log(`📱 OTP for ${phone}: ${otp}`);
 
     res.status(200).json({
@@ -122,7 +164,7 @@ export const sendOTP = async (req: Request, res: Response): Promise<void> => {
       message: "OTP sent successfully",
       ...(process.env.OTP_BYPASS === "true" && {
         devNote: "OTP bypass enabled",
-        otp,  // Only in dev — remove in production
+        otp,
       }),
     });
   } catch (error: any) {
@@ -130,10 +172,6 @@ export const sendOTP = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * POST /api/auth/user/verify-otp
- * Body: { phone, otp }
- */
 export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone, otp } = req.body;
@@ -149,12 +187,11 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Check bypass
     const bypassEnabled = process.env.OTP_BYPASS === "true";
     const bypassCode = process.env.OTP_BYPASS_CODE || "1234";
 
     if (bypassEnabled && otp === bypassCode) {
-      // Allow bypass
+      // allow
     } else {
       if (!user.otp || user.otp !== otp) {
         res.status(400).json({ success: false, message: "Invalid OTP" });
@@ -166,7 +203,6 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // Clear OTP, mark verified
     user.otp = undefined;
     user.otpExpiry = undefined;
     user.isVerified = true;
@@ -194,9 +230,6 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * GET /api/auth/user/me
- */
 export const getUserMe = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await User.findById((req as any).user.id);

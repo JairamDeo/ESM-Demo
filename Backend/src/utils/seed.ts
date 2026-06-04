@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 dotenv.config();
 
-import Admin from "../models/Admin";
 import User from "../models/User";
 import Station from "../models/Station";
 import Officer from "../models/Officer";
@@ -17,7 +16,8 @@ import qrcode from "qrcode";
 import HQ from "../models/HeadQuarter";
 import State from "../models/State";
 import RolePermission from "../models/RolePermission";
-import { DEFAULT_ROLE_PERMISSIONS, OFFICER_ROLE_TO_RBAC } from "../constants/permissions";
+import { DEFAULT_ROLE_PERMISSIONS } from "../constants/permissions";
+import { rbacRoleFromJobRole } from "../constants/officerRoles";
 
 
 const seed = async () => {
@@ -26,27 +26,12 @@ const seed = async () => {
 
   // ── Wipe existing data ────────────────────────────────────────────────────
   await Promise.all([
-    Admin.deleteMany({}), User.deleteMany({}), HQ.deleteMany({}), State.deleteMany({}), Station.deleteMany({}),
+    User.deleteMany({}), HQ.deleteMany({}), State.deleteMany({}), Station.deleteMany({}),
     Officer.deleteMany({}), Grievance.deleteMany({}), Escalation.deleteMany({}),
     Category.deleteMany({}), CaseType.deleteMany({}), QRCode.deleteMany({}), Notification.deleteMany({}),
     RolePermission.deleteMany({}),
   ]);
   console.log("🗑️  Cleared existing data");
-
-  // ── Admins ────────────────────────────────────────────────────────────────
-  // const admins = await Admin.create([
-  // { username: "admin",    password: "admin123",   name: "Admin Officer",    email: "admin@vitric.in",       role: "super_admin",     station: "Nagpur Sub-Area"        },
-  // { username: "esm",      password: "esm123",     name: "Lt. Col. V. Rao",  email: "v.rao@vitric.in",       role: "esm_officer",     station: "Nagpur Station HQ"      },
-  // { username: "station1", password: "station123", name: "Maj. P. Kulkarni", email: "p.kulkarni@vitric.in",  role: "station_officer", station: "Pune Station HQ"      },
-  // { username: "record",   password: "record123",  name: "Maj. T. Nair",     email: "t.nair@vitric.in",      role: "record_office",   station: "Kolhapur Station HQ"    },
-  // ]);
-  const admins = await Admin.create([
-  { username: "admin",       password: "admin123",       name: "Admin Officer",    email: "admin@vitric.in",       role: "super_admin", station: "Nagpur Sub-Area"     },
-  { username: "area",        password: "area123",        name: "Lt. Col. V. Rao",  email: "v.rao@vitric.in",       role: "area",        station: "Nagpur Station HQ"   },
-  { username: "headquarter", password: "headquarter123", name: "Maj. P. Kulkarni", email: "p.kulkarni@vitric.in",  role: "headquarter", station: "Pune Station HQ"     },
-  { username: "stationhq",   password: "stationhq123",   name: "Maj. T. Nair",     email: "t.nair@vitric.in",      role: "station_hq",  station: "Kolhapur Station HQ" },
-]);
-  console.log(`👤 Created ${admins.length} admins`);
 
   // ── Role permissions (RBAC matrix) ────────────────────────────────────────
   await RolePermission.insertMany(
@@ -134,31 +119,58 @@ const seed = async () => {
   await rebuildHQStationsList(mainHQ._id);
   console.log(`🔗 Linked ${stations.length} stations to HQ "${mainHQ.name}"`);
 
-  // ── Officers ──────────────────────────────────────────────────────────────
+  // ── Portal login officers (former admins) ─────────────────────────────────
+  const portalOfficers = await Officer.create([
+    {
+      username: "admin", password: "admin123", canLogin: true,
+      name: "Admin Officer", email: "admin@vitric.in",
+      role: "Super Admin", rbacRole: "super_admin", rank: "Col.", status: "active",
+    },
+    {
+      username: "area", password: "area123", canLogin: true, level: "L1",
+      name: "Lt. Col. V. Rao", email: "area.portal@vitric.in",
+      role: "Area Officer", rbacRole: "area", rank: "Lt. Col.", status: "active",
+      stateId: mh._id, stateName: mh.name, stateCode: mh.code,
+    },
+    {
+      username: "headquarter", password: "headquarter123", canLogin: true, level: "L1",
+      name: "Maj. P. Kulkarni", email: "hq.portal@vitric.in",
+      role: "Headquarter Officer", rbacRole: "headquarter", rank: "Maj.", status: "active",
+      hqId: mainHQ._id, hqName: mainHQ.name,
+    },
+    {
+      username: "stationhq", password: "stationhq123", canLogin: true, level: "L1",
+      name: "Maj. T. Nair", email: "station.portal@vitric.in",
+      role: "Station HQ Officer", rbacRole: "station_hq", rank: "Maj.", status: "active",
+      station: stations[5]._id, stationName: stations[5].name,
+      hqId: stations[5].hqId, hqName: stations[5].hqName,
+      stateId: stations[5].state, stateName: stations[5].stateName, stateCode: stations[5].stateCode,
+    },
+  ]);
+  console.log(`🔐 Created ${portalOfficers.length} portal login officers`);
+
+  // ── Field officers (no portal login) ──────────────────────────────────────
   const officersData = [
-  { name: "Lt. Col. V. Rao",  rank: "Lt. Col.", role: "Area Officer",        station: stations[0]._id, stationName: "Nagpur Station HQ",     email: "v.rao@army.in",      activeCases: 42, status: "active"   },
-  { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Headquarter Officer", station: stations[1]._id, stationName: "Pune Station HQ",       email: "p.kulkarni@army.in", activeCases: 35, status: "active"   },
-  { name: "Capt. A. Desai",   rank: "Capt.",    role: "Headquarter Officer", station: stations[3]._id, stationName: "Nashik Station HQ",     email: "a.desai@army.in",    activeCases: 28, status: "active"   },
-  { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Headquarter Officer", station: stations[2]._id, stationName: "Ahmedabad Station HQ",  email: "s.joshi@army.in",    activeCases: 31, status: "active"   },
-  { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Headquarter Officer", station: stations[4]._id, stationName: "Aurangabad Station HQ", email: "r.mehta@army.in",    activeCases: 22, status: "active"   },
-  { name: "Maj. T. Nair",     rank: "Maj.",     role: "Station HQ Officer",  station: stations[5]._id, stationName: "Kolhapur Station HQ",   email: "t.nair@army.in",     activeCases: 18, status: "inactive" },
-  { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Headquarter Officer", station: stations[6]._id, stationName: "Solapur Station HQ",    email: "d.pawar@army.in",    activeCases: 24, status: "active"   },
-  { name: "Maj. H. Patel",    rank: "Maj.",     role: "Headquarter Officer", station: stations[7]._id, stationName: "Baroda Station HQ",     email: "h.patel@army.in",    activeCases: 27, status: "active"   },
-  { name: "Col. K. Sharma",   rank: "Col.",     role: "Area Officer",        station: stations[8]._id, stationName: "Rajkot Station HQ",     email: "k.sharma@army.in",   activeCases: 15, status: "active"   },
-  { name: "Capt. N. Verma",   rank: "Capt.",    role: "Headquarter Officer", station: stations[9]._id, stationName: "Surat Station HQ",      email: "n.verma@army.in",    activeCases: 20, status: "active"   },
-];
-  const officersWithStation = officersData.map((o) => {
-    const station = stations.find((s) => s.name === o.stationName);
-    const rbacRole = OFFICER_ROLE_TO_RBAC[o.role] ?? "station_hq";
-    return {
+    { name: "Lt. Col. V. Rao",  rank: "Lt. Col.", role: "Area Officer",        level: "L2", stateId: mh._id, stateName: mh.name, stateCode: mh.code, email: "v.rao@army.in",      activeCases: 42, status: "active" },
+    { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "p.kulkarni@army.in", activeCases: 35, status: "active" },
+    { name: "Capt. A. Desai",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "a.desai@army.in",    activeCases: 28, status: "active" },
+    { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "s.joshi@army.in",    activeCases: 31, status: "active" },
+    { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "r.mehta@army.in",    activeCases: 22, status: "active" },
+    { name: "Maj. T. Nair",     rank: "Maj.",     role: "Station HQ Officer",  level: "L2", station: stations[5]._id, stationName: stations[5].name, hqId: stations[5].hqId, hqName: stations[5].hqName, stateId: stations[5].state, stateName: stations[5].stateName, stateCode: stations[5].stateCode, email: "t.nair@army.in", activeCases: 18, status: "inactive" },
+    { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "d.pawar@army.in",    activeCases: 24, status: "active" },
+    { name: "Maj. H. Patel",    rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "h.patel@army.in",    activeCases: 27, status: "active" },
+    { name: "Col. K. Sharma",   rank: "Col.",     role: "Area Officer",        level: "L2", stateId: gj._id, stateName: gj.name, stateCode: gj.code, email: "k.sharma@army.in", activeCases: 15, status: "active" },
+    { name: "Capt. N. Verma",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "n.verma@army.in",    activeCases: 20, status: "active" },
+  ];
+  const fieldOfficers = await (Officer as any).create(
+    officersData.map((o) => ({
       ...o,
-      stationId: station?._id,
-      permissions: { ...DEFAULT_ROLE_PERMISSIONS[rbacRole] },
-    };
-  });
-  // Mongoose typing for create([...]) can get overly strict in TS builds; seed is dev-only.
-  const officers = await (Officer as any).create(officersWithStation as any);
-  console.log(`👮 Created ${officers.length} officers`);
+      rbacRole: rbacRoleFromJobRole(o.role),
+      canLogin: false,
+    }))
+  );
+  const officers = [...portalOfficers, ...fieldOfficers];
+  console.log(`👮 Created ${officers.length} officers (${portalOfficers.length} with login)`);
 
   // ── QR Codes with real SVGs ───────────────────────────────────────────────
   const qrCodesData = [
@@ -188,7 +200,7 @@ const seed = async () => {
       totalScans: q.scans,
       lastScannedAt: q.lastScanned,
       status: (q as any).status || "active",
-      generatedBy: admins[0]._id,
+      generatedBy: portalOfficers[0]._id,
     });
   }
   const qrCodes = await QRCode.create(qrDocs);
@@ -382,7 +394,7 @@ const seed = async () => {
       isRead: false,
     },
     {
-      recipientId: admins[0]._id,
+      recipientId: portalOfficers[0]._id,
       recipientType: "admin",
       title: "Critical Escalation",
       message: "ESC-049: Death Intimation case for Mrs. Meena Devi requires urgent attention.",
@@ -394,7 +406,7 @@ const seed = async () => {
 
   console.log("\n✅ Database seeded successfully!");
   console.log("─────────────────────────────────────────");
-  console.log("🔑 Admin Credentials:");
+  console.log("🔑 Portal login (officers collection):");
   console.log("   Super Admin  → admin / admin123");
   console.log("   Area  → area / area123");
   console.log("   Headquarter   → headquarter / headquarter123");

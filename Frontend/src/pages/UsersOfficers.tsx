@@ -1,10 +1,9 @@
 import { useState, memo, useRef, useCallback, useMemo } from "react";
-import { usePermissions, getTemplateForOfficerRole, type Permission } from "@/stores/rbac";
+import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus, useDeleteOfficer, useStations, useHQs, useStates } from "@/hooks/useApi";
 
-// const ROLES = ["ESM Officer", "Station HQ Officer", "Record Office"] as const;
 const ROLES = ["Area Officer", "Headquarter Officer", "Station HQ Officer"] as const;
 const OFFICER_LEVELS = ["L1", "L2", "L3"] as const;
 const RANKS = ["Lt.","Capt.","Maj.","Lt. Col.","Col.","Brig.","Sub.","Hav.","Nk.","Sep."];
@@ -15,47 +14,24 @@ const levelBadge: Record<string, string> = {
   L3: "bg-amber-500/15 text-amber-500",
 };
 
-const PERM_LABELS: Array<{ key: keyof Permission; label: string }> = [
-  { key: "viewDashboard", label: "View dashboard" },
-  { key: "viewGrievances", label: "View grievances" },
-  { key: "createGrievance", label: "Create grievances" },
-  { key: "updateGrievanceStatus", label: "Update status" },
-  { key: "deleteGrievance", label: "Delete grievances" },
-  { key: "escalateGrievance", label: "Escalate cases" },
-  { key: "reassignOfficer", label: "Reassign officer" },
-  { key: "viewCategories", label: "View categories" },
-  { key: "manageCategories", label: "Manage categories" },
-  { key: "viewCaseTypes", label: "View case types" },
-  { key: "manageCaseTypes", label: "Manage case types" },
-  { key: "viewStations", label: "View stations" },
-  { key: "manageStations", label: "Manage stations" },
-  { key: "viewQRCodes", label: "View QR codes" },
-  { key: "manageQRCodes", label: "Manage QR codes" },
-  { key: "viewOfficers", label: "View officers" },
-  { key: "manageOfficers", label: "Manage officers" },
-  { key: "viewEscalations", label: "View escalations" },
-  { key: "resolveEscalations", label: "Resolve escalations" },
-  { key: "viewReports", label: "View reports" },
-  { key: "exportReports", label: "Export reports" },
-  { key: "viewSettings", label: "View settings" },
-  { key: "manageSettings", label: "Manage settings" },
-  { key: "manageRoles", label: "Manage roles" },
-  { key: "loginAsVeteran", label: "Veteran portal login" },
-];
-
-// const roleBadge: Record<string, string> = {
-//   "ESM Officer":       "bg-primary/15 text-primary",
-//   "Station HQ Officer":"bg-info/15 text-info",
-//   "Record Office":     "bg-warning/15 text-warning",
-// };
-
 const roleBadge: Record<string, string> = {
+  "Super Admin":         "bg-destructive/15 text-destructive",
   "Area Officer":        "bg-primary/15 text-primary",
   "Headquarter Officer": "bg-info/15 text-info",
   "Station HQ Officer":  "bg-warning/15 text-warning",
 };
 
-// ─── Actions Menu ─────────────────────────────────────────────────────────────
+function assignmentLabel(o: any): string {
+  if (o.assignmentLabel) return o.assignmentLabel;
+  if (o.role === "Area Officer") return o.stateName || "—";
+  if (o.role === "Headquarter Officer") return o.hqName || "—";
+  if (o.role === "Station HQ Officer") {
+    return [o.stationName, o.hqName].filter(Boolean).join(" · ") || "—";
+  }
+  if (o.role === "Super Admin") return "All areas";
+  return o.stationName || "—";
+}
+
 function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: {
   officer: any; onEdit: () => void; onToggle: () => void;
   onDelete: () => void; canManage: boolean;
@@ -106,7 +82,6 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: {
   );
 }
 
-// ─── Officer Modal ────────────────────────────────────────────────────────────
 const OfficerModal = ({
   isEdit = false, onClose, form, setForm,
   handleAdd, handleUpdate, createOfficer, updateOfficer,
@@ -126,32 +101,34 @@ const OfficerModal = ({
 }) => {
   const isPending = createOfficer.isPending || updateOfficer.isPending;
 
-  // ── Dropdown options + label based on selected ROLE ──────────────────
-  const { dropdownOptions, dropdownLabel } = useMemo(() => {
+  const { dropdownOptions, dropdownLabel, assignField } = useMemo(() => {
     if (form.role === "Area Officer") {
       return {
         dropdownOptions: statesData.map((s: any) => ({ _id: s._id, name: s.name })),
-        dropdownLabel:   "Area / State *",
+        dropdownLabel: "Area / State *",
+        assignField: "stateId" as const,
       };
     }
     if (form.role === "Headquarter Officer") {
       return {
         dropdownOptions: hqData.map((h: any) => ({ _id: h._id, name: h.name })),
-        dropdownLabel:   "Headquarters *",
+        dropdownLabel: "Headquarters *",
+        assignField: "hqId" as const,
       };
     }
-    // Station HQ Officer (default)
     return {
       dropdownOptions: stations.map((s: any) => ({ _id: s._id, name: s.name })),
-      dropdownLabel:   "Station HQ *",
+      dropdownLabel: "Station HQ *",
+      assignField: "stationId" as const,
     };
   }, [form.role, statesData, hqData, stations]);
+
+  const assignValue = form[assignField] || "";
+  const assignName = form.assignName || "";
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-
-        {/* Header */}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-foreground">
             {isEdit ? "Edit Officer" : "Add Officer"}
@@ -162,8 +139,6 @@ const OfficerModal = ({
         </div>
 
         <div className="space-y-4">
-
-          {/* Name + Rank */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Name *</label>
             <div className="flex gap-2 mt-1">
@@ -185,11 +160,10 @@ const OfficerModal = ({
             </div>
           </div>
 
-          {/* Level — L1 / L2 / L3 (Area, HQ, Station HQ officers) */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Level *</label>
             <p className="text-[11px] text-muted-foreground mt-0.5 mb-1.5">
-              Escalation tier for Area, Headquarter, or Station HQ officers
+              Escalation tier (L1 / L2 / L3). Permissions come from Settings → RBAC by role.
             </p>
             <div className="flex gap-2 flex-wrap">
               {OFFICER_LEVELS.map((lv) => (
@@ -209,19 +183,20 @@ const OfficerModal = ({
             </div>
           </div>
 
-          {/* Role — select first so dropdown changes accordingly */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Role *</label>
             <div className="flex gap-2 mt-1.5 flex-wrap">
               {ROLES.map((r) => (
                 <button
                   key={r}
+                  type="button"
                   onClick={() => setForm((p: any) => ({
                     ...p,
-                    role:        r,
-                    stationName: "",
-                    stationId:   "",
-                    permissions: { ...getTemplateForOfficerRole(r) },
+                    role: r,
+                    stateId: "",
+                    hqId: "",
+                    stationId: "",
+                    assignName: "",
                   }))}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
                     ${form.role === r
@@ -235,29 +210,25 @@ const OfficerModal = ({
             </div>
           </div>
 
-          {/* Dynamic dropdown — changes based on role */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground">
-              {dropdownLabel}
-            </label>
+            <label className="text-xs font-medium text-muted-foreground">{dropdownLabel}</label>
             <div className="relative mt-1">
               <select
-                value={form.stationName}
+                value={assignName}
                 onChange={(e) => {
                   const selected = dropdownOptions.find((o: any) => o.name === e.target.value);
                   setForm((p: any) => ({
                     ...p,
-                    stationName: e.target.value,
-                    stationId:   selected?._id || "",
+                    assignName: e.target.value,
+                    stateId: assignField === "stateId" ? (selected?._id || "") : p.stateId,
+                    hqId: assignField === "hqId" ? (selected?._id || "") : p.hqId,
+                    stationId: assignField === "stationId" ? (selected?._id || "") : p.stationId,
                   }));
                 }}
                 className="w-full px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary appearance-none"
               >
                 <option value="">
-                  {dropdownOptions.length === 0
-                    ? "No options available"
-                    : `Select ${form.role === "Area Officer" ? "Area" : form.role === "Headquarter Officer" ? "HQ" : "Station"}`
-                  }
+                  {dropdownOptions.length === 0 ? "No options available" : "Select…"}
                 </option>
                 {dropdownOptions.map((opt: any) => (
                   <option key={opt._id} value={opt.name}>{opt.name}</option>
@@ -267,7 +238,6 @@ const OfficerModal = ({
             </div>
           </div>
 
-          {/* Email */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Email *</label>
             <input
@@ -279,41 +249,50 @@ const OfficerModal = ({
             />
           </div>
 
-          {/* Permissions */}
-          <div className="border border-border rounded-lg p-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Officer Permissions
-            </p>
-            <p className="text-[11px] text-muted-foreground mb-3">
-              Defaults from role template. Toggle per officer as needed.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-              {PERM_LABELS.map(({ key, label }) => (
-                <label key={key} className="flex items-center justify-between gap-2 text-xs py-1">
-                  <span className="text-foreground">{label}</span>
-                  <button
-                    type="button"
-                    onClick={() => setForm((p: any) => ({
-                      ...p,
-                      permissions: { ...p.permissions, [key]: !p.permissions?.[key] },
-                    }))}
-                    className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${form.permissions?.[key] ? "bg-primary" : "bg-secondary border border-border"}`}
-                  >
-                    <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-all ${form.permissions?.[key] ? "right-0.5" : "left-0.5"}`} />
-                  </button>
-                </label>
-              ))}
+          {!isEdit && (
+            <div className="border border-border rounded-lg p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!form.canLogin}
+                  onChange={(e) => setForm((p: any) => ({ ...p, canLogin: e.target.checked }))}
+                  className="rounded border-border"
+                />
+                Allow admin portal login
+              </label>
+              {form.canLogin && (
+                <>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Username *</label>
+                    <input
+                      value={form.username}
+                      onChange={(e) => setForm((p: any) => ({ ...p, username: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Password *</label>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm((p: any) => ({ ...p, password: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                </>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Buttons */}
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm">
               Cancel
             </button>
             <button
               onClick={isEdit ? handleUpdate : handleAdd}
-              disabled={isPending || !form.name.trim() || !form.email.trim() || !form.stationName || !form.level}
+              disabled={
+                isPending || !form.name.trim() || !form.email.trim() || !form.level || !assignValue
+              }
               className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isPending
@@ -323,86 +302,103 @@ const OfficerModal = ({
               {isEdit ? "Save Changes" : "Add Officer"}
             </button>
           </div>
-
         </div>
       </div>
     </div>
   );
 };
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default memo(function UsersOfficers() {
-  const permissions  = usePermissions();
-  const { user: currentUser } = useAuth();
+  const permissions = usePermissions();
 
-  const [search,      setSearch]      = useState("");
-  const [roleFilter,  setRoleFilter]  = useState("");
-  const [addOpen,     setAddOpen]     = useState(false);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   const [editOfficer, setEditOfficer] = useState<any>(null);
 
   const [form, setForm] = useState({
-    rank:        "Maj.",
-    name:        "",
-    assignType:  "station",
-    role:        "Station HQ Officer",
-    level:       "" as "" | (typeof OFFICER_LEVELS)[number],
-    stationName: "",
-    stationId:   "",
-    email:       "",
-    permissions: getTemplateForOfficerRole("Station HQ Officer") as Permission,
+    rank: "Maj.",
+    name: "",
+    role: "Station HQ Officer" as (typeof ROLES)[number],
+    level: "" as "" | (typeof OFFICER_LEVELS)[number],
+    stateId: "",
+    hqId: "",
+    stationId: "",
+    assignName: "",
+    email: "",
+    canLogin: false,
+    username: "",
+    password: "",
   });
 
-  // ── Data fetching ──────────────────────────────────────────────────────
-  const { data,  isLoading }      = useOfficers({ search, role: roleFilter || undefined });
+  const { data, isLoading } = useOfficers({ search, role: roleFilter || undefined });
   const { data: summaryData, isLoading: summaryLoading } = useOfficers({});
-  const { data: statesData  = [] }      = useStates();
-  const { data: hqData      = [] }      = useHQs();
-  const { data: stationsRes }           = useStations({ limit: 100 });
+  const { data: statesData = [] } = useStates();
+  const { data: hqData = [] } = useHQs();
+  const { data: stationsRes } = useStations({ limit: 100 });
 
   const createOfficer = useCreateOfficer();
   const updateOfficer = useUpdateOfficer();
-  const toggleStatus  = useToggleOfficerStatus();
+  const toggleStatus = useToggleOfficerStatus();
   const deleteOfficer = useDeleteOfficer();
 
-  const officers     = useMemo(() => data?.data        || [], [data]);
+  const officers = useMemo(() => data?.data || [], [data]);
   const stationsList = useMemo(() => stationsRes?.data || [], [stationsRes]);
-  const summary      = useMemo(() => summaryData?.summary || {
+  const summary = useMemo(() => summaryData?.summary || {
     esmOfficers: 0, stationOfficers: 0, recordOffice: 0,
   }, [summaryData]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────
   const resetForm = useCallback(() => {
     setForm({
-      rank: "Maj.", name: "", assignType: "station",
-      role: "Station HQ Officer", level: "", stationName: "", stationId: "", email: "",
-      permissions: getTemplateForOfficerRole("Station HQ Officer"),
+      rank: "Maj.", name: "", role: "Station HQ Officer", level: "",
+      stateId: "", hqId: "", stationId: "", assignName: "", email: "",
+      canLogin: false, username: "", password: "",
     });
   }, []);
 
   const openEdit = useCallback((o: any) => {
-    const template = getTemplateForOfficerRole(o.role);
+    let assignName = o.stationName || "";
+    if (o.role === "Area Officer") assignName = o.stateName || "";
+    if (o.role === "Headquarter Officer") assignName = o.hqName || "";
     setForm({
-      rank: "", name: o.name, assignType: "station",
-      role: o.role, level: o.level || "",
-      stationName: o.stationName,
-      stationId: "", email: o.email,
-      permissions: { ...template, ...(o.permissions ?? {}) },
+      rank: "",
+      name: o.name,
+      role: o.role,
+      level: o.level || "",
+      stateId: o.stateId || "",
+      hqId: o.hqId || "",
+      stationId: o.station?._id || o.station || "",
+      assignName,
+      email: o.email,
+      canLogin: false,
+      username: "",
+      password: "",
     });
     setEditOfficer(o);
   }, []);
 
+  const buildPayload = useCallback(() => ({
+    name: form.name.includes(form.rank) ? form.name.trim() : `${form.rank} ${form.name}`.trim(),
+    role: form.role,
+    level: form.level,
+    email: form.email,
+    stateId: form.stateId || undefined,
+    hqId: form.hqId || undefined,
+    stationId: form.stationId || undefined,
+    canLogin: form.canLogin,
+    username: form.canLogin ? form.username : undefined,
+    password: form.canLogin ? form.password : undefined,
+  }), [form]);
+
   const handleAdd = useCallback(async () => {
     if (!form.name.trim() || !form.email.trim() || !form.level) return;
-    const confirmed = window.confirm(`Add officer "${form.rank} ${form.name}" to ${form.stationName}?`);
+    const label = form.assignName || "assignment";
+    const confirmed = window.confirm(`Add officer "${form.rank} ${form.name}" (${form.role}) — ${label}?`);
     if (!confirmed) return;
-    await createOfficer.mutateAsync({
-      ...form,
-      name: `${form.rank} ${form.name}`.trim(),
-      permissions: form.permissions,
-    });
+    await createOfficer.mutateAsync(buildPayload());
     resetForm();
     setAddOpen(false);
-  }, [form, createOfficer, resetForm]);
+  }, [form, createOfficer, resetForm, buildPayload]);
 
   const handleUpdate = useCallback(async () => {
     if (!editOfficer?._id || !form.level) return;
@@ -412,10 +408,11 @@ export default memo(function UsersOfficers() {
       id: editOfficer._id,
       name: form.name,
       role: form.role,
-      level: form.level || undefined,
-      stationName: form.stationName,
+      level: form.level,
       email: form.email,
-      permissions: form.permissions,
+      stateId: form.stateId || undefined,
+      hqId: form.hqId || undefined,
+      stationId: form.stationId || undefined,
     });
     setEditOfficer(null);
     resetForm();
@@ -423,18 +420,17 @@ export default memo(function UsersOfficers() {
 
   const handleToggle = useCallback((o: any) => {
     const action = o.status === "active" ? "deactivate" : "activate";
-    const confirmed = window.confirm(`Are you sure you want to ${action} "${o.name}"?`);
-    if (confirmed) toggleStatus.mutate(o._id);
+    if (window.confirm(`Are you sure you want to ${action} "${o.name}"?`)) {
+      toggleStatus.mutate(o._id);
+    }
   }, [toggleStatus]);
 
   const handleDelete = useCallback((o: any) => {
-    const confirmed = window.confirm(
-      `⚠️ Are you sure you want to delete "${o.name}"?\n\nThis action cannot be undone.`
-    );
-    if (confirmed) deleteOfficer.mutate(o._id);
+    if (window.confirm(`Delete "${o.name}"? This cannot be undone.`)) {
+      deleteOfficer.mutate(o._id);
+    }
   }, [deleteOfficer]);
 
-  // Shared modal props
   const modalProps = {
     form, setForm, handleAdd, handleUpdate,
     createOfficer, updateOfficer,
@@ -443,13 +439,11 @@ export default memo(function UsersOfficers() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Officers & Veteran Accounts</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage officers across all station headquarters.
+            All portal users and field officers live in one collection. Permissions are set per role in Settings.
           </p>
         </div>
         <button
@@ -460,30 +454,14 @@ export default memo(function UsersOfficers() {
         </button>
       </div>
 
-      {/* Modals */}
-      {addOpen && (
-        <OfficerModal
-          {...modalProps}
-          onClose={() => { setAddOpen(false); resetForm(); }}
-        />
-      )}
-      {editOfficer && (
-        <OfficerModal
-          isEdit
-          {...modalProps}
-          onClose={() => { setEditOfficer(null); resetForm(); }}
-        />
-      )}
+      {addOpen && <OfficerModal {...modalProps} onClose={() => { setAddOpen(false); resetForm(); }} />}
+      {editOfficer && <OfficerModal isEdit {...modalProps} onClose={() => { setEditOfficer(null); resetForm(); }} />}
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          // { label: "ESM Officers",        count: summary.esmOfficers,    icon: Shield },
-          // { label: "Station HQ Officers", count: summary.stationOfficers, icon: Users  },
-          // { label: "Record Office",       count: summary.recordOffice,   icon: Users  },
-          { label: "Area Officers",        count: summary.esmOfficers,    icon: Shield },
-          { label: "Headquarter Officers", count: summary.stationOfficers, icon: Users  },
-          { label: "Station HQ Officers",  count: summary.recordOffice,   icon: Users  },
+          { label: "Area Officers", count: summary.esmOfficers, icon: Shield },
+          { label: "Headquarter Officers", count: summary.stationOfficers, icon: Users },
+          { label: "Station HQ Officers", count: summary.recordOffice, icon: Users },
         ].map((r) => (
           <div key={r.label} className="bg-card rounded-xl border border-border p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -497,13 +475,10 @@ export default memo(function UsersOfficers() {
         ))}
       </div>
 
-      {/* Table */}
       <div className="bg-card rounded-xl border border-border p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h3 className="font-bold text-foreground">All Officers</h3>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-
-            {/* Search */}
             <div className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-1.5">
               <Search className="w-4 h-4 text-muted-foreground" />
               <input
@@ -513,8 +488,6 @@ export default memo(function UsersOfficers() {
                 className="bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground w-36"
               />
             </div>
-
-            {/* Role filter */}
             <div className="relative">
               <select
                 value={roleFilter}
@@ -526,15 +499,14 @@ export default memo(function UsersOfficers() {
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
             </div>
-
           </div>
         </div>
 
-        <div className="overflow-visible ">
+        <div className="overflow-visible">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                {["Officer","Role","Level","Station","Active Cases","Status","Actions"].map((h, i) => (
+                {["Officer","Role","Level","Assignment","Active Cases","Status","Actions"].map((h, i) => (
                   <th key={h} className={`text-xs font-medium text-muted-foreground py-3 px-3 ${i === 6 ? "text-right" : "text-left"}`}>
                     {h}
                   </th>
@@ -558,8 +530,6 @@ export default memo(function UsersOfficers() {
                 </tr>
               ) : officers.map((o: any) => (
                 <tr key={o._id || o.email} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-
-                  {/* Officer info */}
                   <td className="py-3 px-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
@@ -568,51 +538,38 @@ export default memo(function UsersOfficers() {
                         </span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{o.name}</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {o.name}
+                          {o.canLogin && (
+                            <span className="ml-1.5 text-[10px] text-primary font-normal">(portal)</span>
+                          )}
+                        </p>
                         <p className="text-xs text-muted-foreground">{o.email}</p>
                       </div>
                     </div>
                   </td>
-
-                  {/* Role */}
                   <td className="py-3 px-2">
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${roleBadge[o.role] || ""}`}>
                       {o.role}
                     </span>
                   </td>
-
-                  {/* Level */}
                   <td className="py-3 px-2">
                     {o.level ? (
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${levelBadge[o.level] || "bg-secondary text-muted-foreground"}`}>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${levelBadge[o.level] || ""}`}>
                         {o.level}
                       </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </td>
-
-                  {/* Station */}
-                  <td className="py-3 px-3 text-sm text-muted-foreground">{o.stationName}</td>
-
-                  {/* Active cases */}
-                  <td className="py-3 px-7 text-sm text-foreground font-medium">
-                    {o.activeCases ?? 0}
-                  </td>
-
-                  {/* Status */}
+                  <td className="py-3 px-3 text-sm text-muted-foreground">{assignmentLabel(o)}</td>
+                  <td className="py-3 px-7 text-sm text-foreground font-medium">{o.activeCases ?? 0}</td>
                   <td className="py-3 px-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium
-                      ${o.status === "active"
-                        ? "bg-success/15 text-success"
-                        : "bg-muted text-muted-foreground"
-                      }`}
-                    >
+                      ${o.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
                       {o.status}
                     </span>
                   </td>
-
-                  {/* Actions */}
                   <td className="py-3 px-4 text-right">
                     <ActionsMenu
                       officer={o}
@@ -622,14 +579,12 @@ export default memo(function UsersOfficers() {
                       onDelete={() => handleDelete(o)}
                     />
                   </td>
-
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
   );
 });

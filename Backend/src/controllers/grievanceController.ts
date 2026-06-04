@@ -7,16 +7,7 @@ import Station from "../models/Station";
 import CaseType from "../models/CaseType";
 import Officer from "../models/Officer";
 import QRCode from "../models/QRCode";
-
-// ─── Helper: get station filter based on role ────────────────────────────────
-const getStationFilter = (req: Request): any => {
-  const user = (req as any).user;
-  if (!user || user.role === "super_admin") return {};
-  if (user.station && user.station !== "Nagpur Sub-Area") {
-    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
-  }
-  return {};
-};
+import { getGrievanceScopeFilter } from "../utils/scopeFilter";
 
 // ─── Helper: get date filter ─────────────────────────────────────────────────
 const getDateFilter = (period?: string): any => {
@@ -55,7 +46,7 @@ export const getGrievances = async (req: Request, res: Response): Promise<void> 
       startDate, endDate,
     } = req.query;
 
-    const stationFilter = getStationFilter(req);
+    const stationFilter = await getGrievanceScopeFilter((req as any).user);
     const query: any = { isDeleted: false, ...stationFilter };
 
     if (search) {
@@ -346,7 +337,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const { period } = req.query;
 
     // Role-based station filter
-    const stationFilter = getStationFilter(req);
+    const stationFilter = await getGrievanceScopeFilter((req as any).user);
 
     // Date filter from period param
     const dateFilter = getDateFilter(period as string);

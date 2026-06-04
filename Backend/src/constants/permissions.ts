@@ -196,12 +196,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RbacRole, PermissionMap> = {
   },
 };
 
-/** Map officer job title → RBAC role template key. */
-export const OFFICER_ROLE_TO_RBAC: Record<string, RbacRole> = {
-  "Area Officer": "area",
-  "Headquarter Officer": "headquarter",
-  "Station HQ Officer": "station_hq",
-};
+/** @deprecated Use OFFICER_ROLE_TO_RBAC from constants/officerRoles.ts */
+export { OFFICER_ROLE_TO_RBAC } from "./officerRoles";
 
 export const permissionSchemaFields = Object.fromEntries(
   PERMISSION_KEYS.map((k) => [k, { type: Boolean, default: false }])

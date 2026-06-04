@@ -20,22 +20,14 @@ async function resolveHQ(hqId: string) {
   return HQ.findOne({ _id: hqId, isActive: true });
 }
 
-// ─── Helper: get station filter based on role ────────────────────────────────
-const getStationFilter = (req: Request): any => {
-  const user = (req as any).user;
-  if (!user || user.role === "super_admin") return {};
-  if (user.station && user.station !== "Nagpur Sub-Area") {
-    return { name: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
-  }
-  return {};
-};
+import { getStationListFilter } from "../utils/scopeFilter";
 
 // ─── GET all stations ────────────────────────────────────────────────────────
 export const getStations = async (req: Request, res: Response): Promise<void> => {
   try {
     const { search, state, qrActive, page = 1, limit = 20 } = req.query;
 
-    const stationFilter = getStationFilter(req);
+    const stationFilter = getStationListFilter((req as any).user);
     const query: any = { isActive: true, ...stationFilter };
 
     if (search) {

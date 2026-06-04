@@ -2,23 +2,14 @@ import { Request, Response } from "express";
 import Escalation from "../models/Escalation";
 import Grievance from "../models/Grievance";
 import Notification from "../models/Notification";
-
-// ─── Helper: get station filter based on role ────────────────────────────────
-const getStationFilter = (req: Request): any => {
-  const user = (req as any).user;
-  if (!user || user.role === "super_admin") return {};
-  if (user.station && user.station !== "Nagpur Sub-Area") {
-    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
-  }
-  return {};
-};
+import { getGrievanceScopeFilter } from "../utils/scopeFilter";
 
 // ─── GET all escalations ─────────────────────────────────────────────────────
 export const getEscalations = async (req: Request, res: Response): Promise<void> => {
   try {
     const { status, station, search, page = 1, limit = 20 } = req.query;
 
-    const stationFilter = getStationFilter(req);
+    const stationFilter = await getGrievanceScopeFilter((req as any).user);
     const query: any = { ...stationFilter };
 
     if (status) query.status = status;

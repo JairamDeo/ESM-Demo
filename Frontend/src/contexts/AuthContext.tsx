@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useMemo } from "react";
 import api, { setAuthToken, clearAuthToken, setStoredUser, getStoredUser } from "@/lib/api";
 import { queryClient } from "@/App";
+import { resolveRbacRole, type UserRole } from "@/lib/rbacRole";
 
-export type UserRole = "super_admin" | "area" | "headquarter" | "station_hq" | "user" | null;
+export type { UserRole };
 
 export interface AuthUser {
   id: string;
@@ -26,26 +27,31 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function normalizeAdminFromApi(admin: Record<string, unknown>): AuthUser {
+  const rawRole = (admin.role ?? admin.rbacRole) as string | undefined;
+  return {
+    id: String(admin.id ?? admin._id ?? ""),
+    name: String(admin.name ?? admin.username ?? "Admin"),
+    email: admin.email as string | undefined,
+    role: resolveRbacRole(rawRole) as UserRole,
+    station: admin.station as string | undefined,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // ← getStoredUser checks path to get correct user
   const [user, setUser] = useState<AuthUser | null>(() => {
     const path = window.location.pathname;
-    return path.startsWith("/user/")
-      ? getStoredUser("user")
-      : getStoredUser("admin");
+    const stored = path.startsWith("/user/") ? getStoredUser("user") : getStoredUser("admin");
+    if (!stored) return null;
+    if (stored.role === "user") return stored as AuthUser;
+    return normalizeAdminFromApi(stored);
   });
 
   const adminLogin = useCallback(async (username: string, password: string) => {
     const res = await api.post("/auth/admin/login", { username, password });
     const { token, admin } = res.data;
     setAuthToken(token, "admin");         // ← pass "admin"
-    const authUser: AuthUser = {
-      id: admin.id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role,
-      station: admin.station,
-    };
+    const authUser = normalizeAdminFromApi(admin);
     setStoredUser(authUser, "admin");     // ← pass "admin"
     setUser(authUser);
     queryClient.clear();
