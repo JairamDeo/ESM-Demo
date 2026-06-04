@@ -1,7 +1,24 @@
 import { Request, Response } from "express";
 import Station from "../models/Station";
+import HQ from "../models/HeadQuarter";
+import State from "../models/State";
 import QRCode from "../models/QRCode";
 import qrcode from "qrcode";
+import {
+  syncStationOnHQ,
+  removeStationFromHQ,
+} from "../services/hqStationSync";
+
+async function resolveStateByName(stateName: string) {
+  return State.findOne({
+    name: { $regex: `^${stateName.trim()}$`, $options: "i" },
+    isActive: true,
+  });
+}
+
+async function resolveHQ(hqId: string) {
+  return HQ.findOne({ _id: hqId, isActive: true });
+}
 
 // ─── Helper: get station filter based on role ────────────────────────────────
 const getStationFilter = (req: Request): any => {
@@ -25,19 +42,28 @@ export const getStations = async (req: Request, res: Response): Promise<void> =>
       query.$or = [
         { name: { $regex: search, $options: "i" } },
         { city: { $regex: search, $options: "i" } },
-        { state: { $regex: search, $options: "i" } },
+        { stateName: { $regex: search, $options: "i" } },
+        { hqName: { $regex: search, $options: "i" } },
       ];
     }
     if (state && (req as any).user?.role === "super_admin") {
-      query.state = { $regex: state, $options: "i" };
+      query.stateName = { $regex: state, $options: "i" };
     }
+    const { hqId } = req.query;
+    if (hqId) query.hqId = hqId;
     if (qrActive !== undefined) query.qrActive = qrActive === "true";
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
 
     const [stations, total] = await Promise.all([
-      Station.find(query).sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
+      Station.find(query)
+        .populate("hqId", "name city state")
+        .populate("state", "name code")
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum)
+        .lean(),
       Station.countDocuments(query),
     ]);
 
@@ -54,7 +80,9 @@ export const getStations = async (req: Request, res: Response): Promise<void> =>
 // ─── GET single station ──────────────────────────────────────────────────────
 export const getStationById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const station = await Station.findById(req.params.id);
+    const station = await Station.findById(req.params.id)
+      .populate("hqId", "name city state address commanderName")
+      .populate("state", "name code");
     if (!station || !station.isActive) {
       res.status(404).json({ success: false, message: "Station not found" });
       return;
@@ -68,44 +96,77 @@ export const getStationById = async (req: Request, res: Response): Promise<void>
 // ─── CREATE station ──────────────────────────────────────────────────────────
 export const createStation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, city, state, address, officerCount, contactEmail, contactPhone } = req.body;
+    const { name, city, state, address, officerCount, contactEmail, contactPhone, hqId, hqName } = req.body;
 
-    if (!name || !city || !state) {
-      res.status(400).json({ success: false, message: "name, city and state are required" });
+    if (!name || !city || !state || !hqId) {
+      res.status(400).json({
+        success: false,
+        message: "name, city, state and headquarters (hqId) are required",
+      });
       return;
     }
 
-    const existing = await Station.findOne({ 
-  name: { $regex: `^${name}$`, $options: "i" },
-  isActive: true  // ← only check ACTIVE stations
-});
-if (existing) {
-  res.status(409).json({ success: false, message: "Station with this name already exists" });
-  return;
-}
+    const hqDoc = await resolveHQ(hqId);
+    if (!hqDoc) {
+      res.status(400).json({ success: false, message: "Invalid headquarters selected" });
+      return;
+    }
 
-// If inactive station exists with same name — reactivate it instead of creating new
-const inactive = await Station.findOne({ 
-  name: { $regex: `^${name}$`, $options: "i" },
-  isActive: false 
-});
-if (inactive) {
-  inactive.isActive = true;
-  inactive.city = city.trim();
-  inactive.state = state.trim();
-  inactive.officerCount = officerCount || 0;
-  if (address) inactive.address = address;
-  await inactive.save();
-  res.status(201).json({ success: true, message: "Station restored successfully", data: inactive });
-  return;
-}
+    const stateDoc = await resolveStateByName(String(state));
+    if (!stateDoc) {
+      res.status(400).json({ success: false, message: "Invalid state selected" });
+      return;
+    }
 
-    const station = await Station.create({
-      name: name.trim(), city: city.trim(), state: state.trim(),
-      address, officerCount: officerCount || 0, contactEmail, contactPhone,
+    const stationPayload = {
+      name: name.trim(),
+      city: city.trim(),
+      hqId: hqDoc._id,
+      hqName: (hqName || hqDoc.name).trim(),
+      state: stateDoc._id,
+      stateCode: stateDoc.code,
+      stateName: stateDoc.name,
+      address,
+      officerCount: officerCount || 0,
+      contactEmail,
+      contactPhone,
+    };
+
+    const existing = await Station.findOne({
+      name: { $regex: `^${stationPayload.name}$`, $options: "i" },
+      isActive: true,
     });
+    if (existing) {
+      res.status(409).json({ success: false, message: "Station with this name already exists" });
+      return;
+    }
 
-    res.status(201).json({ success: true, message: "Station created successfully", data: station });
+    const inactive = await Station.findOne({
+      name: { $regex: `^${stationPayload.name}$`, $options: "i" },
+      isActive: false,
+    });
+    if (inactive) {
+      const previousHqId = inactive.hqId;
+      Object.assign(inactive, stationPayload, { isActive: true });
+      await inactive.save();
+      if (previousHqId && String(previousHqId) !== String(hqDoc._id)) {
+        await removeStationFromHQ(previousHqId, inactive._id);
+      }
+      await syncStationOnHQ(hqDoc._id, inactive._id, stationPayload.name);
+      const restored = await Station.findById(inactive._id)
+        .populate("hqId", "name city state")
+        .populate("state", "name code");
+      res.status(201).json({ success: true, message: "Station restored successfully", data: restored });
+      return;
+    }
+
+    const station = await Station.create(stationPayload);
+    await syncStationOnHQ(hqDoc._id, station._id, stationPayload.name);
+    const populated = await Station.findById(station._id)
+      .populate("hqId", "name city state")
+      .populate("state", "name code");
+
+    res.status(201).json({ success: true, message: "Station created successfully", data: populated });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -114,8 +175,56 @@ if (inactive) {
 // ─── UPDATE station ──────────────────────────────────────────────────────────
 export const updateStation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const station = await Station.findByIdAndUpdate(req.params.id, { ...req.body }, { new: true, runValidators: true });
+    const before = await Station.findById(req.params.id);
+    if (!before) {
+      res.status(404).json({ success: false, message: "Station not found" });
+      return;
+    }
+
+    const { hqId, hqName, state, ...rest } = req.body;
+    const updateData: Record<string, unknown> = { ...rest };
+
+    if (hqId) {
+      const hqDoc = await resolveHQ(hqId);
+      if (!hqDoc) {
+        res.status(400).json({ success: false, message: "Invalid headquarters selected" });
+        return;
+      }
+      updateData.hqId = hqDoc._id;
+      updateData.hqName = (hqName || hqDoc.name).trim();
+    }
+
+    if (state) {
+      const stateDoc = await resolveStateByName(String(state));
+      if (!stateDoc) {
+        res.status(400).json({ success: false, message: "Invalid state selected" });
+        return;
+      }
+      updateData.state = stateDoc._id;
+      updateData.stateCode = stateDoc.code;
+      updateData.stateName = stateDoc.name;
+    }
+
+    const station = await Station.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("hqId", "name city state")
+      .populate("state", "name code");
+
     if (!station) { res.status(404).json({ success: false, message: "Station not found" }); return; }
+
+    const oldHqId = before.hqId?.toString();
+    const newHqId = station.hqId?.toString();
+    if (oldHqId !== newHqId) {
+      await removeStationFromHQ(before.hqId, station._id);
+      if (station.hqId) {
+        await syncStationOnHQ(station.hqId, station._id, station.name);
+      }
+    } else if (before.name !== station.name && station.hqId) {
+      await syncStationOnHQ(station.hqId, station._id, station.name);
+    }
+
     res.status(200).json({ success: true, message: "Station updated", data: station });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -127,6 +236,7 @@ export const deleteStation = async (req: Request, res: Response): Promise<void> 
   try {
     const station = await Station.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
     if (!station) { res.status(404).json({ success: false, message: "Station not found" }); return; }
+    await removeStationFromHQ(station.hqId, station._id);
     res.status(200).json({ success: true, message: "Station removed" });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

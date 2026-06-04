@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import Officer from "../models/Officer";
+import Officer, { OFFICER_LEVELS } from "../models/Officer";
 import Station from "../models/Station";
 import { getPermissionsForOfficerRole } from "../services/rbacService";
 
@@ -85,10 +85,15 @@ export const getOfficerById = async (req: Request, res: Response): Promise<void>
 // ─── CREATE officer ──────────────────────────────────────────────────────────
 export const createOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, rank, role, stationName, email, phone, permissions } = req.body;
+    const { name, rank, role, stationName, email, phone, permissions, level } = req.body;
 
     if (!name || !role || !email || !stationName) {
       res.status(400).json({ success: false, message: "name, role, email and stationName are required" });
+      return;
+    }
+
+    if (!level || !OFFICER_LEVELS.includes(level)) {
+      res.status(400).json({ success: false, message: "level must be L1, L2, or L3" });
       return;
     }
 
@@ -113,6 +118,7 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       name:        name.trim(),
       rank:        rank?.trim() || "",
       role,
+      level,
       station:     stationDoc?._id,
       stationName: stationDoc?.name || stationName,
       email:       email.toLowerCase().trim(),
@@ -138,6 +144,13 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
 
     if (permissions && typeof permissions === "object") {
       updateData.permissions = permissions;
+    }
+
+    if (updateData.level !== undefined) {
+      if (updateData.level && !OFFICER_LEVELS.includes(updateData.level)) {
+        res.status(400).json({ success: false, message: "level must be L1, L2, or L3" });
+        return;
+      }
     }
 
     if (stationName) {

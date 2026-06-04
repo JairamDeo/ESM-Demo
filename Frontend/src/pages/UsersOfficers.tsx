@@ -6,7 +6,14 @@ import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus
 
 // const ROLES = ["ESM Officer", "Station HQ Officer", "Record Office"] as const;
 const ROLES = ["Area Officer", "Headquarter Officer", "Station HQ Officer"] as const;
+const OFFICER_LEVELS = ["L1", "L2", "L3"] as const;
 const RANKS = ["Lt.","Capt.","Maj.","Lt. Col.","Col.","Brig.","Sub.","Hav.","Nk.","Sep."];
+
+const levelBadge: Record<string, string> = {
+  L1: "bg-violet-500/15 text-violet-400",
+  L2: "bg-sky-500/15 text-sky-400",
+  L3: "bg-amber-500/15 text-amber-500",
+};
 
 const PERM_LABELS: Array<{ key: keyof Permission; label: string }> = [
   { key: "viewDashboard", label: "View dashboard" },
@@ -178,6 +185,30 @@ const OfficerModal = ({
             </div>
           </div>
 
+          {/* Level — L1 / L2 / L3 (Area, HQ, Station HQ officers) */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Level *</label>
+            <p className="text-[11px] text-muted-foreground mt-0.5 mb-1.5">
+              Escalation tier for Area, Headquarter, or Station HQ officers
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {OFFICER_LEVELS.map((lv) => (
+                <button
+                  key={lv}
+                  type="button"
+                  onClick={() => setForm((p: any) => ({ ...p, level: lv }))}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold border transition-all
+                    ${form.level === lv
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-secondary text-muted-foreground border-border hover:text-foreground"
+                    }`}
+                >
+                  {lv}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Role — select first so dropdown changes accordingly */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Role *</label>
@@ -282,7 +313,7 @@ const OfficerModal = ({
             </button>
             <button
               onClick={isEdit ? handleUpdate : handleAdd}
-              disabled={isPending || !form.name.trim() || !form.email.trim() || !form.stationName}
+              disabled={isPending || !form.name.trim() || !form.email.trim() || !form.stationName || !form.level}
               className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isPending
@@ -314,6 +345,7 @@ export default memo(function UsersOfficers() {
     name:        "",
     assignType:  "station",
     role:        "Station HQ Officer",
+    level:       "" as "" | (typeof OFFICER_LEVELS)[number],
     stationName: "",
     stationId:   "",
     email:       "",
@@ -342,7 +374,7 @@ export default memo(function UsersOfficers() {
   const resetForm = useCallback(() => {
     setForm({
       rank: "Maj.", name: "", assignType: "station",
-      role: "Station HQ Officer", stationName: "", stationId: "", email: "",
+      role: "Station HQ Officer", level: "", stationName: "", stationId: "", email: "",
       permissions: getTemplateForOfficerRole("Station HQ Officer"),
     });
   }, []);
@@ -351,7 +383,8 @@ export default memo(function UsersOfficers() {
     const template = getTemplateForOfficerRole(o.role);
     setForm({
       rank: "", name: o.name, assignType: "station",
-      role: o.role, stationName: o.stationName,
+      role: o.role, level: o.level || "",
+      stationName: o.stationName,
       stationId: "", email: o.email,
       permissions: { ...template, ...(o.permissions ?? {}) },
     });
@@ -359,7 +392,7 @@ export default memo(function UsersOfficers() {
   }, []);
 
   const handleAdd = useCallback(async () => {
-    if (!form.name.trim() || !form.email.trim()) return;
+    if (!form.name.trim() || !form.email.trim() || !form.level) return;
     const confirmed = window.confirm(`Add officer "${form.rank} ${form.name}" to ${form.stationName}?`);
     if (!confirmed) return;
     await createOfficer.mutateAsync({
@@ -372,13 +405,14 @@ export default memo(function UsersOfficers() {
   }, [form, createOfficer, resetForm]);
 
   const handleUpdate = useCallback(async () => {
-    if (!editOfficer?._id) return;
+    if (!editOfficer?._id || !form.level) return;
     const confirmed = window.confirm(`Save changes to "${form.name}"?`);
     if (!confirmed) return;
     await updateOfficer.mutateAsync({
       id: editOfficer._id,
       name: form.name,
       role: form.role,
+      level: form.level || undefined,
       stationName: form.stationName,
       email: form.email,
       permissions: form.permissions,
@@ -500,8 +534,8 @@ export default memo(function UsersOfficers() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                {["Officer","Role","Station","Active Cases","Status","Actions"].map((h, i) => (
-                  <th key={h} className={`text-xs font-medium text-muted-foreground py-3 px-3 ${i === 5 ? "text-right" : "text-left"}`}>
+                {["Officer","Role","Level","Station","Active Cases","Status","Actions"].map((h, i) => (
+                  <th key={h} className={`text-xs font-medium text-muted-foreground py-3 px-3 ${i === 6 ? "text-right" : "text-left"}`}>
                     {h}
                   </th>
                 ))}
@@ -511,14 +545,14 @@ export default memo(function UsersOfficers() {
               {isLoading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i} className="border-b border-border/50">
-                    <td colSpan={6} className="py-3 px-3">
+                    <td colSpan={7} className="py-3 px-3">
                       <div className="h-8 bg-secondary/50 rounded animate-pulse" />
                     </td>
                   </tr>
                 ))
               ) : officers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
                     No officers found.
                   </td>
                 </tr>
@@ -545,6 +579,17 @@ export default memo(function UsersOfficers() {
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${roleBadge[o.role] || ""}`}>
                       {o.role}
                     </span>
+                  </td>
+
+                  {/* Level */}
+                  <td className="py-3 px-2">
+                    {o.level ? (
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${levelBadge[o.level] || "bg-secondary text-muted-foreground"}`}>
+                        {o.level}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
 
                   {/* Station */}
