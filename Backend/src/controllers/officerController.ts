@@ -7,10 +7,10 @@ import { HIERARCHY_ORDER } from "../constants/officerHierarchy";
 import {
   assertAssignmentInActorScope,
   assertCanCreateRole,
-  auditActorFromRequest,
   getCreatableRoles,
   officerScopeQuery,
 } from "../services/officerHierarchy";
+import { buildAuditEntry } from "../services/auditService";
 import { OfficerJobRole } from "../constants/officerRoles";
 
 function assignmentDisplay(o: {
@@ -79,7 +79,7 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
         { stationName: { $regex: search, $options: "i" } },
         { stateName: { $regex: search, $options: "i" } },
         { hqName: { $regex: search, $options: "i" } },
-        { "createdBy.name": { $regex: search, $options: "i" } },
+        { "auditHistory.name": { $regex: search, $options: "i" } },
       ];
     }
     if (role) query.role = role;
@@ -214,7 +214,7 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    const audit = auditActorFromRequest(actor);
+    const auditEntry = buildAuditEntry(actor, "create");
 
     const officer = await Officer.create({
       ...assignment,
@@ -227,8 +227,7 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       canLogin: wantsLogin,
       username: wantsLogin ? username.toLowerCase().trim() : undefined,
       password: wantsLogin ? password : undefined,
-      createdBy: audit,
-      updatedBy: audit,
+      auditHistory: [auditEntry],
     });
 
     if (officer.station) {
@@ -345,12 +344,16 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    updateData.updatedBy = auditActorFromRequest(actor);
+    const auditAction = status !== undefined ? "status_toggle" : "update";
+    const auditEntry = buildAuditEntry(actor, auditAction, {
+      note: status !== undefined ? `Status set to ${status}` : undefined,
+    });
 
-    const officer = await Officer.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate("station", "name city stateName hqName");
+    const officer = await Officer.findByIdAndUpdate(
+      req.params.id,
+      { ...updateData, $push: { auditHistory: auditEntry } },
+      { new: true, runValidators: true }
+    ).populate("station", "name city stateName hqName");
 
     if (!officer) {
       res.status(404).json({ success: false, message: "Officer not found" });
@@ -375,7 +378,9 @@ export const toggleOfficerStatus = async (req: Request, res: Response): Promise<
       return;
     }
     officer.status = officer.status === "active" ? "inactive" : "active";
-    officer.updatedBy = auditActorFromRequest(actor);
+    officer.auditHistory.push(
+      buildAuditEntry(actor, "status_toggle", { note: `Status set to ${officer.status}` })
+    );
     await officer.save();
     res.status(200).json({ success: true, message: `Officer ${officer.status}`, data: officer });
   } catch (error: any) {

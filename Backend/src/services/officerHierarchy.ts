@@ -17,22 +17,6 @@ export interface ActorUser {
   stationId?: string;
 }
 
-export interface AuditActor {
-  officerId: mongoose.Types.ObjectId;
-  name: string;
-  role: string;
-  rbacRole: string;
-}
-
-export function auditActorFromRequest(user: ActorUser): AuditActor {
-  return {
-    officerId: new mongoose.Types.ObjectId(user.id),
-    name: user.name || "Officer",
-    role: user.jobRole || user.role,
-    rbacRole: user.role,
-  };
-}
-
 export function getCreatableRoles(actorRole: string): OfficerJobRole[] {
   return CREATABLE_OFFICER_ROLES[actorRole as RbacRole] ?? [];
 }

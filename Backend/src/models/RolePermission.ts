@@ -1,15 +1,12 @@
 import mongoose, { Document, Schema } from "mongoose";
 import { permissionSchemaFields, RbacRole } from "../constants/permissions";
+import { rbacChangeEntrySchema, IRbacChangeEntry } from "./AuditLog";
 
 export interface IRolePermission extends Document {
   role: RbacRole;
   permissions: Record<string, boolean>;
-  updatedBy?: {
-    id: string;
-    name?: string;
-    email?: string;
-    role?: string;
-  };
+  /** Append-only — never overwrite previous RBAC changes. */
+  changeHistory: IRbacChangeEntry[];
   updatedAt: Date;
   createdAt: Date;
 }
@@ -23,12 +20,7 @@ const RolePermissionSchema = new Schema<IRolePermission>(
       enum: ["super_admin", "area", "headquarter", "station_hq", "user"],
     },
     permissions: permissionSchemaFields,
-    updatedBy: {
-      id: { type: String },
-      name: { type: String },
-      email: { type: String },
-      role: { type: String },
-    },
+    changeHistory: { type: [rbacChangeEntrySchema], default: [] },
   },
   { timestamps: true }
 );

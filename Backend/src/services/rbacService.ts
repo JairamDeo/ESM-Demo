@@ -7,6 +7,8 @@ import {
   SETTINGS_ROLES,
 } from "../constants/permissions";
 import { OFFICER_ROLE_TO_RBAC } from "../constants/officerRoles";
+import { buildRbacChangeEntry, RequestActor } from "./auditService";
+import { IRbacChangeEntry } from "../models/AuditLog";
 
 export type RolePermissionsMap = Record<string, PermissionMap>;
 
@@ -18,6 +20,7 @@ export async function ensureRolePermissionsSeeded(): Promise<void> {
     (Object.keys(DEFAULT_ROLE_PERMISSIONS) as RbacRole[]).map((role) => ({
       role,
       permissions: DEFAULT_ROLE_PERMISSIONS[role],
+      changeHistory: [],
     }))
   );
 }
@@ -31,7 +34,6 @@ export async function getAllRolePermissions(): Promise<RolePermissionsMap> {
     map[doc.role] = { ...DEFAULT_ROLE_PERMISSIONS[doc.role as RbacRole], ...doc.permissions };
   }
 
-  // Settings matrix expects these four roles always present
   for (const role of SETTINGS_ROLES) {
     if (!map[role]) map[role] = { ...DEFAULT_ROLE_PERMISSIONS[role] };
   }
@@ -50,11 +52,17 @@ export async function getPermissionsForOfficerRole(officerRole: string): Promise
   return getPermissionsForRole(rbacRole);
 }
 
+export async function getRoleChangeHistory(role: RbacRole): Promise<IRbacChangeEntry[]> {
+  await ensureRolePermissionsSeeded();
+  const doc = await RolePermission.findOne({ role }).select("changeHistory").lean();
+  return doc?.changeHistory ?? [];
+}
+
 export async function updateRolePermission(
   role: RbacRole,
   permission: string,
   value: boolean,
-  actor?: { id: string; name?: string; email?: string; role?: string }
+  actor: RequestActor
 ): Promise<PermissionMap> {
   if (role === "super_admin") {
     throw new Error("Super Admin permissions cannot be modified");
@@ -66,14 +74,20 @@ export async function updateRolePermission(
   await ensureRolePermissionsSeeded();
   const existing = await RolePermission.findOne({ role });
   const base = existing?.permissions ?? DEFAULT_ROLE_PERMISSIONS[role];
+  const previousValue = base[permission as keyof PermissionMap] as boolean | undefined;
   const next = { ...base, [permission]: value };
+
+  const changeEntry = buildRbacChangeEntry(actor, "toggle", {
+    permission,
+    previousValue,
+    newValue: value,
+  });
 
   await RolePermission.findOneAndUpdate(
     { role },
     {
-      role,
-      permissions: next,
-      updatedBy: actor,
+      $set: { role, permissions: next },
+      $push: { changeHistory: changeEntry },
     },
     { upsert: true, new: true }
   );
@@ -83,22 +97,53 @@ export async function updateRolePermission(
 
 export async function resetRolePermissions(
   role: RbacRole,
-  actor?: { id: string; name?: string; email?: string; role?: string }
+  actor: RequestActor
 ): Promise<PermissionMap> {
   const defaults = DEFAULT_ROLE_PERMISSIONS[role];
+  const existing = await RolePermission.findOne({ role });
+  const current = existing?.permissions ?? defaults;
+
+  const changedKeys = PERMISSION_KEYS.filter(
+    (key) => (current[key as keyof PermissionMap] as boolean) !== (defaults[key as keyof PermissionMap] as boolean)
+  );
+
+  const changeEntry = buildRbacChangeEntry(actor, "reset", {
+    note:
+      changedKeys.length > 0
+        ? `Reset ${changedKeys.length} permission(s) to defaults: ${changedKeys.join(", ")}`
+        : "All permissions already at defaults",
+  });
+
   await RolePermission.findOneAndUpdate(
     { role },
-    { role, permissions: defaults, updatedBy: actor },
+    {
+      $set: { role, permissions: defaults },
+      $push: { changeHistory: changeEntry },
+    },
     { upsert: true, new: true }
   );
+
   return defaults;
 }
 
-export async function resetAllRolePermissions(
-  actor?: { id: string; name?: string; email?: string; role?: string }
-): Promise<RolePermissionsMap> {
+export async function resetAllRolePermissions(actor: RequestActor): Promise<RolePermissionsMap> {
   for (const role of Object.keys(DEFAULT_ROLE_PERMISSIONS) as RbacRole[]) {
-    await resetRolePermissions(role, actor);
+    if (role === "super_admin") continue;
+
+    const defaults = DEFAULT_ROLE_PERMISSIONS[role];
+    const changeEntry = buildRbacChangeEntry(actor, "reset_all", {
+      note: "Bulk reset — all role permissions reset to defaults",
+    });
+
+    await RolePermission.findOneAndUpdate(
+      { role },
+      {
+        $set: { role, permissions: defaults },
+        $push: { changeHistory: changeEntry },
+      },
+      { upsert: true, new: true }
+    );
   }
+
   return getAllRolePermissions();
 }

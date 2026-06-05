@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { OFFICER_LEVELS, OfficerLevel } from "../constants/officerLevels";
 import { OfficerJobRole } from "../constants/officerRoles";
 import { RbacRole } from "../constants/permissions";
-import { auditActorSchema, IAuditActor } from "./AuditActor";
+import { auditEntrySchema, IAuditEntry } from "./AuditLog";
 
 export { OFFICER_LEVELS, OfficerLevel };
 
@@ -35,8 +35,7 @@ export interface IOfficer extends Document {
   totalCasesHandled: number;
   status: "active" | "inactive";
   lastLogin?: Date;
-  createdBy?: IAuditActor;
-  updatedBy?: IAuditActor;
+  auditHistory: IAuditEntry[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -83,8 +82,7 @@ const OfficerSchema = new Schema<IOfficer>(
     totalCasesHandled: { type: Number, default: 0, min: 0 },
     status:   { type: String, enum: ["active", "inactive"], default: "active" },
     lastLogin: { type: Date },
-    createdBy: auditActorSchema,
-    updatedBy: auditActorSchema,
+    auditHistory: { type: [auditEntrySchema], default: [] },
   },
   { timestamps: true }
 );

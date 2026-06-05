@@ -74,7 +74,7 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
     updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
     reassignOfficer: false, viewCaseTypes: true, manageCaseTypes: false,
     viewCategories: true, manageCategories: false,
-    viewStations: false, manageStations: false, viewQRCodes: true, manageQRCodes: false,
+    viewStations: true, manageStations: true, viewQRCodes: true, manageQRCodes: false,
     viewOfficers: true, manageOfficers: true, viewEscalations: false,
     resolveEscalations: false, viewReports: false, exportReports: false,
     viewSettings: false, manageSettings: false, manageRoles: false, loginAsVeteran: true,

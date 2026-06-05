@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import State from "../models/State";
 import { stateListQuery } from "../services/officerHierarchy";
+import { buildAuditEntry } from "../services/auditService";
 
 export const getStates = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -32,13 +33,29 @@ export const createState = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    const actor = (req as any).user;
+    const auditEntry = buildAuditEntry(
+      actor,
+      existing ? "update" : "create",
+      existing ? { note: "Area reactivated" } : undefined
+    );
+
     const state = existing
       ? await State.findByIdAndUpdate(
           existing._id,
-          { name: name.trim(), code: code.trim().toUpperCase(), isActive: true },
+          {
+            name: name.trim(),
+            code: code.trim().toUpperCase(),
+            isActive: true,
+            $push: { auditHistory: auditEntry },
+          },
           { new: true }
         )
-      : await State.create({ name: name.trim(), code: code.trim().toUpperCase() });
+      : await State.create({
+          name: name.trim(),
+          code: code.trim().toUpperCase(),
+          auditHistory: [auditEntry],
+        });
 
     res.status(201).json({ success: true, message: "Area created", data: state });
   } catch (err: any) {
