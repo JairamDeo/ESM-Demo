@@ -1,9 +1,7 @@
 import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
 import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus, ChevronDown, Trash2 } from "lucide-react";
-import { useStations, useCreateStation, useDeleteStation, useHQs  } from "@/hooks/useApi";
-
-const STATES = ["Maharashtra", "Gujarat", "Karnataka", "Rajasthan", "Madhya Pradesh", "Uttar Pradesh", "Punjab", "Haryana", "Delhi", "Telangana"];
+import { useStations, useCreateStation, useDeleteStation, useHQs, useStates } from "@/hooks/useApi";
 
 export default memo(function Stations() {
   const [open, setOpen] = useState(false);
@@ -19,6 +17,7 @@ export default memo(function Stations() {
   const canManageStations = permissions.manageStations;
   const stations = useMemo(() => data?.data || [], [data]);
   const { data: hqList = [] } = useHQs();
+  const { data: statesList = [] } = useStates();
 
   const handleSubmit = useCallback(async () => {
     if (!form.city.trim() || !form.state) return;
@@ -68,7 +67,7 @@ export default memo(function Stations() {
         <div className="relative">
           <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="appearance-none bg-secondary/50 border border-border rounded-lg px-4 py-2 pr-10 text-sm outline-none cursor-pointer text-secondary-foreground hover:bg-secondary/80">
             <option value="">All States</option>
-            {STATES.map((s) => (<option  key={s}>{s}</option>))}
+            {statesList.map((s: any) => (<option key={s._id} value={s.name}>{s.name}</option>))}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground pointer-events-none" />
         </div>
@@ -157,7 +156,7 @@ export default memo(function Stations() {
               className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
             >
               <option value="">Select State</option>
-              {STATES.map((s) => <option key={s}>{s}</option>)}
+              {statesList.map((s: any) => <option key={s._id} value={s.name}>{s.name}</option>)}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
           </div>

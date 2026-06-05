@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
+import { auditActorSchema, IAuditActor } from "./AuditActor";
 
 export interface IHQStationRef {
   stationId: mongoose.Types.ObjectId;
@@ -9,13 +10,19 @@ export interface IHQ extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
   city: string;
+  /** Legacy string state name — prefer stateId/stateName. */
   state: string;
+  /** Area this HQ belongs to (multiple HQs per area). */
+  stateId?: mongoose.Types.ObjectId;
+  stateName?: string;
+  stateCode?: string;
   address?: string;
   commanderName?: string;
   contactEmail?: string;
   contactPhone?: string;
-  /** Active station HQs under this headquarters. */
   stations: IHQStationRef[];
+  createdBy?: IAuditActor;
+  updatedBy?: IAuditActor;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +33,9 @@ const HQSchema = new Schema<IHQ>(
     name:          { type: String, required: true, unique: true, trim: true },
     city:          { type: String, required: true, trim: true },
     state:         { type: String, required: true, trim: true },
+    stateId:       { type: Schema.Types.ObjectId, ref: "State" },
+    stateName:     { type: String },
+    stateCode:     { type: String },
     address:       { type: String },
     commanderName: { type: String },
     contactEmail:  { type: String, lowercase: true },
@@ -36,9 +46,13 @@ const HQSchema = new Schema<IHQ>(
         stationName: { type: String, required: true, trim: true },
       },
     ],
-    isActive:      { type: Boolean, default: true },
+    createdBy: auditActorSchema,
+    updatedBy: auditActorSchema,
+    isActive:  { type: Boolean, default: true },
   },
   { timestamps: true }
 );
+
+HQSchema.index({ stateId: 1 });
 
 export default mongoose.model<IHQ>("HQ", HQSchema);

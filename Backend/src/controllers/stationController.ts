@@ -98,15 +98,30 @@ export const createStation = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    const actor = (req as any).user;
     const hqDoc = await resolveHQ(hqId);
     if (!hqDoc) {
       res.status(400).json({ success: false, message: "Invalid headquarters selected" });
       return;
     }
 
+    if (actor.role === "headquarter" && actor.hqId && hqDoc._id.toString() !== actor.hqId) {
+      res.status(403).json({ success: false, message: "You can only create stations under your headquarters" });
+      return;
+    }
+
     const stateDoc = await resolveStateByName(String(state));
     if (!stateDoc) {
       res.status(400).json({ success: false, message: "Invalid state selected" });
+      return;
+    }
+
+    if (actor.role === "area" && actor.stateId && stateDoc._id.toString() !== actor.stateId) {
+      res.status(403).json({ success: false, message: "Station must belong to your area" });
+      return;
+    }
+    if (hqDoc.stateId && actor.role === "area" && actor.stateId && hqDoc.stateId.toString() !== actor.stateId) {
+      res.status(403).json({ success: false, message: "Headquarters must belong to your area" });
       return;
     }
 
