@@ -12,7 +12,17 @@ export const useDashboard = (period = "all") =>
       const { data } = await api.get("/grievances/dashboard", {
         params: { period }
       });
-      return data.data;
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to fetch dashboard data");
+      }
+      return data.data ?? {
+        stats: { total: 0, pending: 0, inProgress: 0, escalated: 0, resolved: 0 },
+        counts: { stations: 0, officers: 0, activeQR: 0 },
+        monthly: [],
+        byType: [],
+        byStation: [],
+        recent: [],
+      };
     },
     staleTime: 60_000,
     refetchInterval: 120_000,
@@ -84,8 +94,11 @@ export const useTrackGrievance = (id: string) =>
 export const useCreateGrievance = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: object) => {
-      const { data } = await api.post("/grievances", body);
+    mutationFn: async (body: object | FormData) => {
+      const isFormData = body instanceof FormData;
+      const { data } = await api.post("/grievances", body, {
+        headers: isFormData ? { "Content-Type": "multipart/form-data" } : {}
+      });
       return data.data;
     },
     onSuccess: () => {

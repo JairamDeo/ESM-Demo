@@ -8,6 +8,7 @@ import {
 import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
 type Status = "pending" | "in-progress" | "escalated" | "resolved";
 type Priority = "low" | "medium" | "high" | "critical";
@@ -53,6 +54,7 @@ function InputField({ value, onChange, placeholder, type="text" }: { value:strin
 function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:any; onClose:()=>void }) {
   const [note, setNote] = useState("");
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const updateStatus = useUpdateGrievanceStatus();
   const addComment = useAddComment();
   const { user } = useAuth();
@@ -120,6 +122,27 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
           <div className="bg-secondary/30 rounded-lg p-3">
             <p className="text-xs text-muted-foreground mb-1">Description</p>
             <p className="text-sm text-foreground">{grievance.description}</p>
+          </div>
+        )}
+        {grievance.attachments && grievance.attachments.length > 0 && (
+          <div className="bg-secondary/30 rounded-lg p-3">
+            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Complaint Attachments</p>
+            <div className="flex flex-wrap gap-3">
+              {grievance.attachments.map((url: string, idx: number) => {
+                const isPdf = url.toLowerCase().endsWith(".pdf");
+                // Create absolute URL if it is a relative path
+                const baseUrl = getApiBaseUrl().replace("/api", "");
+                const fullUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
+                return isPdf ? (
+                  <a key={idx} href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-24 h-24 bg-secondary rounded-lg border border-border hover:border-primary transition-colors text-primary flex-col gap-2">
+                    <FileText className="w-8 h-8" />
+                    <span className="text-xs font-medium">PDF Document</span>
+                  </a>
+                ) : (
+                  <img key={idx} src={fullUrl} alt={`Attachment ${idx + 1}`} onClick={() => setPreviewImage(fullUrl)} className="w-24 h-24 object-cover rounded-lg border border-border cursor-pointer hover:border-primary transition-all hover:scale-105 shadow-sm" />
+                );
+              })}
+            </div>
           </div>
         )}
         <div>
@@ -207,6 +230,17 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
 </div>
         </div>
       </div>
+      {previewImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={() => setPreviewImage(null)}>
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewImage(null)} className="absolute -top-10 right-0 p-2 text-white/80 hover:text-white transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+            <img src={previewImage} alt="Preview" className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-2xl" />
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

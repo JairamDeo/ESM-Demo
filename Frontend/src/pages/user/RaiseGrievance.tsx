@@ -101,17 +101,22 @@ export default memo(function RaiseGrievance() {
       return;
     }
     try {
-      const result = await createGrievance.mutateAsync({
-        type:             form.caseType,
-        veteranName:      user?.name || "Veteran",
-        veteranPhone:     user?.phone,
-        veteranRank:      form.rank,
-        veteranArmyNo:    form.armyNumber,
-        stationName:      form.stationHQ,
-        description:      form.description,
-        submissionSource: isFromQR ? "qr_code" : "portal",
-        priority:         "medium",
+      const formData = new FormData();
+      formData.append("type", form.caseType);
+      formData.append("veteranName", user?.name || "Veteran");
+      if (user?.phone) formData.append("veteranPhone", user.phone);
+      if (form.rank) formData.append("veteranRank", form.rank);
+      if (form.armyNumber) formData.append("veteranArmyNo", form.armyNumber);
+      formData.append("stationName", form.stationHQ);
+      if (form.description) formData.append("description", form.description);
+      formData.append("submissionSource", isFromQR ? "qr_code" : "portal");
+      formData.append("priority", "medium");
+      
+      attachments.forEach((file) => {
+        formData.append("attachments", file);
       });
+
+      const result = await createGrievance.mutateAsync(formData);
       toast.success("Grievance submitted successfully!", {
         description: `Complaint ID: ${result?.grievanceId || "Generated"}`,
       });

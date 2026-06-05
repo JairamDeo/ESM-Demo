@@ -6,6 +6,7 @@ import {
   getDashboardStats,deleteAllGrievances,
 } from "../controllers/grievanceController";
 import { protect, restrictTo, adminOnly } from "../middleware/auth";
+import upload from "../middleware/upload";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get("/track/:id", trackGrievance);
 router.get("/my", protect, restrictTo("user"), getMyGrievances);
 
 // ─── User: submit grievance ───────────────────────────────────────────────────
-router.post("/", protect, createGrievance);
+router.post("/", protect, upload.array("attachments", 3), createGrievance);
 
 // ─── Admin: list all ─────────────────────────────────────────────────────────
 router.get("/", protect, adminOnly, getGrievances);

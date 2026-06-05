@@ -38,6 +38,7 @@ export interface IGrievance extends Document {
   priority: GrievancePriority;
   description?: string;
   attachments?: string[];                 // ← top-level attachments
+  createdBy?: string;                     // ← who created this grievance
   submissionSource: "qr_code" | "portal" | "manual" | "walk_in";
   qrCodeId?: mongoose.Types.ObjectId;
   comments: IComment[];
@@ -93,6 +94,7 @@ const GrievanceSchema = new Schema<IGrievance>(
     },
     description:      { type: String },
     attachments:      { type: [String], default: [] },  // ← attachment URLs
+    createdBy:        { type: String, default: "" },     // ← who created this grievance
     submissionSource: {
       type: String,
       enum: ["qr_code", "portal", "manual", "walk_in"],

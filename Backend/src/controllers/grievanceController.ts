@@ -8,6 +8,9 @@ import CaseType from "../models/CaseType";
 import Officer from "../models/Officer";
 import QRCode from "../models/QRCode";
 import { getGrievanceScopeFilter } from "../utils/scopeFilter";
+import sharp from "sharp";
+import fs from "fs";
+import path from "path";
 
 // ─── Helper: get date filter ─────────────────────────────────────────────────
 const getDateFilter = (period?: string): any => {
@@ -131,14 +134,55 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
 
     const userId = (req as any).user?.role === "user" ? (req as any).user.id : undefined;
     const grievanceId = `GRV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // ── Build createdBy string ─────────────────────────────────────────────
+    const currentUser = (req as any).user;
+    let createdBy = "";
+    if (currentUser?.role === "user") {
+      // Veteran: show name + phone or armyNo
+      const identifier = veteranPhone || veteranArmyNo || currentUser.id;
+      createdBy = `${veteranName} (${identifier})`;
+    } else {
+      // Admin / Officer: show email + id
+      const adminEmail = currentUser?.email || currentUser?.name || "Admin";
+      createdBy = `${adminEmail} (${currentUser?.id || "unknown"})`;
+    }
+    
+    const files = req.files as Express.Multer.File[];
+    const attachments: string[] = [];
+
+    if (files && files.length > 0) {
+      const uploadDir = path.join(__dirname, "../../uploads");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      for (const file of files) {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        if (file.mimetype === "application/pdf") {
+          const filename = file.fieldname + "-" + uniqueSuffix + ".pdf";
+          await fs.promises.writeFile(path.join(uploadDir, filename), file.buffer);
+          attachments.push(`/uploads/${filename}`);
+        } else {
+          const filename = file.fieldname + "-" + uniqueSuffix + ".webp";
+          await sharp(file.buffer)
+            .webp({ quality: 80 })
+            .toFile(path.join(uploadDir, filename));
+          attachments.push(`/uploads/${filename}`);
+        }
+      }
+    }
+
     const grievance = await Grievance.create({
       grievanceId, type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
       stationName, officerName: officerName || "Unassigned",
       priority: priority || "medium",
       description,
+      attachments,
+      createdBy,
       submissionSource: submissionSource || "portal",
       slaDeadline, userId,
-      timeline: [{ status: "pending", note: "Grievance submitted", updatedBy: veteranName, updatedAt: new Date() }],
+      timeline: [{ status: "pending", note: "Grievance submitted", updatedBy: veteranName, updatedAt: new Date(), attachments }],
     });
 
     if (userId) {
