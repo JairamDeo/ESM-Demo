@@ -88,7 +88,7 @@ export const getStationById = async (req: Request, res: Response): Promise<void>
       return;
     }
     res.status(200).json({ success: true, data: station });
-  } catch (error: any) {
+  } catch (error:any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
