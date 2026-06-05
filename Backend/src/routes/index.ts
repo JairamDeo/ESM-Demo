@@ -18,6 +18,7 @@ import {
   getCaseTypes, getCaseTypeById, createCaseType, updateCaseType, deleteCaseType,
   getReports,
   getNotifications, markNotificationRead,
+  subscribeToPushNotifications, sendTestPushNotification,
   updateUserProfile, getCategories, createCategory, updateCategory
 } from "../controllers/miscControllers";
 import {
@@ -128,6 +129,8 @@ export const notificationRouter = Router();
 
 notificationRouter.get("/",          protect, getNotifications);
 notificationRouter.patch("/:id/read", protect, markNotificationRead);
+notificationRouter.post("/subscribe", protect, subscribeToPushNotifications);
+notificationRouter.post("/test-push", protect, sendTestPushNotification);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // USER PROFILE

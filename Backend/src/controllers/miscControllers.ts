@@ -437,3 +437,78 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const subscribeToPushNotifications = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const PushSubscription = (await import("../models/PushSubscription")).default;
+    const { subscription } = req.body;
+    const userId = (req as any).user.id;
+    const userRole = (req as any).user.role;
+    const userType = userRole === "user" ? "user" : "admin";
+
+    if (!subscription || !subscription.endpoint) {
+      res.status(400).json({ success: false, message: "Invalid subscription object" });
+      return;
+    }
+
+    // Upsert the subscription based on the endpoint
+    await PushSubscription.findOneAndUpdate(
+      { endpoint: subscription.endpoint },
+      {
+        endpoint: subscription.endpoint,
+        keys: subscription.keys,
+        userId,
+        userType,
+      },
+      { upsert: true, new: true }
+    );
+
+    res.status(200).json({ success: true, message: "Subscribed to push notifications" });
+  } catch (error: any) {
+    console.error("Push subscription error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const sendTestPushNotification = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const PushSubscription = (await import("../models/PushSubscription")).default;
+    const { sendPushNotification } = await import("../utils/webPush");
+    const userId = (req as any).user.id;
+
+    const subscriptions = await PushSubscription.find({ userId });
+    
+    if (!subscriptions.length) {
+      res.status(404).json({ success: false, message: "No push subscriptions found for this user." });
+      return;
+    }
+
+    const payload = JSON.stringify({
+      title: "Test Notification",
+      body: "This is a test push notification from Vitric ESM.",
+      icon: "/Logo.svg",
+    });
+
+    let successCount = 0;
+    for (const sub of subscriptions) {
+      const success = await sendPushNotification(sub, payload);
+      if (success) successCount++;
+      else {
+        // Optionally remove invalid subscriptions
+        // await PushSubscription.findByIdAndDelete(sub._id);
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: `Sent test notification to ${successCount} out of ${subscriptions.length} devices.` 
+    });
+  } catch (error: any) {
+    console.error("Test push error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
