@@ -555,7 +555,7 @@ export const useHQs = () =>
     queryKey: ["hq-master"],
     queryFn: async () => {
       const { data } = await api.get("/hq-master");
-      return data.data as { _id: string; name: string; city: string }[];
+      return data.data as { _id: string; name: string; city: string; stateId?: string; stateName?: string; state?: string }[];
     },
     staleTime: 600_000,
   });
@@ -571,6 +571,42 @@ export const useStates = () =>
     },
     staleTime: 600_000,
   });
+
+export const useCreateState = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; code: string }) => {
+      const { data } = await api.post("/states-master", body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["states-master"] });
+      toast.success("Area created successfully");
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || "Failed to create area"),
+  });
+};
+
+export const useCreateHQ = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      name: string;
+      city: string;
+      stateId?: string;
+      address?: string;
+      commanderName?: string;
+    }) => {
+      const { data } = await api.post("/hq-master", body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hq-master"] });
+      toast.success("Headquarters created successfully");
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.message || "Failed to create HQ"),
+  });
+};
 
 // ─── Categories ─────────────────────────────────────────────────────────────
 

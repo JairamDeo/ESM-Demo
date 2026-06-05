@@ -48,10 +48,27 @@ export async function buildOfficerAssignment(
     if (!input.hqId) throw new Error("Headquarters is required for Headquarter Officer");
     const hqDoc = await HQ.findById(input.hqId);
     if (!hqDoc?.isActive) throw new Error("Invalid headquarters selected");
+    let stateId = hqDoc.stateId;
+    let stateName = hqDoc.stateName || hqDoc.state;
+    let stateCode = hqDoc.stateCode;
+    if (!stateId && hqDoc.state) {
+      const stateDoc = await State.findOne({
+        name: { $regex: `^${hqDoc.state.trim()}$`, $options: "i" },
+        isActive: true,
+      });
+      if (stateDoc) {
+        stateId = stateDoc._id;
+        stateName = stateDoc.name;
+        stateCode = stateDoc.code;
+      }
+    }
     return {
       rbacRole,
       hqId: hqDoc._id,
       hqName: hqDoc.name,
+      stateId,
+      stateName,
+      stateCode,
     };
   }
 
