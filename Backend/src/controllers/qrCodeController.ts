@@ -2,23 +2,14 @@ import { Request, Response } from "express";
 import qrcode from "qrcode";
 import QRCodeModel from "../models/QRCode";
 import Station from "../models/Station";
-
-// ─── Helper: get station filter based on role ────────────────────────────────
-const getStationFilter = (req: Request): any => {
-  const user = (req as any).user;
-  if (!user || user.role === "super_admin") return {};
-  if (user.station && user.station !== "Nagpur Sub-Area") {
-    return { stationName: { $regex: user.station.replace(" Station HQ", ""), $options: "i" } };
-  }
-  return {};
-};
+import { getGrievanceScopeFilter } from "../utils/scopeFilter";
 
 // ─── GET all QR codes ────────────────────────────────────────────────────────
 export const getQRCodes = async (req: Request, res: Response): Promise<void> => {
   try {
     const { status, search } = req.query;
 
-    const stationFilter = getStationFilter(req);
+    const stationFilter = await getGrievanceScopeFilter((req as any).user);
     const query: any = { ...stationFilter };
 
     if (status) query.status = status;

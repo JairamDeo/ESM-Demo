@@ -1,12 +1,12 @@
 import RolePermission from "../models/RolePermission";
 import {
   DEFAULT_ROLE_PERMISSIONS,
-  OFFICER_ROLE_TO_RBAC,
   PERMISSION_KEYS,
   PermissionMap,
   RbacRole,
   SETTINGS_ROLES,
 } from "../constants/permissions";
+import { OFFICER_ROLE_TO_RBAC } from "../constants/officerRoles";
 
 export type RolePermissionsMap = Record<string, PermissionMap>;
 
