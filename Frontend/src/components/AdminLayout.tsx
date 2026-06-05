@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, FileText, Building2, Users, Settings, Bell,
   ChevronLeft, ChevronRight, ChevronDown, LogOut, Search, Moon, Sun, QrCode,
-  BarChart3, AlertTriangle, ClipboardList, Menu, X, Shield, ListTree, Megaphone
+  BarChart3, AlertTriangle, ClipboardList, Menu, X, Shield, ListTree, Megaphone, Network
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,7 @@ const ALL_NAV = [
   { icon: FileText,        label: "Grievances",    path: "/grievances",  perm: "viewGrievances"  },
   { icon: ListTree,        label: "Categories-Master",    path: "/categories",  perm: "viewCategories"  },
   { icon: ClipboardList,   label: "Case Types",    path: "/case-types",  perm: "viewCaseTypes"   },
+  { icon: Network,         label: "Organization",  path: "/organization", perm: "viewStations"  },
   { icon: Building2,       label: "Station HQs",   path: "/stations",    perm: "viewStations"    },
   { icon: QrCode,          label: "QR Codes",      path: "/qr-codes",    perm: "viewQRCodes"     },
   { icon: Users,           label: "Officers",      path: "/users",       perm: "viewOfficers"    },

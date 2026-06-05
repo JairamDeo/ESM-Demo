@@ -1,10 +1,18 @@
 import { useState, memo, useRef, useCallback, useMemo } from "react";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import {
+  getCreatableRoles,
+  HIERARCHY_LABEL,
+  type OfficerJobRole,
+} from "@/lib/officerHierarchy";
+import { Link } from "react-router-dom";
+import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight, Network } from "lucide-react";
 import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus, useDeleteOfficer, useStations, useHQs, useStates } from "@/hooks/useApi";
 
-const ROLES = ["Area Officer", "Headquarter Officer", "Station HQ Officer"] as const;
+const ALL_ROLES: OfficerJobRole[] = [
+  "Super Admin", "Area Officer", "Headquarter Officer", "Station HQ Officer",
+];
 const OFFICER_LEVELS = ["L1", "L2", "L3"] as const;
 const RANKS = ["Lt.","Capt.","Maj.","Lt. Col.","Col.","Brig.","Sub.","Hav.","Nk.","Sep."];
 
@@ -85,7 +93,7 @@ function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: {
 const OfficerModal = ({
   isEdit = false, onClose, form, setForm,
   handleAdd, handleUpdate, createOfficer, updateOfficer,
-  statesData, hqData, stations,
+  statesData, hqData, stations, creatableRoles, isSuperAdmin,
 }: {
   isEdit?: boolean;
   onClose: () => void;
@@ -98,30 +106,46 @@ const OfficerModal = ({
   statesData: any[];
   hqData: any[];
   stations: any[];
+  creatableRoles: OfficerJobRole[];
+  isSuperAdmin: boolean;
 }) => {
   const isPending = createOfficer.isPending || updateOfficer.isPending;
+  const roleOptions = isEdit ? ALL_ROLES : creatableRoles;
 
-  const { dropdownOptions, dropdownLabel, assignField } = useMemo(() => {
+  const filteredHqs = useMemo(() => {
+    if (form.filterStateId) {
+      return hqData.filter((h: any) => String(h.stateId) === String(form.filterStateId));
+    }
+    return hqData;
+  }, [hqData, form.filterStateId]);
+
+  const { dropdownOptions, dropdownLabel, assignField, needsAssignment } = useMemo(() => {
+    if (form.role === "Super Admin") {
+      return { dropdownOptions: [], dropdownLabel: "", assignField: "" as const, needsAssignment: false };
+    }
     if (form.role === "Area Officer") {
       return {
         dropdownOptions: statesData.map((s: any) => ({ _id: s._id, name: s.name })),
-        dropdownLabel: "Area / State *",
+        dropdownLabel: "Area *",
         assignField: "stateId" as const,
+        needsAssignment: true,
       };
     }
     if (form.role === "Headquarter Officer") {
       return {
-        dropdownOptions: hqData.map((h: any) => ({ _id: h._id, name: h.name })),
+        dropdownOptions: filteredHqs.map((h: any) => ({ _id: h._id, name: h.name, sub: h.stateName })),
         dropdownLabel: "Headquarters *",
         assignField: "hqId" as const,
+        needsAssignment: true,
       };
     }
     return {
-      dropdownOptions: stations.map((s: any) => ({ _id: s._id, name: s.name })),
+      dropdownOptions: stations.map((s: any) => ({ _id: s._id, name: s.name, sub: s.hqName })),
       dropdownLabel: "Station HQ *",
       assignField: "stationId" as const,
+      needsAssignment: true,
     };
-  }, [form.role, statesData, hqData, stations]);
+  }, [form.role, statesData, filteredHqs, stations]);
 
   const assignValue = form[assignField] || "";
   const assignName = form.assignName || "";
@@ -160,10 +184,11 @@ const OfficerModal = ({
             </div>
           </div>
 
+          {form.role !== "Super Admin" && (
           <div>
             <label className="text-xs font-medium text-muted-foreground">Level *</label>
             <p className="text-[11px] text-muted-foreground mt-0.5 mb-1.5">
-              Escalation tier (L1 / L2 / L3). Permissions come from Settings → RBAC by role.
+              Escalation tier (L1 / L2 / L3). Multiple officers per level allowed.
             </p>
             <div className="flex gap-2 flex-wrap">
               {OFFICER_LEVELS.map((lv) => (
@@ -182,11 +207,12 @@ const OfficerModal = ({
               ))}
             </div>
           </div>
+          )}
 
           <div>
             <label className="text-xs font-medium text-muted-foreground">Role *</label>
             <div className="flex gap-2 mt-1.5 flex-wrap">
-              {ROLES.map((r) => (
+              {roleOptions.map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -197,6 +223,7 @@ const OfficerModal = ({
                     hqId: "",
                     stationId: "",
                     assignName: "",
+                    filterStateId: "",
                   }))}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
                     ${form.role === r
@@ -210,6 +237,29 @@ const OfficerModal = ({
             </div>
           </div>
 
+          {isSuperAdmin && form.role === "Headquarter Officer" && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Filter by Area (optional)</label>
+              <select
+                value={form.filterStateId || ""}
+                onChange={(e) => {
+                  const st = statesData.find((s: any) => s._id === e.target.value);
+                  setForm((p: any) => ({
+                    ...p,
+                    filterStateId: e.target.value,
+                    hqId: "",
+                    assignName: "",
+                  }));
+                }}
+                className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+              >
+                <option value="">All areas</option>
+                {statesData.map((s: any) => <option key={s._id} value={s._id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {needsAssignment && (
           <div>
             <label className="text-xs font-medium text-muted-foreground">{dropdownLabel}</label>
             <div className="relative mt-1">
@@ -231,12 +281,15 @@ const OfficerModal = ({
                   {dropdownOptions.length === 0 ? "No options available" : "Select…"}
                 </option>
                 {dropdownOptions.map((opt: any) => (
-                  <option key={opt._id} value={opt.name}>{opt.name}</option>
+                  <option key={opt._id} value={opt.name}>
+                    {opt.sub ? `${opt.name} (${opt.sub})` : opt.name}
+                  </option>
                 ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
             </div>
           </div>
+          )}
 
           <div>
             <label className="text-xs font-medium text-muted-foreground">Email *</label>
@@ -291,7 +344,9 @@ const OfficerModal = ({
             <button
               onClick={isEdit ? handleUpdate : handleAdd}
               disabled={
-                isPending || !form.name.trim() || !form.email.trim() || !form.level || !assignValue
+                isPending || !form.name.trim() || !form.email.trim()
+                || (form.role !== "Super Admin" && !form.level)
+                || (needsAssignment && !assignValue)
               }
               className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60"
             >
@@ -310,6 +365,10 @@ const OfficerModal = ({
 
 export default memo(function UsersOfficers() {
   const permissions = usePermissions();
+  const { user } = useAuth();
+  const creatableRoles = useMemo(() => getCreatableRoles(user?.role), [user?.role]);
+  const isSuperAdmin = user?.role === "super_admin";
+  const canAddOfficer = creatableRoles.length > 0 && (permissions.manageOfficers || isSuperAdmin);
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -319,7 +378,8 @@ export default memo(function UsersOfficers() {
   const [form, setForm] = useState({
     rank: "Maj.",
     name: "",
-    role: "Station HQ Officer" as (typeof ROLES)[number],
+    role: "Station HQ Officer" as OfficerJobRole,
+    filterStateId: "",
     level: "" as "" | (typeof OFFICER_LEVELS)[number],
     stateId: "",
     hqId: "",
@@ -348,13 +408,15 @@ export default memo(function UsersOfficers() {
     esmOfficers: 0, stationOfficers: 0, recordOffice: 0,
   }, [summaryData]);
 
+  const defaultRole = creatableRoles[creatableRoles.length - 1] || "Station HQ Officer";
+
   const resetForm = useCallback(() => {
     setForm({
-      rank: "Maj.", name: "", role: "Station HQ Officer", level: "",
-      stateId: "", hqId: "", stationId: "", assignName: "", email: "",
-      canLogin: false, username: "", password: "",
+      rank: "Maj.", name: "", role: defaultRole, level: "",
+      stateId: "", hqId: "", stationId: "", assignName: "", filterStateId: "",
+      email: "", canLogin: false, username: "", password: "",
     });
-  }, []);
+  }, [defaultRole]);
 
   const openEdit = useCallback((o: any) => {
     let assignName = o.stationName || "";
@@ -435,6 +497,7 @@ export default memo(function UsersOfficers() {
     form, setForm, handleAdd, handleUpdate,
     createOfficer, updateOfficer,
     statesData, hqData, stations: stationsList,
+    creatableRoles, isSuperAdmin,
   };
 
   return (
@@ -442,16 +505,23 @@ export default memo(function UsersOfficers() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Officers & Veteran Accounts</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            All portal users and field officers live in one collection. Permissions are set per role in Settings.
-          </p>
+          <p className="text-muted-foreground text-sm mt-1">{HIERARCHY_LABEL}</p>
+          <Link
+            to="/organization"
+            className="inline-flex items-center gap-1.5 text-xs text-primary mt-2 hover:underline"
+          >
+            <Network className="w-3.5 h-3.5" />
+            Setup areas, HQs & stations first → Organization
+          </Link>
         </div>
+        {canAddOfficer && (
         <button
           onClick={() => { resetForm(); setAddOpen(true); }}
           className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 flex items-center gap-2 self-start sm:self-auto"
         >
           <UserPlus className="w-4 h-4" /> Add Officer
         </button>
+        )}
       </div>
 
       {addOpen && <OfficerModal {...modalProps} onClose={() => { setAddOpen(false); resetForm(); }} />}
@@ -495,7 +565,7 @@ export default memo(function UsersOfficers() {
                 className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer"
               >
                 <option value="">All Roles</option>
-                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                {ALL_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
             </div>
@@ -506,8 +576,8 @@ export default memo(function UsersOfficers() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                {["Officer","Role","Level","Assignment","Active Cases","Status","Actions"].map((h, i) => (
-                  <th key={h} className={`text-xs font-medium text-muted-foreground py-3 px-3 ${i === 6 ? "text-right" : "text-left"}`}>
+                {["Officer","Role","Level","Assignment","Created By","Active Cases","Status","Actions"].map((h, i) => (
+                  <th key={h} className={`text-xs font-medium text-muted-foreground py-3 px-3 ${i === 7 ? "text-right" : "text-left"}`}>
                     {h}
                   </th>
                 ))}
@@ -517,14 +587,14 @@ export default memo(function UsersOfficers() {
               {isLoading ? (
                 Array(5).fill(0).map((_, i) => (
                   <tr key={i} className="border-b border-border/50">
-                    <td colSpan={7} className="py-3 px-3">
+                    <td colSpan={8} className="py-3 px-3">
                       <div className="h-8 bg-secondary/50 rounded animate-pulse" />
                     </td>
                   </tr>
                 ))
               ) : officers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
                     No officers found.
                   </td>
                 </tr>
@@ -563,6 +633,11 @@ export default memo(function UsersOfficers() {
                     )}
                   </td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{assignmentLabel(o)}</td>
+                  <td className="py-3 px-3 text-xs text-muted-foreground">
+                    {o.createdBy?.name ? (
+                      <span title={o.createdBy.role}>{o.createdBy.name}</span>
+                    ) : "—"}
+                  </td>
                   <td className="py-3 px-7 text-sm text-foreground font-medium">{o.activeCases ?? 0}</td>
                   <td className="py-3 px-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium

@@ -75,20 +75,7 @@ const seed = async () => {
   const caseTypes = await CaseType.create(caseTypesData);
   console.log(`📋 Created ${caseTypes.length} case types`);
 
-  // ── Headquarter ────────────────────────────────────────────────────────────────
-   const hqs = await HQ.create([
-  {
-    name: "Kamptee Sub-Area HQ",
-    city: "Kamptee",
-    state: "Maharashtra",
-    address: "Kamptee Cantonment, Nagpur, Maharashtra",
-    commanderName: "Brig. R.K. Verma",
-  }
-  ]);
-  console.log(`🏛️  Created ${hqs.length} HQs`);
-  const mainHQ = hqs[0];
-
-  // ── States ────────────────────────────────────────────────────────────────
+  // ── States (Areas) ────────────────────────────────────────────────────────
   const statesData = [
     { name: "Maharashtra", code: "MH" },
     { name: "Gujarat",     code: "GJ" },
@@ -98,6 +85,33 @@ const seed = async () => {
 
   const mh = states.find((s) => s.code === "MH")!;
   const gj = states.find((s) => s.code === "GJ")!;
+
+  // ── Headquarters (multiple per area) ───────────────────────────────────────
+  const hqs = await HQ.create([
+    {
+      name: "Kamptee Sub-Area HQ",
+      city: "Kamptee",
+      state: "Maharashtra",
+      stateId: mh._id,
+      stateName: mh.name,
+      stateCode: mh.code,
+      address: "Kamptee Cantonment, Nagpur, Maharashtra",
+      commanderName: "Brig. R.K. Verma",
+    },
+    {
+      name: "Rajkot Area HQ",
+      city: "Rajkot",
+      state: "Gujarat",
+      stateId: gj._id,
+      stateName: gj.name,
+      stateCode: gj.code,
+      address: "Rajkot Cantonment, Gujarat",
+      commanderName: "Brig. S.K. Mehta",
+    },
+  ]);
+  console.log(`🏛️  Created ${hqs.length} HQs`);
+  const mainHQ = hqs[0];
+  const gjHQ = hqs[1];
 
   // ── Stations ──────────────────────────────────────────────────────────────
   const stationsData = [
@@ -109,7 +123,7 @@ const seed = async () => {
   { name: "Kolhapur Station HQ",   city: "Kolhapur",   hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 87,  resolvedCases: 72,  qrActive: true,  qrCode: "KOL-QR-001" },
   { name: "Solapur Station HQ",    city: "Solapur",    hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 82,  resolvedCases: 65,  qrActive: true,  qrCode: "SOL-QR-001" },
   { name: "Baroda Station HQ",     city: "Baroda",     hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 5,  totalCases: 95,  resolvedCases: 78,  qrActive: true,  qrCode: "BAR-QR-001" },
-  { name: "Rajkot Station HQ",     city: "Rajkot",     hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 74,  resolvedCases: 58,  qrActive: false, qrCode: "RAJ-QR-001" },
+  { name: "Rajkot Station HQ",     city: "Rajkot",     hqId: gjHQ._id,   hqName: gjHQ.name,   state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 74,  resolvedCases: 58,  qrActive: false, qrCode: "RAJ-QR-001" },
   { name: "Surat Station HQ",      city: "Surat",      hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 113, resolvedCases: 91,  qrActive: true,  qrCode: "SUR-QR-001" },
 ];
   const stations = await Station.create(stationsData);

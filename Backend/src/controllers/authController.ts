@@ -85,6 +85,12 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
         jobRole: officer.role,
         station: scopeLabel,
         level: officer.level,
+        stateId: officer.stateId?.toString(),
+        stateName: officer.stateName,
+        hqId: officer.hqId?.toString(),
+        hqName: officer.hqName,
+        stationId: officer.station?.toString(),
+        stationName: officer.stationName,
       },
     });
   } catch (error: any) {

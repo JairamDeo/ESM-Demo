@@ -3,22 +3,73 @@ import Officer, { OFFICER_LEVELS } from "../models/Officer";
 import Station from "../models/Station";
 import { buildOfficerAssignment } from "../services/officerAssignment";
 import { rbacRoleFromJobRole } from "../constants/officerRoles";
-import { getOfficerListFilter } from "../utils/scopeFilter";
+import { HIERARCHY_ORDER } from "../constants/officerHierarchy";
+import {
+  assertAssignmentInActorScope,
+  assertCanCreateRole,
+  auditActorFromRequest,
+  getCreatableRoles,
+  officerScopeQuery,
+} from "../services/officerHierarchy";
+import { OfficerJobRole } from "../constants/officerRoles";
 
-function assignmentDisplay(o: { role: string; stateName?: string; hqName?: string; stationName?: string }): string {
+function assignmentDisplay(o: {
+  role: string;
+  stateName?: string;
+  hqName?: string;
+  stationName?: string;
+}): string {
   if (o.role === "Area Officer") return o.stateName || "—";
-  if (o.role === "Headquarter Officer") return o.hqName || "—";
-  if (o.role === "Station HQ Officer") {
-    return o.stationName ? `${o.stationName}${o.hqName ? ` · ${o.hqName}` : ""}` : "—";
+  if (o.role === "Headquarter Officer") {
+    return [o.hqName, o.stateName].filter(Boolean).join(" · ") || "—";
   }
-  if (o.role === "Super Admin") return "All areas";
+  if (o.role === "Station HQ Officer") {
+    return [o.stationName, o.hqName, o.stateName].filter(Boolean).join(" · ") || "—";
+  }
+  if (o.role === "Super Admin") return "Vitric — All areas";
   return o.stationName || "—";
 }
+
+function actorCanManageTarget(actor: any, target: any): boolean {
+  if (actor.role === "super_admin") return true;
+  if (actor.role === "area" && actor.stateId) {
+    return target.stateId?.toString() === actor.stateId;
+  }
+  if (actor.role === "headquarter" && actor.hqId) {
+    return target.hqId?.toString() === actor.hqId;
+  }
+  return false;
+}
+
+export const getOfficerCreateOptions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const actor = (req as any).user;
+    res.status(200).json({
+      success: true,
+      data: {
+        creatableRoles: getCreatableRoles(actor.role),
+        hierarchy: HIERARCHY_ORDER,
+        actor: {
+          role: actor.role,
+          jobRole: actor.jobRole,
+          stateId: actor.stateId,
+          stateName: actor.stateName,
+          hqId: actor.hqId,
+          hqName: actor.hqName,
+          stationId: actor.stationId,
+          stationName: actor.stationName,
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 export const getOfficers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { search, role, station, status, page = 1, limit = 20 } = req.query;
-    const scopeFilter = getOfficerListFilter((req as any).user);
+    const scopeFilter = officerScopeQuery((req as any).user);
     const query: any = { ...scopeFilter };
 
     if (search) {
@@ -28,6 +79,7 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
         { stationName: { $regex: search, $options: "i" } },
         { stateName: { $regex: search, $options: "i" } },
         { hqName: { $regex: search, $options: "i" } },
+        { "createdBy.name": { $regex: search, $options: "i" } },
       ];
     }
     if (role) query.role = role;
@@ -99,6 +151,7 @@ export const getOfficerById = async (req: Request, res: Response): Promise<void>
 
 export const createOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
+    const actor = (req as any).user;
     const {
       name,
       rank,
@@ -116,6 +169,14 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
 
     if (!name || !role || !email) {
       res.status(400).json({ success: false, message: "name, role and email are required" });
+      return;
+    }
+
+    try {
+      assertCanCreateRole(actor, role as OfficerJobRole);
+      await assertAssignmentInActorScope(actor, role as OfficerJobRole, { role, stateId, hqId, stationId });
+    } catch (e: any) {
+      res.status(403).json({ success: false, message: e.message });
       return;
     }
 
@@ -153,6 +214,8 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       }
     }
 
+    const audit = auditActorFromRequest(actor);
+
     const officer = await Officer.create({
       ...assignment,
       name: name.trim(),
@@ -164,6 +227,8 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       canLogin: wantsLogin,
       username: wantsLogin ? username.toLowerCase().trim() : undefined,
       password: wantsLogin ? password : undefined,
+      createdBy: audit,
+      updatedBy: audit,
     });
 
     if (officer.station) {
@@ -178,9 +243,15 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
 
 export const updateOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
+    const actor = (req as any).user;
     const existing = await Officer.findById(req.params.id);
     if (!existing) {
       res.status(404).json({ success: false, message: "Officer not found" });
+      return;
+    }
+
+    if (!actorCanManageTarget(actor, existing)) {
+      res.status(403).json({ success: false, message: "You cannot modify this officer" });
       return;
     }
 
@@ -208,7 +279,13 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
     if (status !== undefined) updateData.status = status;
 
     const nextRole = role ?? existing.role;
-    if (role !== undefined) {
+    if (role !== undefined && role !== existing.role) {
+      try {
+        assertCanCreateRole(actor, nextRole as OfficerJobRole);
+      } catch (e: any) {
+        res.status(403).json({ success: false, message: e.message });
+        return;
+      }
       updateData.role = role;
       updateData.rbacRole = rbacRoleFromJobRole(role);
     }
@@ -230,6 +307,7 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
 
     if (stateId !== undefined || hqId !== undefined || stationId !== undefined || role !== undefined) {
       try {
+        await assertAssignmentInActorScope(actor, nextRole as OfficerJobRole, assignmentInput);
         const assignment = await buildOfficerAssignment(assignmentInput);
         Object.assign(updateData, assignment);
         const newStationId = "station" in assignment ? assignment.station : undefined;
@@ -267,6 +345,8 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
       }
     }
 
+    updateData.updatedBy = auditActorFromRequest(actor);
+
     const officer = await Officer.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
@@ -284,12 +364,18 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
 
 export const toggleOfficerStatus = async (req: Request, res: Response): Promise<void> => {
   try {
+    const actor = (req as any).user;
     const officer = await Officer.findById(req.params.id);
     if (!officer) {
       res.status(404).json({ success: false, message: "Officer not found" });
       return;
     }
+    if (!actorCanManageTarget(actor, officer)) {
+      res.status(403).json({ success: false, message: "You cannot modify this officer" });
+      return;
+    }
     officer.status = officer.status === "active" ? "inactive" : "active";
+    officer.updatedBy = auditActorFromRequest(actor);
     await officer.save();
     res.status(200).json({ success: true, message: `Officer ${officer.status}`, data: officer });
   } catch (error: any) {
@@ -299,11 +385,17 @@ export const toggleOfficerStatus = async (req: Request, res: Response): Promise<
 
 export const deleteOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
-    const officer = await Officer.findByIdAndDelete(req.params.id);
+    const actor = (req as any).user;
+    const officer = await Officer.findById(req.params.id);
     if (!officer) {
       res.status(404).json({ success: false, message: "Officer not found" });
       return;
     }
+    if (actor.role !== "super_admin") {
+      res.status(403).json({ success: false, message: "Only Super Admin can delete officers" });
+      return;
+    }
+    await Officer.findByIdAndDelete(req.params.id);
     if (officer.station) {
       await Station.findByIdAndUpdate(officer.station, { $inc: { officerCount: -1 } });
     }

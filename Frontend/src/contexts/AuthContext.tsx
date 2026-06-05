@@ -10,8 +10,16 @@ export interface AuthUser {
   name: string;
   email?: string;
   role: UserRole;
+  jobRole?: string;
   station?: string;
   phone?: string;
+  stateId?: string;
+  stateName?: string;
+  hqId?: string;
+  hqName?: string;
+  stationId?: string;
+  stationName?: string;
+  level?: string;
 }
 
 interface AuthContextType {
@@ -34,7 +42,15 @@ function normalizeAdminFromApi(admin: Record<string, unknown>): AuthUser {
     name: String(admin.name ?? admin.username ?? "Admin"),
     email: admin.email as string | undefined,
     role: resolveRbacRole(rawRole) as UserRole,
+    jobRole: admin.jobRole as string | undefined,
     station: admin.station as string | undefined,
+    stateId: admin.stateId ? String(admin.stateId) : undefined,
+    stateName: admin.stateName as string | undefined,
+    hqId: admin.hqId ? String(admin.hqId) : undefined,
+    hqName: admin.hqName as string | undefined,
+    stationId: admin.stationId ? String(admin.stationId) : undefined,
+    stationName: admin.stationName as string | undefined,
+    level: admin.level as string | undefined,
   };
 }
 

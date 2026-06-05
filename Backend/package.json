@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "ts-node src/utils/seed.ts",
-    "migrate:officers": "ts-node src/scripts/migrate-admins-to-officers.ts"
+    "migrate:officers": "ts-node src/scripts/migrate-admins-to-officers.ts",
+    "backfill:hq-area": "ts-node src/scripts/backfill-hq-area.ts"
   },
   "keywords": [],
   "author": "",

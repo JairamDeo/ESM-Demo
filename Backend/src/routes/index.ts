@@ -10,7 +10,10 @@ import {
 import {
   getOfficers, getOfficerById, createOfficer,
   updateOfficer, toggleOfficerStatus, deleteOfficer,
+  getOfficerCreateOptions,
 } from "../controllers/officerController";
+import { getStates, createState } from "../controllers/stateController";
+import { getHQs, createHQ } from "../controllers/hqController";
 import {
   getEscalations, getEscalationById, createEscalation, resolveEscalation,
 } from "../controllers/escalationController";
@@ -31,30 +34,16 @@ import { protect, adminOnly, restrictTo } from "../middleware/auth";
 // ═══════════════════════════════════════════════════════════════════════════════
 export const statesRouter = Router();
 
-statesRouter.get("/", protect, async (req, res) => {
-  try {
-    const State = (await import("../models/State")).default;
-    const states = await State.find({ isActive: true }).sort({ name: 1 });
-    res.json({ success: true, data: states });
-  } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+statesRouter.get("/", protect, getStates);
+statesRouter.post("/", protect, restrictTo("super_admin"), createState);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HQ MASTER
 // ═══════════════════════════════════════════════════════════════════════════
 export const hqRouter = Router();
 
-hqRouter.get("/", protect, async (req, res) => {
-  try {
-    const HQ = (await import("../models/HeadQuarter")).default;
-    const hqs = await HQ.find({ isActive: true }).sort({ name: 1 });
-    res.json({ success: true, data: hqs });
-  } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+hqRouter.get("/", protect, getHQs);
+hqRouter.post("/", protect, restrictTo("super_admin", "area"), createHQ);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATIONS
@@ -62,7 +51,7 @@ hqRouter.get("/", protect, async (req, res) => {
 export const stationRouter = Router();
 
 stationRouter.get("/",              protect, getStations);
-stationRouter.post("/",             protect, restrictTo("super_admin", "area"), createStation);
+stationRouter.post("/",             protect, restrictTo("super_admin", "area", "headquarter"), createStation);
 stationRouter.get("/:id",           protect, adminOnly, getStationById);
 stationRouter.put("/:id",           protect, restrictTo("super_admin", "area"), updateStation);
 stationRouter.delete("/:id",        protect, restrictTo("super_admin"), deleteStation);
@@ -87,11 +76,12 @@ qrRouter.post("/scan/:code",     recordScan);
 // ═══════════════════════════════════════════════════════════════════════════════
 export const officerRouter = Router();
 
+officerRouter.get("/create-options",      protect, adminOnly, getOfficerCreateOptions);
 officerRouter.get("/",                    protect, adminOnly, getOfficers);
-officerRouter.post("/",                   protect, restrictTo("super_admin", "area"), createOfficer);
+officerRouter.post("/",                   protect, restrictTo("super_admin", "area", "headquarter"), createOfficer);
 officerRouter.get("/:id",                 protect, adminOnly, getOfficerById);
-officerRouter.put("/:id",                 protect, restrictTo("super_admin", "area"), updateOfficer);
-officerRouter.patch("/:id/toggle-status", protect, restrictTo("super_admin", "area"), toggleOfficerStatus);
+officerRouter.put("/:id",                 protect, restrictTo("super_admin", "area", "headquarter"), updateOfficer);
+officerRouter.patch("/:id/toggle-status", protect, restrictTo("super_admin", "area", "headquarter"), toggleOfficerStatus);
 officerRouter.delete("/:id",              protect, restrictTo("super_admin"), deleteOfficer);
 
 // ═══════════════════════════════════════════════════════════════════════════════
