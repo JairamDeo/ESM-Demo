@@ -634,9 +634,16 @@ export default memo(function UsersOfficers() {
                   </td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{assignmentLabel(o)}</td>
                   <td className="py-3 px-3 text-xs text-muted-foreground">
-                    {o.createdBy?.name ? (
-                      <span title={o.createdBy.role}>{o.createdBy.name}</span>
-                    ) : "—"}
+                    {(() => {
+                      const creator = o.auditHistory?.find((e: { action: string }) => e.action === "create")
+                        ?? o.auditHistory?.[0]
+                        ?? o.createdBy;
+                      return creator?.name ? (
+                        <span title={`${creator.role || ""} · ${creator.email || ""} · ${creator.at ? new Date(creator.at).toLocaleString("en-IN") : ""}`}>
+                          {creator.name}
+                        </span>
+                      ) : "—";
+                    })()}
                   </td>
                   <td className="py-3 px-7 text-sm text-foreground font-medium">{o.activeCases ?? 0}</td>
                   <td className="py-3 px-3">

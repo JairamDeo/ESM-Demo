@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { auditActorSchema, IAuditActor } from "./AuditActor";
+import { auditEntrySchema, IAuditEntry } from "./AuditLog";
 
 export interface IHQStationRef {
   stationId: mongoose.Types.ObjectId;
@@ -21,8 +21,7 @@ export interface IHQ extends Document {
   contactEmail?: string;
   contactPhone?: string;
   stations: IHQStationRef[];
-  createdBy?: IAuditActor;
-  updatedBy?: IAuditActor;
+  auditHistory: IAuditEntry[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -46,8 +45,7 @@ const HQSchema = new Schema<IHQ>(
         stationName: { type: String, required: true, trim: true },
       },
     ],
-    createdBy: auditActorSchema,
-    updatedBy: auditActorSchema,
+    auditHistory: { type: [auditEntrySchema], default: [] },
     isActive:  { type: Boolean, default: true },
   },
   { timestamps: true }

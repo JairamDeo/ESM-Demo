@@ -3,6 +3,7 @@ import { RbacRole, SETTINGS_ROLES } from "../constants/permissions";
 import {
   getAllRolePermissions,
   getPermissionsForRole,
+  getRoleChangeHistory,
   resetAllRolePermissions,
   resetRolePermissions,
   updateRolePermission,
@@ -62,6 +63,20 @@ export const resetRole = async (req: Request, res: Response): Promise<void> => {
     await resetRolePermissions(role, actor);
     const all = await getAllRolePermissions();
     res.status(200).json({ success: true, data: all });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getRoleHistory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const role = req.params.role as RbacRole;
+    if (!SETTINGS_ROLES.includes(role)) {
+      res.status(400).json({ success: false, message: "Invalid role" });
+      return;
+    }
+    const history = await getRoleChangeHistory(role);
+    res.status(200).json({ success: true, data: history });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
