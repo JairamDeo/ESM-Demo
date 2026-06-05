@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
+import { auditEntrySchema, IAuditEntry } from "./AuditLog";
 
 export interface IStation extends Document {
   _id: mongoose.Types.ObjectId;
@@ -18,6 +19,7 @@ export interface IStation extends Document {
   contactEmail?: string;
   contactPhone?: string;
   isActive: boolean;
+  auditHistory: IAuditEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +42,7 @@ const StationSchema = new Schema<IStation>(
     contactEmail: { type: String, lowercase: true },
     contactPhone: { type: String },
     isActive:  { type: Boolean, default: true },
+    auditHistory: { type: [auditEntrySchema], default: [] },
   },
   { timestamps: true }
 );

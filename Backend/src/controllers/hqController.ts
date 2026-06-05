@@ -1,10 +1,7 @@
 import { Request, Response } from "express";
 import HQ from "../models/HeadQuarter";
-import {
-  auditActorFromRequest,
-  hqListQuery,
-  resolveAreaForHQCreate,
-} from "../services/officerHierarchy";
+import { buildAuditEntry } from "../services/auditService";
+import { hqListQuery, resolveAreaForHQCreate } from "../services/officerHierarchy";
 
 export const getHQs = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -27,13 +24,18 @@ export const createHQ = async (req: Request, res: Response): Promise<void> => {
     }
 
     const area = await resolveAreaForHQCreate(actor, stateId);
-    const audit = auditActorFromRequest(actor);
 
     const existing = await HQ.findOne({ name: { $regex: `^${name.trim()}$`, $options: "i" } });
     if (existing?.isActive) {
       res.status(409).json({ success: false, message: "Headquarters with this name already exists" });
       return;
     }
+
+    const auditEntry = buildAuditEntry(
+      actor,
+      existing ? "update" : "create",
+      existing ? { note: "Headquarters reactivated" } : undefined
+    );
 
     const payload = {
       name: name.trim(),
@@ -46,14 +48,16 @@ export const createHQ = async (req: Request, res: Response): Promise<void> => {
       commanderName,
       contactEmail,
       contactPhone,
-      createdBy: audit,
-      updatedBy: audit,
       isActive: true,
     };
 
     const hq = existing
-      ? await HQ.findByIdAndUpdate(existing._id, payload, { new: true })
-      : await HQ.create(payload);
+      ? await HQ.findByIdAndUpdate(
+          existing._id,
+          { ...payload, $push: { auditHistory: auditEntry } },
+          { new: true }
+        )
+      : await HQ.create({ ...payload, auditHistory: [auditEntry] });
 
     res.status(201).json({ success: true, message: "Headquarters created", data: hq });
   } catch (err: any) {

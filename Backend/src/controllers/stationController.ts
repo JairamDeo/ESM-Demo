@@ -21,6 +21,7 @@ async function resolveHQ(hqId: string) {
 }
 
 import { getStationListFilter } from "../utils/scopeFilter";
+import { buildAuditEntry } from "../services/auditService";
 
 // ─── GET all stations ────────────────────────────────────────────────────────
 export const getStations = async (req: Request, res: Response): Promise<void> => {
@@ -152,9 +153,14 @@ export const createStation = async (req: Request, res: Response): Promise<void> 
       name: { $regex: `^${stationPayload.name}$`, $options: "i" },
       isActive: false,
     });
+    const auditEntry = buildAuditEntry(actor, inactive ? "update" : "create", {
+      note: inactive ? "Station HQ reactivated" : undefined,
+    });
+
     if (inactive) {
       const previousHqId = inactive.hqId;
       Object.assign(inactive, stationPayload, { isActive: true });
+      inactive.auditHistory.push(auditEntry);
       await inactive.save();
       if (previousHqId && String(previousHqId) !== String(hqDoc._id)) {
         await removeStationFromHQ(previousHqId, inactive._id);
@@ -167,7 +173,7 @@ export const createStation = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const station = await Station.create(stationPayload);
+    const station = await Station.create({ ...stationPayload, auditHistory: [auditEntry] });
     await syncStationOnHQ(hqDoc._id, station._id, stationPayload.name);
     const populated = await Station.findById(station._id)
       .populate("hqId", "name city state")
@@ -212,10 +218,14 @@ export const updateStation = async (req: Request, res: Response): Promise<void> 
       updateData.stateName = stateDoc.name;
     }
 
-    const station = await Station.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-      runValidators: true,
-    })
+    const actor = (req as any).user;
+    const auditEntry = buildAuditEntry(actor, "update");
+
+    const station = await Station.findByIdAndUpdate(
+      req.params.id,
+      { ...updateData, $push: { auditHistory: auditEntry } },
+      { new: true, runValidators: true }
+    )
       .populate("hqId", "name city state")
       .populate("state", "name code");
 
@@ -241,7 +251,14 @@ export const updateStation = async (req: Request, res: Response): Promise<void> 
 // ─── DELETE station (soft) ───────────────────────────────────────────────────
 export const deleteStation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const station = await Station.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    const actor = (req as any).user;
+    const auditEntry = buildAuditEntry(actor, "status_toggle", { note: "Station HQ deactivated" });
+
+    const station = await Station.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false, $push: { auditHistory: auditEntry } },
+      { new: true }
+    );
     if (!station) { res.status(404).json({ success: false, message: "Station not found" }); return; }
     await removeStationFromHQ(station.hqId, station._id);
     res.status(200).json({ success: true, message: "Station removed" });
