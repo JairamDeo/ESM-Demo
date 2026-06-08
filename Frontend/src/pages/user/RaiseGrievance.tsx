@@ -103,7 +103,9 @@ export default memo(function RaiseGrievance() {
     try {
       const formData = new FormData();
       formData.append("type", form.caseType);
-      formData.append("veteranName", user?.name || "Veteran");
+      // Only set veteranName if the user has an actual name — never use the phone as name
+      const veteranName = user?.name && user.name.trim() ? user.name.trim() : "";
+      if (veteranName) formData.append("veteranName", veteranName);
       if (user?.phone) formData.append("veteranPhone", user.phone);
       if (form.rank) formData.append("veteranRank", form.rank);
       if (form.armyNumber) formData.append("veteranArmyNo", form.armyNumber);

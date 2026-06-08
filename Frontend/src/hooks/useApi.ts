@@ -107,7 +107,7 @@ export const useCreateGrievance = () => {
       qc.invalidateQueries({ queryKey: ["reports"] });  
 
 
-      toast.success("Grievance submitted successfully!");
+      // toast.success("Grievance submitted successfully!");
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Failed to submit grievance");

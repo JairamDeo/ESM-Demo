@@ -16,6 +16,15 @@ type Priority = "low" | "medium" | "high" | "critical";
 const statusBadge: Record<string, string> = { pending:"bg-warning/15 text-warning","in-progress":"bg-info/15 text-info",escalated:"bg-destructive/15 text-destructive",resolved:"bg-success/15 text-success" };
 const priorityBadge: Record<string, string> = { low:"bg-muted text-muted-foreground",medium:"bg-info/15 text-info",high:"bg-warning/15 text-warning",critical:"bg-destructive/15 text-destructive" };
 
+// Returns the veteran name only if it looks like a real name (not a raw phone number).
+// Existing records may have stored the phone as veteranName — suppress those.
+const getVeteranDisplay = (name?: string): string => {
+  if (!name) return "";
+  // If the value is purely numeric / phone-like (10+ digits, optional +/spaces), treat it as no name
+  if (/^[+\s\d]{10,}$/.test(name.trim())) return "";
+  return name;
+};
+
 interface FilterState { priority:string; station:string; officer:string; caseType:string; dateFrom:string; dateTo:string; }
 
 function Modal({ open, onClose, title, children, wide=false }: { open:boolean; onClose:()=>void; title:string; children:React.ReactNode; wide?:boolean }) {
@@ -105,7 +114,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         </div>
         <div className="grid grid-cols-2 gap-4">
           {[
-            { icon:User, label:"Veteran", value:grievance.veteranName || grievance.veteran },
+            { icon:User, label:"Veteran", value: getVeteranDisplay(grievance.veteranName || grievance.veteran) || "—" },
             { icon:Tag, label:"Army No.", value:grievance.veteranArmyNo || grievance.armyNo || "—" },
             { icon:Building2, label:"Station", value:grievance.stationName || grievance.station },
             { icon:UserCheck, label:"Assigned Officer", value:grievance.officerName || grievance.officer },
@@ -714,7 +723,7 @@ export default memo(function Grievances() {
                 <tr key={g._id||g.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                   <td className="py-3 px-3 text-sm font-mono text-primary">{g.grievanceId||g.id}</td>
                   <td className="py-3 px-3 text-sm text-foreground max-w-[140px] truncate">{g.type}</td>
-                  <td className="py-3 px-3 text-sm text-foreground">{g.veteranName||g.veteran}</td>
+                  <td className="py-3 px-3 text-sm text-foreground">{getVeteranDisplay(g.veteranName || g.veteran) || "—"}</td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{g.stationName||g.station}</td>
                   <td className="py-3 px-3 text-sm text-muted-foreground">{g.officerName||g.officer}</td>
                   <td className="py-3 px-2"><span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${priorityBadge[g.priority]||""}`}>{g.priority}</span></td>

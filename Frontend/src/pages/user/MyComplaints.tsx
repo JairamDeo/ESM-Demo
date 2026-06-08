@@ -4,6 +4,17 @@ import { ArrowLeft, FileText, Clock, CheckCircle2, AlertTriangle, Search, Chevro
 import { useMyGrievances } from "@/hooks/useApi";
 // import { useAuth } from "@/contexts/AuthContext";
 
+interface Complaint {
+  _id: string;
+  id?: string;
+  grievanceId?: string;
+  type: string;
+  status: "pending" | "in-progress" | "resolved" | "escalated" | "closed";
+  stationName?: string;
+  station?: string;
+  createdAt: string;
+  progress?: number;
+}
 
 const statusConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
   "in-progress": { icon: Clock, color: "text-info", bg: "bg-info/15", label: "In Progress" },
@@ -18,21 +29,21 @@ const progressMap: Record<string, number> = { pending: 20, "in-progress": 60, es
 export default memo(function MyComplaints() {
 
   const [search, setSearch] = useState("");
-  const { data: complaints = [], isLoading } = useMyGrievances();
+  const { data: complaints = [] as Complaint[], isLoading } = useMyGrievances();
 
   // const { user } = useAuth();
   // console.log("current user:", user);
 
   const filtered = useMemo(() =>
-    complaints.filter((c: any) =>
+    complaints.filter((c: Complaint) =>
       !search || c.type?.toLowerCase().includes(search.toLowerCase()) || (c.grievanceId || c.id)?.toLowerCase().includes(search.toLowerCase())
     ), [complaints, search]);
 
   const stats = useMemo(() => ({
     total: complaints.length,
-    pending: complaints.filter((c: any) => c.status === "pending").length,
-    active: complaints.filter((c: any) => c.status === "in-progress").length,
-    resolved: complaints.filter((c: any) => c.status === "resolved").length,
+    pending: complaints.filter((c: Complaint) => c.status === "pending").length,
+    active: complaints.filter((c: Complaint) => c.status === "in-progress").length,
+    resolved: complaints.filter((c: Complaint) => c.status === "resolved").length,
   }), [complaints]);
 
   return (
@@ -68,11 +79,11 @@ export default memo(function MyComplaints() {
             {complaints.length === 0 ? "No complaints submitted yet." : "No results found."}
           </div>
         ) : filtered.map((c: any) => {
-          const config = statusConfig[c.status] || statusConfig.pending;
+          const config = statusConfig[c.status as string] || statusConfig.pending;
           const Icon = config.icon;
-          const progress = progressMap[c.status] || 20;
+          const progress = progressMap[c.status as string] || 20;
           return (
-            <Link key={c._id || c.id} to="/user/track-case" state={{ complaint: c }} className="block bg-card rounded-xl border border-border p-4  hover:border-primary/30 transition-colors">
+            <Link key={c._id || c.id} to="/user/track-case" state={{ complaint: c }} className="block bg-card rounded-xl border border-border p-4 hover:border-primary/30 transition-colors">
               <div className="flex items-start justify-between mb-3 ">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center`}>

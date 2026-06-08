@@ -1,27 +1,42 @@
-import { useState, memo, useCallback } from "react";
+import { useState, memo, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, User, Phone, Shield, MapPin, Mail, Edit2, Save, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile } from "@/hooks/useApi";
 
+interface ProfileForm {
+  name: string;
+  rank: string;
+  serviceNumber: string;
+  email: string;
+  address: string;
+}
+
 export default memo(function UserProfile() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const updateProfile = useUpdateProfile();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: user?.name || "", rank: "", serviceNumber: "", email: user?.email || "", address: "" });
+  const [form, setForm] = useState<ProfileForm>({ name: user?.name || "", rank: "", serviceNumber: "", email: user?.email || "", address: "" });
+
+  // Sync form whenever the auth user object changes (e.g. on first load after refresh)
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, name: user?.name || "", email: user?.email || "" }));
+  }, [user?.name, user?.email]);
 
   const handleSave = useCallback(async () => {
     await updateProfile.mutateAsync(form);
+    // Persist the updated name/email into AuthContext + localStorage so it survives refresh
+    updateUser({ name: form.name, email: form.email });
     setEditing(false);
-  }, [form, updateProfile]);
+  }, [form, updateProfile, updateUser]);
 
   const fields = [
-    { icon: User, label: "Full Name", value: form.name, key: "name" },
-    { icon: Phone, label: "Phone Number", value: user?.phone || "", key: null },
-    { icon: Shield, label: "Rank", value: form.rank, key: "rank" },
-    { icon: Shield, label: "Service Number", value: form.serviceNumber, key: "serviceNumber" },
-    { icon: Mail, label: "Email", value: form.email, key: "email" },
-    { icon: MapPin, label: "Address", value: form.address, key: "address" },
+    { icon: User, label: "Full Name", value: form.name, key: "name" as keyof ProfileForm },
+    { icon: Phone, label: "Phone Number", value: user?.phone || "", key: null as null },
+    { icon: Shield, label: "Rank", value: form.rank, key: "rank" as keyof ProfileForm },
+    { icon: Shield, label: "Service Number", value: form.serviceNumber, key: "serviceNumber" as keyof ProfileForm },
+    { icon: Mail, label: "Email", value: form.email, key: "email" as keyof ProfileForm },
+    { icon: MapPin, label: "Address", value: form.address, key: "address" as keyof ProfileForm },
   ];
 
   return (
@@ -57,7 +72,7 @@ export default memo(function UserProfile() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">{label}</p>
                 {editing && key ? (
-                  <input value={(form as any)[key]} onChange={(e) => setForm({...form, [key]: e.target.value})} className="mt-1 w-full bg-secondary rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 border border-border" />
+                  <input value={form[key]} onChange={(e) => setForm({...form, [key]: e.target.value})} className="mt-1 w-full bg-secondary rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 border border-border" />
                 ) : (
                   <p className="text-sm font-medium text-foreground mt-0.5 truncate">{value || "—"}</p>
                 )}

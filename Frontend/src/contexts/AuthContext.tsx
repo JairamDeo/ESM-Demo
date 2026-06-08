@@ -30,6 +30,7 @@ interface AuthContextType {
   adminLogin: (username: string, password: string) => Promise<void>;
   sendOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, otp: string) => Promise<void>;
+  updateUser: (updates: Partial<AuthUser>) => void;
   logout: () => void;
 }
 
@@ -83,14 +84,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(token, "user");          // ← pass "user"
     const authUser: AuthUser = {
       id: userInfo.id,
-      name: userInfo.name || `+91 ${phone}`,
+      // Use name from DB only — leave empty if not set (don't fall back to phone)
+      name: userInfo.name || "",
       phone: userInfo.phone,
       role: "user",
       station: userInfo.stationHQ,
     };
     setStoredUser(authUser, "user");      // ← pass "user"
     setUser(authUser);
-     queryClient.clear();
+    queryClient.clear();
+  }, []);
+
+  const updateUser = useCallback((updates: Partial<AuthUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const merged = { ...prev, ...updates };
+      // Persist the updated user to localStorage so it survives refresh
+      const role = prev.role === "user" ? "user" : "admin";
+      setStoredUser(merged, role);
+      return merged;
+    });
   }, []);
 
   const logout = useCallback(() => {
@@ -109,8 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     adminLogin,
     sendOtp,
     verifyOtp,
+    updateUser,
     logout,
-  }), [user, adminLogin, sendOtp, verifyOtp, logout]);
+  }), [user, adminLogin, sendOtp, verifyOtp, updateUser, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
