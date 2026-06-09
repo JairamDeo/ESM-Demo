@@ -1,54 +1,34 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, ChevronLeft } from "lucide-react";
-import { Icon } from "@iconify/react";
+import { Search, ChevronRight, Plus, Minus } from "lucide-react";
 import { useCaseTypes } from "@/hooks/useApi";
-
-const iconMap: Record<string, string> = {
-  "update name": "/icons/updatename.svg",
-  "update aadhaar & pan": "/icons/address-card.svg",
-  "update mobile & email": "/icons/mobile.svg",
-  "update address": "/icons/location.svg",
-  "resolve pension issues": "/icons/hand.svg",
-  "pension payment order": "/icons/money.svg",
-  "monthly pay slip": "/icons/notes.svg",
-  "stop fma": "/icons/medical.svg",
-  "add nominee": "/icons/person.svg",
-  "add family details": "/icons/family.svg",
-  "add/update family details": "/icons/family.svg",
-  "update spouse details": "/icons/spouse.svg",
-  "update dob of spouse": "/icons/event.svg",
-  "death intimation": "/icons/document.svg",
-  "grievance for increment": "/icons/graph.svg",
-  "track case status": "/icons/factcheck.svg",
-  "sms / portal alerts": "/icons/alert.svg",
-  "medical certificate": "/icons/medical.svg",
-};
 
 const CATEGORY_CONFIG = [
   {
     key: "Identity & Personal",
-    title: "Idenity & personal",
-    icon: <img src="/icons/user.svg" alt="" className="w-5 h-5" />,
+    title: "Identity & Personal",
+    icon: <img src="/icons/profile-filled.svg" alt="" className="w-7 h-7" />,
+    bg: "bg-[#D2E5FC]",
   },
   {
     key: "Pension & Financial",
     title: "Pension & Financial",
-    icon: <Icon icon="noto:money-bag" className="w-5 h-5" />,
+    icon: <img src="/icons/money-rupee.svg" alt="" className="w-7 h-7" />,
+    bg: "bg-[#FDE7E7]",
   },
   {
     key: "Family Details",
     title: "Family Details",
-    icon: <Icon icon="noto-v1:family" className="w-5 h-5" />,
+    icon: <img src="/icons/family.svg" alt="" className="w-7 h-7" />,
+    bg: "bg-[#E8FDE7]",
   },
   {
     key: "Requests & Tracking",
     title: "Requests & Tracking",
-    icon: <Icon icon="glyphs-poly:check-badge" className="w-5 h-5 text-primary" />,
+    icon: <img src="/icons/seal-check.svg" alt="" className="w-7 h-7" />,
+    bg: "bg-[#FFFFE4]",
   },
 ] as const;
-
-const defaultCategoryIcon = <Icon icon="mdi:shape" className="w-5 h-5 text-info" />;
 
 const normalizeCategory = (value: string) =>
   String(value || "").trim().toLowerCase().replace("idenity", "identity");
@@ -59,7 +39,6 @@ const categorySortIndex = (name: string) => {
   return idx === -1 ? 999 : idx;
 };
 
-/** Category label from API (populated categoryName or legacy string field). */
 const getCaseTypeCategoryLabel = (ct: any) =>
   ct?.categoryName ??
   (typeof ct?.category === "object" && ct?.category?.name ? ct.category.name : null) ??
@@ -69,13 +48,13 @@ const getCategoryMeta = (categoryName: string) => {
   const meta = CATEGORY_CONFIG.find(
     (c) => normalizeCategory(c.key) === normalizeCategory(categoryName)
   );
-  if (meta) return meta;
-  return { key: categoryName, title: categoryName, icon: defaultCategoryIcon };
+  return meta ?? { key: categoryName, title: categoryName, icon: null, bg: "bg-secondary" };
 };
 
 export default function Services() {
   const { data: caseTypes = [], isLoading, isError, error } = useCaseTypes({ status: "active" });
   const [searchQuery, setSearchQuery] = useState("");
+  const [openCategory, setOpenCategory] = useState<string | null>("Identity & Personal");
 
   const groupedCategories = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -101,48 +80,58 @@ export default function Services() {
       .sort(([a], [b]) => categorySortIndex(a) - categorySortIndex(b))
       .map(([categoryName, items]) => {
         const meta = getCategoryMeta(categoryName);
-        const sorted = [...items].sort((a: any, b: any) => {
-          const aMatch = /^casetype(\d+)$/i.exec(String(a?.id ?? ""));
-          const bMatch = /^casetype(\d+)$/i.exec(String(b?.id ?? ""));
-          if (aMatch && bMatch) return Number(aMatch[1]) - Number(bMatch[1]);
-          return String(a?.name ?? "").localeCompare(String(b?.name ?? ""));
-        });
-
         return {
           key: categoryName,
           title: meta.title,
           icon: meta.icon,
-          items: sorted.map((ct: any) => ({
+          bg: meta.bg,
+          items: items.map((ct: any) => ({
             id: String(ct._id ?? ct.id ?? ct.name),
             label: ct.name,
-            icon: iconMap[String(ct.name ?? "").toLowerCase()] || "/icons/document.svg",
+            description: ct.description || "",
           })),
         };
       });
   }, [caseTypes, searchQuery]);
 
-  const hasData = Array.isArray(caseTypes) && caseTypes.length > 0;
+  // open all categories when searching
+  const effectiveOpen = searchQuery.trim()
+    ? groupedCategories.map((c) => c.key)
+    : openCategory
+    ? [openCategory]
+    : [];
+
+  const isOpen = (key: string) => effectiveOpen.includes(key);
+
+  const toggle = (key: string) => {
+    if (searchQuery.trim()) return;
+    setOpenCategory((prev) => (prev === key ? null : key));
+  };
 
   return (
-    <div className="px-2 space-y-3 animate-fade-in">
-      <div className="flex items-center gap-5">
-        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground cursor-pointer">
-          <ChevronLeft className="w-5 h-5" color="#FFFFFF" />
+    <div className="px-3 space-y-4 pb-6">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground mt-1">
+          <ChevronRight className="w-5 h-5 rotate-180 text-foreground" />
         </Link>
         <h1 className="text-xl font-bold text-foreground">Services</h1>
       </div>
 
-      <div className="flex items-center gap-3 bg-[#222223] rounded-xl px-4 py-3">
-        <Search className="w-5 h-5 text-muted-foreground" />
+      {/* Search */}
+      <div className="flex items-center gap-3 bg-secondary rounded-xl px-4 py-3 border border-border">
+        <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         <input
           type="text"
           placeholder="Search services"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-foreground/40 w-full"
+          className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full"
         />
       </div>
 
+      {/* Loading */}
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-12 space-y-3">
           <span className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
@@ -150,59 +139,77 @@ export default function Services() {
         </div>
       )}
 
+      {/* Error */}
       {isError && !isLoading && (
-        <div className="text-center py-12 bg-[#1B1B1B] rounded-xl space-y-2">
+        <div className="text-center py-10 bg-card border border-border rounded-2xl space-y-2">
           <p className="text-sm text-destructive">Could not load services.</p>
           <p className="text-xs text-muted-foreground">
-            {(error as any)?.response?.data?.message || (error as Error)?.message || "Check backend is running (port 5050) and you are logged in."}
+            {(error as any)?.response?.data?.message || (error as Error)?.message}
           </p>
         </div>
       )}
 
-      {!isLoading && !isError && !hasData && (
-        <div className="text-center py-12 bg-[#1B1B1B] rounded-xl space-y-2">
-          <p className="text-sm text-muted-foreground">No active case types in database.</p>
-          <p className="text-xs text-muted-foreground">Run seed: cd Backend && npm run seed</p>
+      {/* Empty */}
+      {!isLoading && !isError && groupedCategories.length === 0 && (
+        <div className="text-center py-10 bg-card border border-border rounded-2xl">
+          <p className="text-sm text-muted-foreground">
+            {searchQuery ? "No services found matching your search." : "No active services available."}
+          </p>
         </div>
       )}
 
-      {!isLoading && !isError && hasData && groupedCategories.length === 0 && (
-        <div className="text-center py-12 bg-[#1B1B1B] rounded-xl">
-          <p className="text-sm text-muted-foreground">No services found matching your search.</p>
-        </div>
-      )}
-
-      {!isLoading &&
-        !isError &&
-        groupedCategories.map((cat) => (
-          <div key={cat.key} className="rounded-xl bg-[#1B1B1B] p-3 lg:p-5 ">
-            <div className="flex items-center gap-2 mb-3 lg:gap-4 lg:mb-4">
-              <span className="text-lg flex items-center justify-center">{cat.icon}</span>
-              <h2 className="font-semibold text-sm text-foreground lg:text-base lg:font-bold">{cat.title}</h2>
+      {/* Accordion Categories */}
+      {!isLoading && !isError && groupedCategories.map((cat) => (
+        <div
+          key={cat.key}
+          className="bg-card border border-border rounded-2xl overflow-hidden"
+        >
+          {/* Category Header — always visible */}
+          <button
+            onClick={() => toggle(cat.key)}
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-secondary/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-full ${cat.bg} flex items-center justify-center flex-shrink-0`}>
+                {cat.icon}
+              </div>
+              <span className="text-sm font-semibold text-foreground">{cat.title}</span>
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3 lg:gap-4">
+            <div className="w-6 h-6 rounded-full bg-[#D6D6D6] dark:bg-secondary flex items-center justify-center flex-shrink-0">
+              {isOpen(cat.key)
+                ? <Minus className="w-3.5 h-3.5 text-foreground" />
+                : <Plus className="w-3.5 h-3.5 text-foreground" />
+              }
+            </div>
+          </button>
+
+          {/* Expanded items */}
+          {isOpen(cat.key) && (
+            <div className="px-3 pb-3 space-y-2 pt-2">
               {cat.items.map((item) => (
                 <Link
                   key={item.id}
                   to="/user/raise-grievance"
                   state={{ caseType: item.label }}
-                  className="flex flex-col items-center gap-1.5 lg:gap-2 group cursor-pointer"
+                  className="flex items-center justify-between bg-[#F1F1F1] dark:bg-secondary/40 border border-border rounded-xl px-4 py-3 hover:border-primary/40 transition-all group"
                 >
-                  <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-sm bg-[#222223] flex items-center justify-center group-hover:border-primary/30 transition-colors">
-                    <img
-                      src={item.icon}
-                      alt={item.label}
-                      className="w-[24px] h-[24px] lg:w-[28px] lg:h-[28px] object-contain transition-transform group-hover:scale-110"
-                    />
+                  <div className="flex-1 min-w-0 pr-3">
+                    <p className="text-sm font-semibold text-foreground leading-tight">
+                      {item.label}
+                    </p>
+                    {item.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        {item.description}
+                      </p>
+                    )}
                   </div>
-                  <span className="text-[10px] lg:text-[12px] text-foreground/80 text-center leading-tight">
-                    {item.label}
-                  </span>
+                  <ChevronRight className="w-4 h-4 text-foreground group-hover:text-primary flex-shrink-0 transition-colors" />
                 </Link>
               ))}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+      ))}
     </div>
   );
 }
