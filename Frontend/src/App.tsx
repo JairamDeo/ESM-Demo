@@ -28,6 +28,7 @@ const Login          = lazy(() => import("@/pages/user/Login"));
 const VerifyOTP      = lazy(() => import("@/pages/user/VerifyOTP"));
 const UserHome       = lazy(() => import("@/pages/user/UserHome"));
 const Services       = lazy(() => import("@/pages/user/Services"));
+const DocumentRequiredInfo = lazy(() => import("@/pages/user/DocumentRequiredInfo"));
 const RaiseGrievance = lazy(() => import("@/pages/user/RaiseGrievance"));
 const MyComplaints   = lazy(() => import("@/pages/user/MyComplaints"));
 const TrackCase      = lazy(() => import("@/pages/user/TrackCase"));
@@ -94,6 +95,7 @@ const UserRoutes = memo(() => {
       <Routes>
         <Route path="/"                element={<S><UserHome /></S>} />
         <Route path="/services"        element={<S><Services /></S>} />
+        <Route path="/document-required" element={<S><DocumentRequiredInfo /></S>} />
         <Route path="/raise-grievance" element={<S><RaiseGrievance /></S>} />
         <Route path="/complaints"      element={<S><MyComplaints /></S>} />
         <Route path="/track-case"      element={<S><TrackCase /></S>} />
