@@ -1,109 +1,201 @@
 import { useState, useMemo, memo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, FileText, Clock, CheckCircle2, AlertTriangle, Search, ChevronLeft } from "lucide-react";
+import { FileText, Clock, CheckCircle2, AlertTriangle, Search, ChevronLeft, MapPin, Calendar, AlertCircle, ArrowRight } from "lucide-react";
 import { useMyGrievances } from "@/hooks/useApi";
-// import { useAuth } from "@/contexts/AuthContext";
+import { Icon } from "@iconify/react";
 
 interface Complaint {
   _id: string;
   id?: string;
   grievanceId?: string;
   type: string;
+  subType?: string;
   status: "pending" | "in-progress" | "resolved" | "escalated" | "closed";
   stationName?: string;
   station?: string;
   createdAt: string;
-  progress?: number;
+  requiresDocument?: boolean;
 }
 
-const statusConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
-  "in-progress": { icon: Clock, color: "text-info", bg: "bg-info/15", label: "In Progress" },
-  pending: { icon: FileText, color: "text-warning", bg: "bg-warning/15", label: "Pending" },
-  resolved: { icon: CheckCircle2, color: "text-success", bg: "bg-success/15", label: "Resolved" },
-  escalated: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/15", label: "Escalated" },
-  closed: { icon: CheckCircle2, color: "text-muted-foreground", bg: "bg-muted", label: "Closed" },
+const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+  "in-progress": { label: "Active",    bg: "bg-[#3B82F6]",  text: "text-white" },
+  pending:       { label: "Pending",   bg: "bg-[#F65C5F]",  text: "text-white" },
+  resolved:      { label: "Resolved",  bg: "bg-[#22C55E]",  text: "text-white" },
+  escalated:     { label: "Escalated", bg: "bg-[#F59E0B]",  text: "text-white" },
+  closed:        { label: "Closed",    bg: "bg-secondary",  text: "text-muted-foreground" },
 };
 
-const progressMap: Record<string, number> = { pending: 20, "in-progress": 60, escalated: 55, resolved: 100, closed: 100 };
+const TABS = ["All", "Active", "Pending", "Resolved"] as const;
+type Tab = typeof TABS[number];
+
+const tabDot: Record<string, string> = {
+  Active:   "bg-[#3B82F6]",
+  Pending:  "bg-[#F65C5F]",
+  Resolved: "bg-[#22C55E]",
+};
 
 export default memo(function MyComplaints() {
-
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<Tab>("All");
   const { data: complaints = [] as Complaint[], isLoading } = useMyGrievances();
 
-  // const { user } = useAuth();
-  // console.log("current user:", user);
-
-  const filtered = useMemo(() =>
-    complaints.filter((c: Complaint) =>
-      !search || c.type?.toLowerCase().includes(search.toLowerCase()) || (c.grievanceId || c.id)?.toLowerCase().includes(search.toLowerCase())
-    ), [complaints, search]);
-
   const stats = useMemo(() => ({
-    total: complaints.length,
-    pending: complaints.filter((c: Complaint) => c.status === "pending").length,
-    active: complaints.filter((c: Complaint) => c.status === "in-progress").length,
-    resolved: complaints.filter((c: Complaint) => c.status === "resolved").length,
+    All:      complaints.length,
+    Active:   complaints.filter((c: Complaint) => c.status === "in-progress").length,
+    Pending:  complaints.filter((c: Complaint) => c.status === "pending").length,
+    Resolved: complaints.filter((c: Complaint) => c.status === "resolved").length,
   }), [complaints]);
 
+  const filtered = useMemo(() => {
+    let list = complaints as Complaint[];
+    if (activeTab === "Active")   list = list.filter(c => c.status === "in-progress");
+    if (activeTab === "Pending")  list = list.filter(c => c.status === "pending");
+    if (activeTab === "Resolved") list = list.filter(c => c.status === "resolved");
+    if (search) list = list.filter(c =>
+      c.type?.toLowerCase().includes(search.toLowerCase()) ||
+      (c.grievanceId || c.id)?.toLowerCase().includes(search.toLowerCase())
+    );
+    return list;
+  }, [complaints, activeTab, search]);
+
   return (
-    <div className="px-4 space-y-5 animate-fade-in ">
-      <div className="flex items-center gap-5 ">
-        <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ChevronLeft className="w-5 h-5  " color="#FFFFFF" /></Link>
-        <h1 className="text-xl font-bold text-foreground">My Complaints</h1>
+    <div className="px-4 space-y-4 pb-6">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Link to="/user" className="p-1.5 mt-1 rounded-full hover:bg-secondary">
+          <ChevronLeft className="w-5 h-5 text-foreground" />
+        </Link>
+        <h1 className="text-xl font-semibold text-foreground">My Complaint</h1>
       </div>
 
-      <div className="flex items-center gap-3 bg-[#222223] rounded-xl px-4 py-3 border border-border">
-        <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by ID or type..." className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full" />
+      {/* Search */}
+      <div className="flex items-center gap-3 bg-secondary dark:bg-secondary/40  rounded-md px-4 py-3">
+        <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by ID or Service type"
+          className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full"
+        />
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: "Total", value: stats.total, color: "text-foreground" },
-          { label: "Pending", value: stats.pending, color: "text-warning" },
-          { label: "Active", value: stats.active, color: "text-info" },
-          { label: "Resolved", value: stats.resolved, color: "text-success" },
-        ].map((s) => (
-          <div key={s.label} className="bg-card rounded-xl border border-border p-3 lg:p-6 text-center ">
-            <p className={`text-lg lg:text-2xl font-bold ${s.color}`}>{isLoading ? "—" : s.value}</p>
-            <p className="text-[10px] lg:text-sm  text-muted-foreground">{s.label}</p>
-          </div>
+      {/* Tabs */}
+      <div className="flex items-center gap-0 border-b border-border">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors relative flex-1 justify-center`}
+          >
+            {tabDot[tab] && (
+              <span className={`w-2 h-2 rounded-full ${tabDot[tab]} flex-shrink-0`} />
+            )}
+            {tab}
+            {stats[tab] > 0 && tab !== "All" && (
+              <span className="text-[10px]">({stats[tab]})</span>
+            )}
+            {tab === "All" && stats.All > 0 && (
+              <span className="text-[10px]">({stats.All})</span>
+            )}
+            {/* Active underline */}
+            {activeTab === tab && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+            )}
+          </button>
         ))}
       </div>
 
+      {/* Cards */}
       <div className="space-y-3">
-        {isLoading ? Array(3).fill(0).map((_, i) => <div key={i} className="h-24 bg-card rounded-2xl border border-border animate-pulse" />) :
-        filtered.length === 0 ? (
+        {isLoading ? (
+          Array(3).fill(0).map((_, i) => (
+            <div key={i} className="h-40 bg-card rounded-2xl border border-border animate-pulse" />
+          ))
+        ) : filtered.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             {complaints.length === 0 ? "No complaints submitted yet." : "No results found."}
           </div>
         ) : filtered.map((c: any) => {
-          const config = statusConfig[c.status as string] || statusConfig.pending;
-          const Icon = config.icon;
-          const progress = progressMap[c.status as string] || 20;
+          const config = statusConfig[c.status] || statusConfig.pending;
           return (
-            <Link key={c._id || c.id} to="/user/track-case" state={{ complaint: c }} className="block bg-card rounded-xl border border-border p-4 hover:border-primary/30 transition-colors">
-              <div className="flex items-start justify-between mb-3 ">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${config.color}`} />
+            <div key={c._id || c.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="p-4">
+
+                {/* Top row: GRV ID + status badge */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-semibold text-[#1754CF] dark:text-[#F0C902] tracking-wide">
+                    {c.grievanceId || c.id}
+                  </span>
+                  <span className={`text-[10px] font-semibold px-3 py-1 rounded-full ${config.bg} ${config.text}`}>
+                    {config.label}
+                  </span>
+                </div>
+
+                {/* Icon + type + subtype */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <Icon icon="iconoir:profile-circle" className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">{c.type}</p>
-                    <p className="text-xs text-muted-foreground">{c.grievanceId || c.id}</p>
+                    <p className="text-sm font-bold text-foreground leading-tight">{c.type}</p>
+                    {c.subType && (
+                      <p className="text-[11px] text-muted-foreground">· {c.subType}</p>
+                    )}
                   </div>
                 </div>
-                <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${config.bg} ${config.color}`}>{config.label}</span>
+
+                {/* Date + Station */}
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-3">
+                  <span className="flex items-center gap-1">
+                    <img src="/icons/datecalender.svg" className="w-4 h-4 invert dark:invert-0" />
+                    <span className="text-foreground font-normal">
+                      Submitted on<br />
+                      <span className="text-foreground font-medium">
+                       {c.createdAt
+                       ? `${new Date(c.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}  ${new Date(c.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
+                       : "—"}
+                       </span>
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1 ">
+                    <img src="/icons/location1.svg" className="w-4 h-4 invert dark:invert-0" />
+                    <span className="text-foreground font-normal">
+                      Station HQ<br />
+                      <span className="text-foreground font-medium">
+                       {c.stationName || c.station || "—"}
+                    </span>
+                    </span>
+                  </span>
+                </div>
+
+                {/* Additional document required banner — shown dynamically */}
+                {c.requiresDocument && (
+                  <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2.5 mb-3">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-red-500">Additional Document Required</p>
+                      <p className="text-[10px] text-red-400">Please attach this required document</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Divider + View Details */}
+                <div className="pt-3 border-t border-border flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground px-4">View Details</span>
+                  <Link
+                    to="/user/track-case"
+                    state={{ complaint: c }}
+                    className="text-foreground hover:text-primary transition-colors px-4"
+                  >
+                        <ArrowRight className="w-5 h-5 " />
+
+                  </Link>
+                </div>
+
               </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{c.stationName || c.station}</span>
-                <span>{c.createdAt ? new Date(c.createdAt).toLocaleDateString("en-IN") : c.date}</span>
-              </div>
-              <div className="mt-3 w-full bg-secondary rounded-full h-1.5">
-                <div className="h-1.5 rounded-full bg-[#826CF3] transition-all" style={{ width: `${c.progress ?? progress}%` }} />
-              </div>
-            </Link>
+            </div>
           );
         })}
       </div>

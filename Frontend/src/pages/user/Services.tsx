@@ -116,7 +116,7 @@ export default function Services() {
         <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground mt-1">
           <ChevronRight className="w-5 h-5 rotate-180 text-foreground" />
         </Link>
-        <h1 className="text-xl font-bold text-foreground">Services</h1>
+        <h1 className="text-xl font-semibold text-foreground">Services</h1>
       </div>
 
       {/* Search */}

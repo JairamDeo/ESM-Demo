@@ -66,7 +66,7 @@ const RecentComplaintCard = ({
 }) => (
   <section>
     <h2 className="text-base font-bold text-foreground mb-3">Recent Complaint</h2>
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
       {complaint ? (
         <div className="p-4">
           {/* Top row */}
@@ -99,7 +99,7 @@ const RecentComplaintCard = ({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-10 text-[10px] text-foreground">
                 {complaint.createdAt && (
                   <span className="flex items-center gap-1">
-                    <Icon icon="iconoir:calendar" className="w-3 h-3" />
+                    <img src="./icons/datecalender.svg" className="w-4 h-4 invert dark:invert-0" />
                     {new Date(complaint.createdAt).toLocaleDateString("en-IN", {
                       day: "2-digit", month: "long", year: "numeric",
                     })}&nbsp;
@@ -110,7 +110,7 @@ const RecentComplaintCard = ({
                 )}
                 {complaint.stationName && (
                   <span className="flex items-center gap-1">
-                    <Icon icon="iconoir:map-pin" className="w-3 h-3" />
+                    <img src="./icons/location1.svg" className="w-4 h-4 invert dark:invert-0" />
                     {complaint.stationName}
                   </span>
                 )}
@@ -172,7 +172,7 @@ export default memo(function UserHome() {
     : 80;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-3 lg:max-w-none lg:px-6 space-y-5 pb-6">
+    <div className="w-full max-w-xl mx-auto px-3 lg:max-w-none lg:px-6 space-y-5 pb-6">
 
       {/* ── Hero Banner ─────────────────────────────────────────────────── */}
       <div className="w-full rounded-2xl overflow-hidden relative "
@@ -208,11 +208,11 @@ export default memo(function UserHome() {
 </div>
 
       {/* ── Quick Action Cards ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 ">
 
        {/* My Complaints */}
       <Link
-      to="/user/complaints" className="group bg-card border border-border rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:border-[#4d84f2] transition-all hover:shadow-sm" style={{ minHeight: 130 }}
+      to="/user/complaints" className="group bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center text-center hover:border-[#4d84f2] transition-all hover:shadow-sm" style={{ minHeight: 130 }}
 >
       <div className="w-10 h-10 rounded-full bg-[#D2E5FC] flex items-center justify-center mb-3">
             <img src="/icons/notepad.svg" alt="" className="w-5 h-5" />
@@ -222,29 +222,26 @@ export default memo(function UserHome() {
              View and track your complaints
             </p>
             <span className="inline-flex items-center gap-3.5 bg-[#D2E5FC] border border-secondary text-[#172EFF] text-[16px] font-semibold px-10 py-2 rounded-lg group-hover:bg-[#4d84f2] group-hover:text-white transition-all">
-             View <img src="./icons/right-arrow.svg" className="w-4 h-4  bg-[#1754CF] rounded-full" />
+             View <img src="./icons/right-arrow.svg" className="w-4 h-4  invert dark:invert-40" />
             </span>
       </Link>
 
        {/* Services */}
-<Link
-  to="/user/services"
-  className="group bg-card border border-border rounded-2xl p-4 flex flex-col items-center justify-center text-center hover:border-[#9D7327] transition-all hover:shadow-sm"
-  style={{ minHeight: 130 }}
+      <Link
+      to="/user/services" className="group bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center text-center hover:border-[#9D7327] transition-all hover:shadow-sm" style={{ minHeight: 130 }}
 >
   <div className="w-10 h-10 rounded-full bg-[#FDF6E7] flex items-center justify-center mb-3">
     <img src="./icons/category.svg" className="w-5 h-5" />
   </div>
-  <p className="text-sm font-bold text-foreground mb-1">Services</p>
-  <p className="text-[10px] font-normal text-foreground leading-tight mb-2">
-    Explore all available services
+  <p className="text-sm font-bold text-foreground mb-1.5">Services</p>
+  <p className="text-[10px] font-normal text-foreground leading-tight mb-3">
+    Explore all available services here
   </p>
-  <span className="inline-flex items-center gap-3.5 bg-[#FDF6E7] border border-secondary text-[#9D7327] text-[16px] font-semibold px-10 py-2 mt-2 lg:mt-5 rounded-lg group-hover:bg-[#dfb86f] group-hover:text-black transition-all">
-    View <img src="./icons/right-arrow.svg" className="w-4 h-4 bg-[#9D7327] rounded-full" />
+  <span className="inline-flex items-center gap-3.5 bg-[#FDF6E7] border border-secondary text-[#9D7327] text-[16px] font-semibold px-10 py-2  rounded-lg group-hover:bg-[#dfb86f] group-hover:text-black transition-all">
+    View <img src="./icons/right-arrow.svg" className="w-4 h-4 invert dark:invert-40" />
   </span>
 </Link>
       </div>
-
       {/* ── Recent Complaint ─────────────────────────────────────────────── */}
       <RecentComplaintCard complaint={recentComplaint} progress={progress} />
 
@@ -261,7 +258,7 @@ export default memo(function UserHome() {
             <Link
               key={svc.label}
               to="/user/services"
-              className="group bg-card border border-border rounded-2xl p-3.5 flex items-center gap-3 hover:border-border/60 hover:shadow-sm transition-all"
+              className="group bg-card border border-border rounded-xl p-3.5 flex items-center gap-3 hover:border-border/60 hover:shadow-sm transition-all"
             >
               <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${svc.bg}`}>
                 {svc.icon}
