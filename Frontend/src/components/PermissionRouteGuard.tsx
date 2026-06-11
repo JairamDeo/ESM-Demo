@@ -6,6 +6,7 @@ const ADMIN_ROUTE_PERMS: Array<{ path: string; perm: keyof Permission }> = [
   { path: "/grievances", perm: "viewGrievances" },
   { path: "/categories", perm: "viewCategories" },
   { path: "/case-types", perm: "viewCaseTypes" },
+  { path: "/required-documents", perm: "viewRequiredDocuments" },
   { path: "/organization", perm: "viewStations" },
   { path: "/stations", perm: "viewStations" },
   { path: "/qr-codes", perm: "viewQRCodes" },

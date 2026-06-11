@@ -9,6 +9,8 @@ import Officer from "../models/Officer";
 import Grievance from "../models/Grievance";
 import Escalation from "../models/Escalation";
 import CaseType from "../models/CaseType";
+import CaseTypeRequiredDocuments from "../models/CaseTypeRequiredDocuments";
+import { IDENTITY_PERSONAL_REQUIRED_DOCUMENTS_RESOLVED } from "../constants/identityPersonalRequiredDocuments";
 import Category from "../models/Category";
 import QRCode from "../models/QRCode";
 import Notification from "../models/Notification";
@@ -28,7 +30,8 @@ const seed = async () => {
   await Promise.all([
     User.deleteMany({}), HQ.deleteMany({}), State.deleteMany({}), Station.deleteMany({}),
     Officer.deleteMany({}), Grievance.deleteMany({}), Escalation.deleteMany({}),
-    Category.deleteMany({}), CaseType.deleteMany({}), QRCode.deleteMany({}), Notification.deleteMany({}),
+    Category.deleteMany({}), CaseType.deleteMany({}), CaseTypeRequiredDocuments.deleteMany({}),
+    QRCode.deleteMany({}), Notification.deleteMany({}),
     RolePermission.deleteMany({}),
   ]);
   console.log("🗑️  Cleared existing data");
@@ -75,6 +78,36 @@ const seed = async () => {
   ];
   const caseTypes = await CaseType.create(caseTypesData);
   console.log(`📋 Created ${caseTypes.length} case types`);
+
+  const caseTypeBySlug = Object.fromEntries(caseTypes.map((ct) => [ct.id, ct]));
+  const requiredDocRows = IDENTITY_PERSONAL_REQUIRED_DOCUMENTS_RESOLVED.map((entry) => {
+    const ct = caseTypeBySlug[entry.caseTypeSlug];
+    if (!ct) return null;
+    return {
+      caseType: ct._id,
+      caseTypeSlug: ct.id,
+      caseTypeName: ct.name,
+      categoryId: ct.category,
+      categoryName: "Identity & Personal",
+      documents: entry.documents.map((d) => ({
+        label: d.label,
+        text: d.text,
+        isMandatory: d.isMandatory !== false,
+        sortOrder: d.sortOrder,
+      })),
+      questions: [], // admin-managed only
+      guidelines: entry.guidelines ?? [],
+      note: entry.note ?? "",
+      acceptedFormats: "PDF, JPG, JPEG, PNG",
+      maxFileSizeMb: 5,
+      isActive: true,
+      createdBy: { id: "seed", name: "System Seed", role: "Super Admin" },
+    };
+  }).filter(Boolean);
+  if (requiredDocRows.length) {
+    await CaseTypeRequiredDocuments.insertMany(requiredDocRows);
+    console.log(`📄 Seeded required documents for ${requiredDocRows.length} Identity & Personal case types`);
+  }
 
   // ── States (Areas) ────────────────────────────────────────────────────────
   const statesData = [
