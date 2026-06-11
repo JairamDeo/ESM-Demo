@@ -5,6 +5,14 @@ import { resolveRbacRole, type UserRole } from "@/lib/rbacRole";
 
 export type { UserRole };
 
+export interface SendOtpResponse {
+  expiresIn: number;
+  resendAfter: number;
+  smsSent?: boolean;
+  devOtp?: string;
+  devNote?: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -28,7 +36,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isUser: boolean;
   adminLogin: (username: string, password: string) => Promise<void>;
-  sendOtp: (phone: string) => Promise<void>;
+  sendOtp: (phone: string) => Promise<SendOtpResponse>;
   verifyOtp: (phone: string, otp: string) => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => void;
   logout: () => void;
@@ -74,8 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   }, []);
 
-  const sendOtp = useCallback(async (phone: string) => {
-    await api.post("/auth/user/send-otp", { phone });
+  const sendOtp = useCallback(async (phone: string): Promise<SendOtpResponse> => {
+    const { data } = await api.post("/auth/user/send-otp", { phone });
+    return {
+      expiresIn: data.expiresIn ?? 120,
+      resendAfter: data.resendAfter ?? 30,
+      smsSent: data.smsSent,
+      devOtp: data.devOtp,
+      devNote: data.devNote,
+    };
   }, []);
 
   const verifyOtp = useCallback(async (phone: string, otp: string) => {

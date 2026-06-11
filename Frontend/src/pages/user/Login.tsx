@@ -16,9 +16,16 @@ export default memo(function Login() {
     if (phone.length < 10) return;
     setLoading(true);
     try {
-      await sendOtp(phone);
-      toast.success("OTP sent successfully!");
-      navigate("/user/verify-otp", { state: { phone } });
+      const result = await sendOtp(phone);
+      toast.success(result.smsSent ? "OTP sent to your mobile!" : "OTP generated — check server logs if SMS is off");
+      navigate("/user/verify-otp", {
+        state: {
+          phone,
+          expiresIn: result.expiresIn,
+          resendAfter: result.resendAfter,
+          devOtp: result.devOtp,
+        },
+      });
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to send OTP. Please try again.");
     } finally {
