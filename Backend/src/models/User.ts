@@ -12,6 +12,7 @@ export interface IUser extends Document {
   stationHQ?: string;
   otp?: string;
   otpExpiry?: Date;
+  otpSentAt?: Date;
   isVerified: boolean;
   isActive: boolean;
   lastLogin?: Date;
@@ -31,6 +32,7 @@ const UserSchema = new Schema<IUser>(
     stationHQ: { type: String },
     otp: { type: String },
     otpExpiry: { type: Date },
+    otpSentAt: { type: Date },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     lastLogin: { type: Date },

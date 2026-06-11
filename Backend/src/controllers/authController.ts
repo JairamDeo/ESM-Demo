@@ -1,9 +1,17 @@
+import crypto from "crypto";
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import Officer from "../models/Officer";
 import User from "../models/User";
 import { loginScopeLabel } from "../services/officerAssignment";
 import { rbacRoleFromJobRole } from "../constants/officerRoles";
+import {
+  isOtpBypassEnabled,
+  isOtpSmsEnabled,
+  OTP_EXPIRY_SECONDS,
+  OTP_RESEND_COOLDOWN_SECONDS,
+  sendLoginOtpSms,
+} from "../services/msg91Service";
 
 const signToken = (
   id: string,
@@ -22,7 +30,7 @@ const signToken = (
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as jwt.SignOptions
   );
 
-const generateOTP = (): string => Math.floor(1000 + Math.random() * 9000).toString();
+const generateOTP = (): string => crypto.randomInt(1000, 10000).toString();
 
 /**
  * POST /api/auth/admin/login — portal login via officers collection (canLogin: true).
@@ -145,36 +153,64 @@ export const sendOTP = async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone } = req.body;
 
-    if (!phone || phone.toString().length < 10) {
+    if (!phone || phone.toString().replace(/\D/g, "").length < 10) {
       res.status(400).json({ success: false, message: "Valid 10-digit phone number required" });
       return;
     }
 
-    const otp =
-      process.env.OTP_BYPASS === "true"
-        ? process.env.OTP_BYPASS_CODE || "1234"
-        : generateOTP();
+    const normalizedPhone = phone.toString().replace(/\D/g, "").slice(-10);
+    const existing = await User.findOne({ phone: normalizedPhone });
 
-    const otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+    if (existing?.otpSentAt) {
+      const elapsed = Date.now() - existing.otpSentAt.getTime();
+      const cooldownMs = OTP_RESEND_COOLDOWN_SECONDS * 1000;
+      if (elapsed < cooldownMs) {
+        const retryAfter = Math.ceil((cooldownMs - elapsed) / 1000);
+        res.status(429).json({
+          success: false,
+          message: `Please wait ${retryAfter}s before requesting a new OTP`,
+          retryAfter,
+          resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+        });
+        return;
+      }
+    }
+
+    const bypass = isOtpBypassEnabled();
+    const smsEnabled = isOtpSmsEnabled();
+    const otp = bypass ? process.env.OTP_BYPASS_CODE || "1234" : generateOTP();
+    const otpExpiry = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+    const otpSentAt = new Date();
 
     await User.findOneAndUpdate(
-      { phone },
-      { phone, otp, otpExpiry, isActive: true },
+      { phone: normalizedPhone },
+      { phone: normalizedPhone, otp, otpExpiry, otpSentAt, isActive: true },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log(`📱 OTP for ${phone}: ${otp}`);
+    let smsSent = false;
+    if (!bypass && smsEnabled) {
+      await sendLoginOtpSms(normalizedPhone, otp);
+      smsSent = true;
+    } else if (!bypass) {
+      console.log(`📱 OTP for ${normalizedPhone} (SMS disabled): ${otp}`);
+    } else {
+      console.log(`📱 OTP bypass for ${normalizedPhone}: ${otp}`);
+    }
 
     res.status(200).json({
       success: true,
-      message: "OTP sent successfully",
-      ...(process.env.OTP_BYPASS === "true" && {
-        devNote: "OTP bypass enabled",
-        otp,
+      message: smsSent ? "OTP sent to your mobile number" : "OTP generated successfully",
+      expiresIn: OTP_EXPIRY_SECONDS,
+      resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      smsSent,
+      ...((bypass || !smsEnabled) && {
+        devNote: bypass ? "OTP bypass enabled" : "OTP_ENABLE is false — SMS not sent",
+        devOtp: otp,
       }),
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message || "Failed to send OTP" });
   }
 };
 
@@ -187,30 +223,37 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await User.findOne({ phone, isActive: true });
+    const normalizedPhone = phone.toString().replace(/\D/g, "").slice(-10);
+    const user = await User.findOne({ phone: normalizedPhone, isActive: true });
     if (!user) {
       res.status(404).json({ success: false, message: "User not found. Please request OTP first." });
       return;
     }
 
-    const bypassEnabled = process.env.OTP_BYPASS === "true";
+    const bypassEnabled = isOtpBypassEnabled();
     const bypassCode = process.env.OTP_BYPASS_CODE || "1234";
+    const otpValue = String(otp).trim();
 
-    if (bypassEnabled && otp === bypassCode) {
-      // allow
+    if (bypassEnabled && otpValue === bypassCode) {
+      // allow dev bypass
     } else {
-      if (!user.otp || user.otp !== otp) {
+      if (!user.otp || user.otp !== otpValue) {
         res.status(400).json({ success: false, message: "Invalid OTP" });
         return;
       }
       if (!user.otpExpiry || user.otpExpiry < new Date()) {
-        res.status(400).json({ success: false, message: "OTP expired. Please request a new one." });
+        res.status(400).json({
+          success: false,
+          message: "OTP expired. Please request a new one.",
+          expired: true,
+        });
         return;
       }
     }
 
     user.otp = undefined;
     user.otpExpiry = undefined;
+    user.otpSentAt = undefined;
     user.isVerified = true;
     user.lastLogin = new Date();
     await user.save();
