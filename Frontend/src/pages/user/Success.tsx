@@ -42,11 +42,11 @@ export default function Success() {
       {/* Success Icon — green glow rings */}
       <div className="relative mb-6 flex items-center justify-center">
         {/* Outer glow ring */}
-        <div className="absolute w-28 h-28 rounded-full bg-green-500/10" />
-        <div className="absolute w-24 h-24 rounded-full bg-green-500/15" />
+         <div className="absolute w-28 h-28 rounded-full bg-green-500/20 dark:bg-green-500/10" />
+         <div className="absolute w-24 h-24 rounded-full bg-green-500/30 dark:bg-green-500/15" />
         {/* Inner circle */}
-        <div className="w-20 h-20 rounded-full bg-[#34D35D] flex items-center justify-center shadow-[0_0_24px_rgba(52,211,93,0.4)] z-10">
-          <Check className="w-9 h-9 text-white stroke-[3]" />
+        <div className="w-20 h-20 rounded-full bg-[#05B642] flex items-center justify-center shadow-[0_0_24px_rgba(52,211,93,0.4)] z-10">
+          <img src="/icons/check-fill.svg" className="w-9 h-9 text-white stroke-[3]" />
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export default function Success() {
       <h1 className="text-xl font-bold text-foreground mb-2 text-center">
         Grievance submitted Successfully!
       </h1>
-      <p className="text-sm text-muted-foreground text-center max-w-[260px] leading-relaxed mb-8">
+      <p className="text-sm text-foreground/70 text-center max-w-[260px] leading-relaxed mb-8">
         Your grievance has been submitted successfully & is being processed
       </p>
 
@@ -64,20 +64,20 @@ export default function Success() {
         {/* Grievance ID row */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#826CF3]/15 flex items-center justify-center flex-shrink-0">
-              <FileText className="w-5 h-5 text-[#826CF3]" />
+            <div className="w-10 h-10 rounded-full dark:bg-[#272723] bg-[#826CF3] flex items-center justify-center flex-shrink-0">
+              <img src="/icons/file.svg" className="w-5 h-5 brightness-0 invert dark:brightness-100 dark:invert-0" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Grievance ID</p>
-              <p className="text-sm font-bold text-amber-500 dark:text-[#F0C902]">{grievanceId}</p>
+              <p className="text-xs text-foreground mb-0.5">Grievance ID</p>
+              <p className="text-sm font-bold text-[#155DFC] dark:text-[#F0C902]">{grievanceId}</p>
             </div>
           </div>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 border border-border rounded-lg px-3 py-1.5 hover:bg-secondary transition-colors"
+            className="flex items-center gap-1.5 border border-primary rounded-md px-3 py-1.5 hover:bg-secondary transition-colors"
           >
             <Copy className="w-4 h-4 text-foreground" />
-            <span className="text-sm text-foreground font-medium">Copy</span>
+            <span className="text-sm dark:text-foreground text-[#826CF3] font-medium">Copy</span>
           </button>
         </div>
 
@@ -85,34 +85,34 @@ export default function Success() {
         <div className="px-4 divide-y divide-border">
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-muted-foreground">Date & Time</span>
+            <span className="text-sm text-foreground">Date & Time</span>
             <span className="text-sm text-foreground font-medium text-right">{formattedDate}</span>
           </div>
 
           <div className="flex items-start justify-between py-3.5">
-            <span className="text-sm text-muted-foreground pt-0.5">Service</span>
+            <span className="text-sm text-foreground pt-0.5">Service</span>
             <div className="text-right flex flex-col items-end gap-1">
-              <span className="text-sm text-foreground font-medium">{category}</span>
-              <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground flex-shrink-0" />
+              <span className="text-sm text-foreground font-medium ">{category}</span>
+              <span className="text-sm text-foreground flex items-center gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-foreground flex-shrink-0" />
                 {caseType}
               </span>
             </div>
           </div>
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-muted-foreground">Concern Type</span>
+            <span className="text-sm text-foreground">Concern Type</span>
             <span className="text-sm text-foreground font-medium">{concernType}</span>
           </div>
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-muted-foreground">Station HQ</span>
+            <span className="text-sm text-foreground">Station HQ</span>
             <span className="text-sm text-foreground font-medium">{stationHQ}</span>
           </div>
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-muted-foreground">Status</span>
-            <span className="text-sm font-semibold text-[#34D35D]">Submitted</span>
+            <span className="text-sm text-foreground">Status</span>
+            <span className="text-sm font-semibold text-[#20A13C]">Submitted</span>
           </div>
 
         </div>

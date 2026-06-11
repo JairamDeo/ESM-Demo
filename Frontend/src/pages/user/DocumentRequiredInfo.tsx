@@ -1,25 +1,23 @@
 import { useLocation, Link } from "react-router-dom";
 import { ChevronLeft, FileText, Folder, AlertCircle } from "lucide-react";
-
-const documentRequirementsMap: Record<string, string[]> = {
-  "Update DOB": [
-    "Self-attested copy of either PAN Card/ Matriculation Certificate Passport/ECHS Card/ Driving License Election ID Card/ Aadhaar Card *",
-    "Declaration on non-judicial stamp paper regarding correct date of birth. Format attached. *",
-    "In case of children, certificated of birth from the registrar/Municipal authority local panchayat/ head of recognised school if he/she is studying in such a school Board of Education Format at Appendix C *"
-  ],
-};
-
-const defaultDocuments = [
-  "Self-attested copy of relevant official identification document (Aadhaar, PAN, Passport, etc.) *",
-  "Any supporting documents specific to the grievance (e.g., discharge book, PPO, medical records). *",
-  "A formal application or declaration explaining the grievance in detail. *"
-];
+import { useRequiredDocumentsForCaseType } from "@/hooks/useApi";
 
 export default function DocumentRequiredInfo() {
   const location = useLocation();
   const caseType = location.state?.caseType || "General Grievance";
   const description = location.state?.description || "Please prepare the following documents before proceeding.";
-  const documents = documentRequirementsMap[caseType] || defaultDocuments;
+  
+  const { data: requiredDocsData, isLoading } = useRequiredDocumentsForCaseType({ name: caseType });
+  
+  const documents = requiredDocsData?.documents || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="px-3 space-y-4 pb-6">
@@ -50,21 +48,25 @@ export default function DocumentRequiredInfo() {
           <h3 className="text-base font-semibold text-foreground">Documents Required</h3>
         </div>
         <div className="space-y-4">
-          {documents.map((doc, index) => (
-            <div key={index} className="flex gap-3 items-start">
-              <div className="w-7 h-7 rounded-full dark:bg-[#1A1A1A] dark:text-[#FFFFFF] bg-[#F1F1F1] text-[#000000] text-xs font-medium flex items-center justify-center flex-shrink-0 mt-0.5">
-                {String.fromCharCode(65 + index)}
+          {documents.length > 0 ? (
+            documents.map((doc, index) => (
+              <div key={index} className="flex gap-3 items-start">
+                <div className="w-7 h-7 rounded-full dark:bg-[#1A1A1A] dark:text-[#FFFFFF] bg-[#F1F1F1] text-[#000000] text-xs font-medium flex items-center justify-center flex-shrink-0">
+                  {String.fromCharCode(65 + index)}
+                </div>
+                <p className="text-sm text-foreground leading-relaxed">
+                  {doc.text}
+                  {doc.isMandatory && <span className="text-destructive font-bold ml-1">*</span>}
+                </p>
               </div>
-              <p className="text-sm text-foreground leading-relaxed">
-                {doc.split('*').map((part, i, arr) => (
-                  <span key={i}>
-                    {part}
-                    {i < arr.length - 1 && <span className="text-destructive font-bold">*</span>}
-                  </span>
-                ))}
-              </p>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-6 text-center opacity-80">
+              <Folder className="w-10 h-10 text-muted-foreground/30 mb-2" />
+              <p className="text-sm font-medium text-foreground">No documents required at this moment.</p>
+              <p className="text-xs text-muted-foreground mt-1">You can proceed to the next step.</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
 

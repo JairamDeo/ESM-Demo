@@ -1,23 +1,9 @@
 import { useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, UploadCloud, FileText, CheckCircle2, Download, X } from "lucide-react";
-import { useCreateGrievance } from "@/hooks/useApi";
+import { ChevronLeft, UploadCloud, FileText, CheckCircle2, Download, X, Folder } from "lucide-react";
+import { useCreateGrievance, useRequiredDocumentsForCaseType } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-const documentRequirementsMap: Record<string, string[]> = {
-  "Update DOB": [
-    "Self-attested copy of either PAN Card/ Matriculation Certificate Passport/ECHS Card/ Driving License Election ID Card/ Aadhaar Card *",
-    "Declaration on non-judicial stamp paper regarding correct date of birth. Format attached. *",
-    "In case of children, certificated of birth from the registrar/Municipal authority local panchayat/ head of recognised school if he/she is studying in such a school Board of Education Format at Appendix C *"
-  ],
-};
-
-const defaultDocuments = [
-  "Self-attested copy of relevant official identification document (Aadhaar, PAN, Passport, etc.) *",
-  "Any supporting documents specific to the grievance (e.g., discharge book, PPO, medical records). *",
-  "A formal application or declaration explaining the grievance in detail. *"
-];
 
 export default function DocumentCheckList() {
   const location = useLocation();
@@ -28,7 +14,9 @@ export default function DocumentCheckList() {
   const formState = location.state?.form || {};
   const isFromQR = location.state?.isFromQR || false;
   const caseType = formState.caseType || "General Grievance";
-  const documents = documentRequirementsMap[caseType] || defaultDocuments;
+
+  const { data: requiredDocsData, isLoading } = useRequiredDocumentsForCaseType({ name: caseType });
+  const documents = requiredDocsData?.documents || [];
 
   const [filesByReq, setFilesByReq] = useState<Record<number, File[]>>({});
 
@@ -58,9 +46,17 @@ export default function DocumentCheckList() {
   const handleContinue = () => {
     // Navigate to Review and Submit page with all data
     navigate("/user/review-submit", { 
-      state: { form: formState, filesByReq, isFromQR } 
+      state: { form: formState, filesByReq, isFromQR, documents } 
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="px-3 space-y-4 pb-6">
@@ -80,7 +76,7 @@ export default function DocumentCheckList() {
       </div>
 
       {/* Document cards */}
-      {documents.map((doc, index) => {
+      {documents.length > 0 ? documents.map((doc, index) => {
         const uploadedFiles = filesByReq[index] || [];
 
         return (
@@ -88,16 +84,12 @@ export default function DocumentCheckList() {
 
             {/* Requirement text */}
             <div className="flex gap-3 items-start">
-              <div className="w-7 h-7 rounded-full dark:bg-[#1A1A1A] dark:text-white bg-[#F1F1F1] text-black text-xs font-medium flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-7 h-7 rounded-full dark:bg-[#1A1A1A] dark:text-white bg-[#F1F1F1] text-black text-xs font-medium flex items-center justify-center flex-shrink-0 ">
                 {String.fromCharCode(65 + index)}
               </div>
               <p className="text-sm text-foreground leading-relaxed">
-                {doc.split('*').map((part, i, arr) => (
-                  <span key={i}>
-                    {part}
-                    {i < arr.length - 1 && <span className="text-destructive font-bold">*</span>}
-                  </span>
-                ))}
+                {doc.text}
+                {doc.isMandatory && <span className="text-destructive font-bold ml-1">*</span>}
               </p>
             </div>
 
@@ -133,15 +125,17 @@ export default function DocumentCheckList() {
               </div>
             )}
 
-            {/* Download format — only for Appendix C */}
-            {doc.includes("Appendix C") && (
-              <button className="w-full flex items-center justify-between dark:bg-secondary bg-[#E2EBFF] border border-border rounded-xl px-4 py-3 hover:border-[#6b98f2] dark:hover:border-[#aa9a4b] transition-colors  ">
+            {/* Download format — only if templateUrl exists */}
+            {doc.templateUrl && (
+              <a href={doc.templateUrl} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-between dark:bg-secondary bg-[#E2EBFF] border border-border rounded-md px-4 py-3 hover:border-[#6b98f2] dark:hover:border-[#aa9a4b] transition-colors">
                 <div className="flex items-center gap-3">
                   <img src="/icons/file.svg" className="w-5 h-5 invert dark:invert-0 " />
-                  <span className="text-sm font-medium text-foreground">Download Format for Appendix C</span>
+                  <span className="text-sm font-medium text-foreground">
+                    Download Format {doc.templateFileName ? `(${doc.templateFileName})` : ""}
+                  </span>
                 </div>
                 <Download className="w-4 h-4 text-[#F0C902] invert dark:invert-0" />
-              </button>
+              </a>
             )}
 
             {/* Upload box — horizontal layout */}
@@ -170,7 +164,13 @@ export default function DocumentCheckList() {
 
           </div>
         );
-      })}
+      }) : (
+        <div className="bg-card border border-border rounded-xl p-6 flex flex-col items-center justify-center text-center opacity-80">
+          <Folder className="w-12 h-12 text-muted-foreground/30 mb-3" />
+          <p className="text-sm font-medium text-foreground">No documents to upload.</p>
+          <p className="text-xs text-muted-foreground mt-1">You can skip this step and proceed to review.</p>
+        </div>
+      )}
 
       {/* CTA */}
       <div className="mt-6">

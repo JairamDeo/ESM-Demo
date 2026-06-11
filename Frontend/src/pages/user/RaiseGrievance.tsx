@@ -139,7 +139,7 @@ export default memo(function RaiseGrievance() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
+          <Link to="/user/services" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
             <ChevronLeft className="w-5 h-5 text-foreground" />
           </Link>
           <h1 className="text-lg font-semibold text-foreground">Raise Grievance</h1>

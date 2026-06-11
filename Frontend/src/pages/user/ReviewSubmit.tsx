@@ -1,22 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, Info, FileText, UploadCloud } from "lucide-react";
+import { ChevronLeft, FileText, Folder } from "lucide-react";
 import { useCreateGrievance } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-
-const documentRequirementsMap: Record<string, string[]> = {
-  "Update DOB": [
-    "Self-attested copy of either PAN Card/ Matriculation Certificate Password/ECHS Card/ Driving License Election ID Card/ Aadhaar Card *",
-    "Declaration on non-judicial ding correct date starmp paper regarding correct of birth. Format attached. *",
-    "In case of children, certificated of birth from the registrar/Municipal authority local panchayat/ head of recognised school if he/she is studying in such a school Board of Education Format at Appendix C *"
-  ],
-};
-
-const defaultDocuments = [
-  "Self-attested copy of relevant official identification document (Aadhaar, PAN, Passport, etc.) *",
-  "Any supporting documents specific to the grievance (e.g., discharge book, PPO, medical records). *",
-  "A formal application or declaration explaining the grievance in detail. *"
-];
 
 export default function ReviewSubmit() {
   const location = useLocation();
@@ -24,9 +9,9 @@ export default function ReviewSubmit() {
   const { user } = useAuth();
   const createGrievance = useCreateGrievance();
 
-  const { form = {}, filesByReq = {}, isFromQR = false } = location.state || {};
+  const { form = {}, filesByReq = {}, isFromQR = false, documents: stateDocuments } = location.state || {};
   const caseType = form.caseType || "General Grievance";
-  const documents = documentRequirementsMap[caseType] || defaultDocuments;
+  const documents = stateDocuments || [];
 
   const handleSubmit = async () => {
     try {
@@ -49,7 +34,7 @@ export default function ReviewSubmit() {
         state: {
           grievanceId: result?.grievanceId || "N/A",
           caseType: caseType,
-          category: "Identity & Personal", // Placeholder or dynamically mapped
+          category: "Identity & Personal",
           concernType: form.concernType,
           stationHQ: form.stationHQ,
           date: new Date().toISOString()
@@ -78,7 +63,7 @@ export default function ReviewSubmit() {
       </div>
 
       {/* Info Banner */}
-      <div className="border border-[#826CF3]/40 rounded-xl p-3.5 flex items-start gap-3">
+      <div className="bg-[#826CF3]/10 border border-[#826CF3]/40 rounded-xl p-3.5 flex items-start gap-3">
         <div className=" flex items-center justify-center flex-shrink-0 mt-2.5">
           <img src="/icons/info.svg" className="w-5 h-5" />
         </div>
@@ -137,8 +122,8 @@ export default function ReviewSubmit() {
           ))}
           {/* Description */}
           <div className="pt-3">
-            <span className="text-sm font-normal text-foreground block mb-2">Description</span>
-            <p className="text-sm text-foreground leading-relaxed px-1">
+            <span className="text-sm font-medium text-foreground block mb-2">Description</span>
+            <p className="text-sm text-foreground leading-relaxed px-1 break-words overflow-hidden">
               {form.description || "—"}
             </p>
           </div>
@@ -149,7 +134,7 @@ export default function ReviewSubmit() {
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-foreground">Documents summary</h2>
         <div className="bg-card border border-border rounded-xl p-4 space-y-5">
-          {documents.map((doc, index) => {
+          {documents.length > 0 ? documents.map((doc, index) => {
             const uploadedFiles = (filesByReq as Record<number, File[]>)[index] || [];
             return (
               <div key={index} className={`space-y-3 ${index !== documents.length - 1 ? "pb-5 border-b border-border" : ""}`}>
@@ -160,13 +145,9 @@ export default function ReviewSubmit() {
 
                     {String.fromCharCode(65 + index)}
                   </div>
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {doc.split('*').map((part, i, arr) => (
-                      <span key={i}>
-                        {part}
-                        {i < arr.length - 1 && <span className="text-destructive font-bold">*</span>}
-                      </span>
-                    ))}
+                  <p className="text-[14px] dark:text-white/90 font-medium leading-relaxed pr-2">
+                    {doc.text}
+                    {doc.isMandatory && <span className="text-red-500 font-bold ml-1">*</span>}
                   </p>
                 </div>
 
@@ -188,13 +169,13 @@ export default function ReviewSubmit() {
                             <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
                           </div>
                         </div>
-                        <button className="bg-[#0A58CA] text-white text-xs font-medium px-4 py-1.5 rounded-lg hover:opacity-90 transition-colors flex-shrink-0">
+                        <button className="bg-[#0051AE] text-white text-xs font-medium px-4 py-1.5 rounded-sm hover:opacity-90 transition-colors flex-shrink-0">
                           View
                         </button>
                       </div>
                     ))}
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
-                      <img src="/icons/upload.svg" className="w-4 h-4" />
+                      <img src="/icons/upload.svg" className="w-4 h-4 " />
                       {uploadedFiles.length} file{uploadedFiles.length > 1 ? "s" : ""} uploaded
                     </div>
                   </div>
@@ -207,7 +188,12 @@ export default function ReviewSubmit() {
 
               </div>
             );
-          })}
+          }) : (
+            <div className="flex flex-col items-center justify-center py-4 opacity-80">
+              <Folder className="w-10 h-10 text-muted-foreground/30 mb-2" />
+              <p className="text-sm font-medium text-foreground">No documents required.</p>
+            </div>
+          )}
         </div>
       </div>
 
