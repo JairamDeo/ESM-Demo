@@ -8,12 +8,13 @@ import authRoutes from "./routes/auth";
 import grievanceRoutes from "./routes/grievances";
 import {
   stationRouter, qrRouter, officerRouter,
-  caseTypeRouter, escalationRouter, reportsRouter,
+  caseTypeRouter, caseTypeDocumentsRouter, escalationRouter, reportsRouter,
   notificationRouter, userRouter, statesRouter, hqRouter, categoryRouter,
   announcementRouter
 } from "./routes/index";
 
 import { rbacRouter } from "./routes/rbac";
+import { veteranDocumentsRouter } from "./routes/veteranDocuments";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 
 const app: Application = express();
@@ -92,6 +93,7 @@ app.use("/api/stations",      stationRouter);
 app.use("/api/qr-codes",      qrRouter);
 app.use("/api/officers",      officerRouter);
 app.use("/api/case-types",    caseTypeRouter);
+app.use("/api/case-type-documents", caseTypeDocumentsRouter);
 app.use("/api/escalations",   escalationRouter);
 app.use("/api/reports",       reportsRouter);
 app.use("/api/notifications", notificationRouter);
@@ -99,6 +101,7 @@ app.use("/api/users",         userRouter);
 app.use("/api/categories",    categoryRouter);
 app.use("/api/announcements", announcementRouter);
 app.use("/api/rbac",          rbacRouter);
+app.use("/api/veteran/required-documents", veteranDocumentsRouter);
 
 // ─── 404 + Error handler ──────────────────────────────────────────────────────
 app.use(notFound);
