@@ -189,8 +189,8 @@ export default function Services() {
               {cat.items.map((item) => (
                 <Link
                   key={item.id}
-                  to="/user/raise-grievance"
-                  state={{ caseType: item.label }}
+                  to="/user/document-required"
+                  state={{ caseType: item.label, description: item.description }}
                   className="flex items-center justify-between bg-[#F1F1F1] dark:bg-secondary/40 border border-border rounded-xl px-4 py-3 hover:border-primary/40 transition-all group"
                 >
                   <div className="flex-1 min-w-0 pr-3">

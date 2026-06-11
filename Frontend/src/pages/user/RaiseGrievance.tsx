@@ -85,10 +85,8 @@ export default memo(function RaiseGrievance() {
     rank:        "",
   });
 
-  const [attachments, setAttachments] = useState<File[]>([]);
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [servicesOpen, setServicesOpen] = useState(true);
-  const createGrievance = useCreateGrievance();
 
   // ── Sync openCategory when caseTypesList loads ────────────────────────────
   useEffect(() => {
@@ -126,53 +124,14 @@ export default memo(function RaiseGrievance() {
     }).filter((c) => c.items.length > 0);
   }, [caseTypesList]);
 
-  // ── File handling ─────────────────────────────────────────────────────────
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const validFiles = files.filter((file) => {
-      const isValidType = ["image/jpeg", "image/png", "image/jpg", "application/pdf"].includes(file.type);
-      const isValidSize = file.size <= 5 * 1024 * 1024;
-      if (!isValidType) toast.error(`${file.name} — only JPG, PNG, PDF allowed`);
-      if (!isValidSize) toast.error(`${file.name} — file must be under 5MB`);
-      return isValidType && isValidSize;
-    });
-    setAttachments((prev) => [...prev, ...validFiles].slice(0, 3));
-    e.target.value = "";
-  }, []);
-
-  const removeAttachment = useCallback((index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
   // ── Submit ────────────────────────────────────────────────────────────────
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     if (!form.concernType || !form.caseType || !form.stationHQ) {
       toast.error("Please fill all required fields");
       return;
     }
-    try {
-      const formData = new FormData();
-      formData.append("type", form.caseType);
-      const veteranName = user?.name?.trim() || "";
-      if (veteranName) formData.append("veteranName", veteranName);
-      if (user?.phone) formData.append("veteranPhone", user.phone);
-      if (form.rank) formData.append("veteranRank", form.rank);
-      if (form.armyNumber) formData.append("veteranArmyNo", form.armyNumber);
-      formData.append("stationName", form.stationHQ);
-      if (form.description) formData.append("description", form.description);
-      formData.append("submissionSource", isFromQR ? "qr_code" : "portal");
-      formData.append("priority", "medium");
-      attachments.forEach((file) => formData.append("attachments", file));
-
-      const result = await createGrievance.mutateAsync(formData);
-      toast.success("Grievance submitted successfully!", {
-        description: `Complaint ID: ${result?.grievanceId || "Generated"}`,
-      });
-      navigate("/user/complaints");
-    } catch {
-      // error handled by hook
-    }
-  }, [form, user, createGrievance, navigate, isFromQR, attachments]);
+    navigate("/user/document-checklist", { state: { form, isFromQR } });
+  }, [form, navigate, isFromQR]);
 
   return (
     <div className="bg-background min-h-full">
@@ -334,70 +293,13 @@ export default memo(function RaiseGrievance() {
           />
         </div>
 
-        {/* Attachments */}
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">
-            Attachments{" "}
-            <span className="text-muted-foreground text-xs font-normal">
-              (optional · max 3 · JPG, PNG, PDF · 5MB)
-            </span>
-          </label>
-          <label className="flex items-center gap-2 w-full bg-secondary border border-dashed border-border rounded-xl px-4 py-3 cursor-pointer hover:border-primary/50 transition-colors">
-            <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-sm text-muted-foreground">
-              {attachments.length > 0
-                ? `${attachments.length} file(s) — tap to add more`
-                : "Tap to attach documents"}
-            </span>
-            <input
-              type="file"
-              multiple
-              accept=".jpg,.jpeg,.png,.pdf"
-              onChange={handleFileChange}
-              className="hidden"
-              disabled={attachments.length >= 3}
-            />
-          </label>
-          {attachments.length > 0 && (
-            <div className="space-y-2">
-              {attachments.map((file, i) => (
-                <div key={i} className="flex items-center justify-between bg-secondary border border-border rounded-xl px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {file.type === "application/pdf"
-                      ? <FileText className="w-4 h-4 text-primary shrink-0" />
-                      : <Image className="w-4 h-4 text-primary shrink-0" />
-                    }
-                    <div className="min-w-0">
-                      <p className="text-xs text-foreground truncate">{file.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => removeAttachment(i)}
-                    className="p-1 rounded-full hover:bg-border text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Submit */}
         <button
           onClick={handleSubmit}
-          disabled={createGrievance.isPending || !form.concernType || !form.caseType || !form.stationHQ}
+          disabled={!form.concernType || !form.caseType || !form.stationHQ}
           className="w-full bg-[#826CF3] text-white font-bold text-sm py-4 rounded-xl shadow-[0_4px_16px_rgba(130,108,243,0.35)] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {createGrievance.isPending ? (
-            <>
-              <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              Submitting...
-            </>
-          ) : (
-            "Continue"
-          )}
+          Continue
         </button>
 
       </div>
