@@ -31,11 +31,13 @@ const Services       = lazy(() => import("@/pages/user/Services"));
 const DocumentRequiredInfo = lazy(() => import("@/pages/user/DocumentRequiredInfo"));
 const RaiseGrievance = lazy(() => import("@/pages/user/RaiseGrievance"));
 const DocumentCheckList = lazy(() => import("@/pages/user/DocumentCheckList"));
+const ReviewSubmit   = lazy(() => import("@/pages/user/ReviewSubmit"));
 const MyComplaints   = lazy(() => import("@/pages/user/MyComplaints"));
 const TrackCase      = lazy(() => import("@/pages/user/TrackCase"));
 const UserProfile    = lazy(() => import("@/pages/user/UserProfile"));
 const Notifications  = lazy(() => import("@/pages/user/Notifications"));
 const UserSettings   = lazy(() => import("@/pages/user/UserSettings"));
+const Success        = lazy(() => import("@/pages/user/Success"));
 
  export const queryClient = new QueryClient({
   defaultOptions: {
@@ -99,11 +101,13 @@ const UserRoutes = memo(() => {
         <Route path="/document-required" element={<S><DocumentRequiredInfo /></S>} />
         <Route path="/raise-grievance" element={<S><RaiseGrievance /></S>} />
         <Route path="/document-checklist" element={<S><DocumentCheckList /></S>} />
+        <Route path="/review-submit" element={<S><ReviewSubmit /></S>} />
         <Route path="/complaints"      element={<S><MyComplaints /></S>} />
         <Route path="/track-case"      element={<S><TrackCase /></S>} />
         <Route path="/profile"         element={<S><UserProfile /></S>} />
         <Route path="/notifications"   element={<S><Notifications /></S>} />
         <Route path="/settings"        element={<S><UserSettings /></S>} />
+        <Route path="/success"         element={<S><Success /></S>} />
       </Routes>
     </UserLayout></S>
   );

@@ -55,30 +55,11 @@ export default function DocumentCheckList() {
     }));
   }, []);
 
-  const handleSubmit = async () => {
-    try {
-      const formData = new FormData();
-      formData.append("type", formState.caseType);
-      const veteranName = user?.name?.trim() || "";
-      if (veteranName) formData.append("veteranName", veteranName);
-      if (user?.phone) formData.append("veteranPhone", user.phone);
-      if (formState.rank) formData.append("veteranRank", formState.rank);
-      if (formState.armyNumber) formData.append("veteranArmyNo", formState.armyNumber);
-      formData.append("stationName", formState.stationHQ);
-      if (formState.description) formData.append("description", formState.description);
-      formData.append("submissionSource", isFromQR ? "qr_code" : "portal");
-      formData.append("priority", "medium");
-      Object.values(filesByReq).forEach((files) =>
-        files.forEach((file) => formData.append("attachments", file))
-      );
-      const result = await createGrievance.mutateAsync(formData);
-      toast.success("Grievance submitted successfully!", {
-        description: `Complaint ID: ${result?.grievanceId || "Generated"}`,
-      });
-      navigate("/user/complaints");
-    } catch {
-      // error handled by hook
-    }
+  const handleContinue = () => {
+    // Navigate to Review and Submit page with all data
+    navigate("/user/review-submit", { 
+      state: { form: formState, filesByReq, isFromQR } 
+    });
   };
 
   return (
@@ -154,17 +135,17 @@ export default function DocumentCheckList() {
 
             {/* Download format — only for Appendix C */}
             {doc.includes("Appendix C") && (
-              <button className="w-full flex items-center justify-between dark:bg-secondary bg-[#E2EBFF] border border-border rounded-xl px-4 py-3 hover:border-amber-400/40 transition-colors  ">
+              <button className="w-full flex items-center justify-between dark:bg-secondary bg-[#E2EBFF] border border-border rounded-xl px-4 py-3 hover:border-[#6b98f2] dark:hover:border-[#aa9a4b] transition-colors  ">
                 <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-amber-500" />
+                  <img src="/icons/file.svg" className="w-5 h-5 invert dark:invert-0 " />
                   <span className="text-sm font-medium text-foreground">Download Format for Appendix C</span>
                 </div>
-                <Download className="w-4 h-4 text-[#F0C902]" />
+                <Download className="w-4 h-4 text-[#F0C902] invert dark:invert-0" />
               </button>
             )}
 
             {/* Upload box — horizontal layout */}
-            <label className="flex items-center gap-4 w-full border-2 border-dashed border-[#2952A3] rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/5 transition-colors">
+            <label className="flex items-center justify-center gap-4 w-full border-2 border-dashed border-[#2952A3] rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/5 transition-colors">
               <UploadCloud className="w-8 h-8 text-[#4F81FF] flex-shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-foreground">Upload Document</p>
@@ -192,17 +173,14 @@ export default function DocumentCheckList() {
       })}
 
       {/* CTA */}
+      <div className="mt-6">
       <button
-        onClick={handleSubmit}
-        disabled={createGrievance.isPending}
-        className="w-full flex items-center justify-center bg-[#826CF3] text-white font-bold py-4 rounded-xl hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(130,108,243,0.35)] disabled:opacity-50"
+        onClick={handleContinue}
+        className="w-full flex items-center justify-center bg-[#826CF3] text-white font-bold py-4 mt-4  rounded-xl hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(130,108,243,0.35)] disabled:opacity-50"
       >
-        {createGrievance.isPending ? (
-          <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-        ) : (
-          "Continue"
-        )}
+        Continue
       </button>
+      </div>
 
     </div>
   );
