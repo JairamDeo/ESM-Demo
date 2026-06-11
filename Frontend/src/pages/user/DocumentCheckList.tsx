@@ -97,22 +97,22 @@ export default function DocumentCheckList() {
             {uploadedFiles.length > 0 && (
               <div className="space-y-2">
                 {uploadedFiles.map((file, fIndex) => (
-                  <div key={fIndex} className="flex items-center justify-between bg-secondary border border-border rounded-xl p-3">
+                  <div key={fIndex} className="flex items-center justify-between bg-secondary/30 border border-border rounded-xl p-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 bg-white dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center shrink-0 border border-border">
+                      {/* <div className="w-10 h-10 bg-white dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center shrink-0 border border-border"> */}
                         {file.type === "application/pdf" ? (
-                          <span className="text-red-500 font-bold text-[10px]">PDF</span>
+                          <img src="/icons/pdf2.svg" className="w-7 h-7 "/>
                         ) : (
-                          <FileText className="w-5 h-5 text-muted-foreground" />
+                          <img src="/icons/file.svg" className="w-6 h-6 invert dark:invert-0" />
                         )}
-                      </div>
+                      {/* </div> */}
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
                         <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      <img src="/icons/check.svg" className="w-5 h-5" />
                       <button
                         onClick={() => removeFile(index, fIndex)}
                         className="p-1 rounded-full hover:bg-border text-muted-foreground hover:text-foreground transition-colors"
