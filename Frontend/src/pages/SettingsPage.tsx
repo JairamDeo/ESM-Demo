@@ -39,6 +39,13 @@ const PERMISSION_GROUPS: { label: string; perms: Array<{ key: keyof Permission; 
     ],
   },
   {
+    label: "Required Documents",
+    perms: [
+      { key: "viewRequiredDocuments",   label: "View required document checklists" },
+      { key: "manageRequiredDocuments", label: "Add / edit document checklists"    },
+    ],
+  },
+  {
     label: "Station HQs",
     perms: [
       { key: "viewStations",   label: "View station HQs"                          },

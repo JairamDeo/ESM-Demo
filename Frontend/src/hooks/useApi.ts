@@ -463,6 +463,116 @@ export const useDeleteCaseType = () => {
   });
 };
 
+// ─── Case Type Required Documents ─────────────────────────────────────────────
+export const useCaseTypeDocumentsList = () =>
+  useQuery({
+    queryKey: ["case-type-documents"],
+    queryFn: async () => {
+      const { data } = await api.get("/case-type-documents");
+      return data.data;
+    },
+    staleTime: 60_000,
+  });
+
+export const useRequiredDocumentsForCaseType = (params: {
+  caseTypeId?: string;
+  slug?: string;
+  name?: string;
+  enabled?: boolean;
+}) =>
+  useQuery({
+    queryKey: ["case-type-documents", "lookup", params],
+    queryFn: async () => {
+      const { data } = await api.get("/case-type-documents/for-case-type", { params });
+      return data.data;
+    },
+    enabled: !!(params.enabled !== false && (params.caseTypeId || params.slug || params.name)),
+    staleTime: 60_000,
+  });
+
+export const useUpsertCaseTypeDocuments = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      caseTypeId,
+      ...body
+    }: {
+      caseTypeId: string;
+      documents: Array<{
+        label: string;
+        text: string;
+        isMandatory: boolean;
+        sortOrder: number;
+        templateUrl?: string;
+        templateFileName?: string;
+      }>;
+      questions?: string[];
+      guidelines?: string[];
+      note?: string;
+      acceptedFormats?: string;
+      maxFileSizeMb?: number;
+      isActive?: boolean;
+    }) => {
+      const { data } = await api.put(`/case-type-documents/${caseTypeId}`, body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["case-type-documents"] });
+      toast.success("Required documents saved");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to save required documents");
+    },
+  });
+};
+
+export const useUploadDocumentTemplate = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      caseTypeId,
+      itemIndex,
+      file,
+    }: {
+      caseTypeId: string;
+      itemIndex: number;
+      file: File;
+    }) => {
+      const formData = new FormData();
+      formData.append("template", file);
+      formData.append("itemIndex", String(itemIndex));
+      const { data } = await api.post(`/case-type-documents/${caseTypeId}/templates`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["case-type-documents"] });
+      toast.success("Template uploaded");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to upload template");
+    },
+  });
+};
+
+export const useRemoveDocumentTemplate = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ caseTypeId, itemIndex }: { caseTypeId: string; itemIndex: number }) => {
+      const { data } = await api.delete(`/case-type-documents/${caseTypeId}/templates/${itemIndex}`);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["case-type-documents"] });
+      toast.success("Template removed");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to remove template");
+    },
+  });
+};
+
 // ─── Escalations ──────────────────────────────────────────────────────────────
 export interface EscalationParams { status?: string; station?: string; search?: string; page?: number; }
 

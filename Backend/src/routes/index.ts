@@ -28,6 +28,15 @@ import {
   getAnnouncements, createAnnouncement
 } from "../controllers/announcementController";
 import { protect, adminOnly, restrictTo } from "../middleware/auth";
+import { requirePermission } from "../middleware/requirePermission";
+import upload from "../middleware/upload";
+import {
+  listCaseTypeDocuments,
+  getRequiredDocumentsForCaseType,
+  upsertCaseTypeDocuments,
+  uploadDocumentTemplate,
+  removeDocumentTemplate,
+} from "../controllers/caseTypeDocumentsController";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATES MASTER
@@ -94,6 +103,38 @@ caseTypeRouter.post("/",   protect, restrictTo("super_admin", "area"), createCas
 caseTypeRouter.get("/:id", protect, adminOnly, getCaseTypeById);
 caseTypeRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCaseType);
 caseTypeRouter.delete("/:id", protect, restrictTo("super_admin", "area"), deleteCaseType);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CASE TYPE REQUIRED DOCUMENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+export const caseTypeDocumentsRouter = Router();
+
+caseTypeDocumentsRouter.get(
+  "/",
+  protect,
+  requirePermission("viewRequiredDocuments"),
+  listCaseTypeDocuments
+);
+caseTypeDocumentsRouter.get("/for-case-type", protect, getRequiredDocumentsForCaseType);
+caseTypeDocumentsRouter.put(
+  "/:caseTypeId",
+  protect,
+  requirePermission("manageRequiredDocuments"),
+  upsertCaseTypeDocuments
+);
+caseTypeDocumentsRouter.post(
+  "/:caseTypeId/templates",
+  protect,
+  requirePermission("manageRequiredDocuments"),
+  upload.single("template"),
+  uploadDocumentTemplate
+);
+caseTypeDocumentsRouter.delete(
+  "/:caseTypeId/templates/:itemIndex",
+  protect,
+  requirePermission("manageRequiredDocuments"),
+  removeDocumentTemplate
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ESCALATIONS
