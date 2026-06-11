@@ -1,15 +1,13 @@
 import { useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, UploadCloud, FileText, CheckCircle2, Download, X, Folder } from "lucide-react";
-import { useCreateGrievance, useRequiredDocumentsForCaseType } from "@/hooks/useApi";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRequiredDocumentsForCaseType } from "@/hooks/useApi";
+import { resolveUploadUrl } from "@/lib/apiBase";
 import { toast } from "sonner";
 
 export default function DocumentCheckList() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const createGrievance = useCreateGrievance();
 
   const formState = location.state?.form || {};
   const isFromQR = location.state?.isFromQR || false;
@@ -127,7 +125,13 @@ export default function DocumentCheckList() {
 
             {/* Download format — only if templateUrl exists */}
             {doc.templateUrl && (
-              <a href={doc.templateUrl} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-between dark:bg-secondary bg-[#E2EBFF] border border-border rounded-md px-4 py-3 hover:border-[#6b98f2] dark:hover:border-[#aa9a4b] transition-colors">
+              <a
+                href={resolveUploadUrl(doc.templateUrl) ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={doc.templateFileName || undefined}
+                className="w-full flex items-center justify-between dark:bg-secondary bg-[#E2EBFF] border border-border rounded-md px-4 py-3 hover:border-[#6b98f2] dark:hover:border-[#aa9a4b] transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <img src="/icons/file.svg" className="w-5 h-5 invert dark:invert-0 " />
                   <span className="text-sm font-medium text-foreground">

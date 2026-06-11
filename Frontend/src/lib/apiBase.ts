@@ -27,3 +27,14 @@ export function getApiBaseUrl(): string {
 
   return base;
 }
+
+/** Backend origin for static files (e.g. /uploads/... annexure PDFs). */
+export function getUploadBaseUrl(): string {
+  return getApiBaseUrl().replace(/\/api$/, "");
+}
+
+export function resolveUploadUrl(path?: string | null): string | null {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${getUploadBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+}
