@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Clock, FileText, ChevronLeft } from "lucide-react";
+import { CheckCircle2, Clock, FileText, ChevronLeft } from "lucide-react";
+import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
 
 const STEP_LABELS: Record<string,string> = { pending:"Submitted", "in-progress":"Under Review", escalated:"Escalated", resolved:"Resolved", closed:"Closed" };
 
@@ -14,8 +15,8 @@ export default memo(function TrackCase() {
     { status:"resolved", note:"Case will be closed after resolution", updatedBy:"—", updatedAt:"—", done: complaint.status === "resolved" || complaint.status === "closed" },
   ];
 
-  const progressPct = complaint.progress ?? (complaint.status === "resolved" ? 100 : complaint.status === "in-progress" ? 60 : complaint.status === "escalated" ? 55 : 20);
-  const circumference = 289;
+  const progressPct =
+    complaint.progress ?? grievanceProgressMap[complaint.status] ?? 10;
 
   return (
     <div className="px-4 space-y-5 animate-fade-in pb-6">
@@ -105,23 +106,11 @@ export default memo(function TrackCase() {
 
           {/* Circle — right side */}
           <div className="flex flex-col items-center justify-center shrink-0">
-            <div className="relative w-24 h-24">
-              <svg className="w-24 h-24 -rotate-90" viewBox="0 0 112 112">
-                <circle cx="56" cy="56" r="46" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
-                <circle
-                  cx="56" cy="56" r="46"
-                  fill="none"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(progressPct / 100) * circumference} ${circumference}`}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-bold text-primary">{progressPct}%</span>
-                <span className="text-[10px] text-muted-foreground">Complete</span>
-              </div>
-            </div>
+            <AnimatedCircularProgress
+              progress={progressPct}
+              size="lg"
+              subtitle="Complete"
+            />
           </div>
 
         </div>
