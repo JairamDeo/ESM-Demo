@@ -1,18 +1,10 @@
-import { memo, useMemo, useState, useEffect, useRef, useId } from "react";
+import { memo, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useMyGrievances } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
-
-const progressMap: Record<string, number> = {
-  pending: 10,
-  "in-progress": 80,
-  escalated: 55,
-  resolved: 100,
-};
-
-const CIRCUMFERENCE = 2 * Math.PI * 28;
+import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
 
 const statusStyles: Record<string, string> = {
   resolved:      "bg-[#22C55E] text-[#FFFFFF]",
@@ -26,71 +18,6 @@ const statusLabel: Record<string, string> = {
   "in-progress":"In Progress",
   escalated:    "Escalated",
   resolved:     "Resolved",
-};
-
-// ─── Circular Progress (animated fill to target %) ───────────────────────────
-const CircularProgress = ({ progress }: { progress: number }) => {
-  const gradientId = `prog-${useId().replace(/:/g, "")}`;
-  const [value, setValue] = useState(0);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    const target = Math.min(100, Math.max(0, progress));
-    const duration = 1400;
-    const startTime = performance.now();
-
-    const animate = (now: number) => {
-      const t = Math.min((now - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(target * eased);
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    setValue(0);
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [progress]);
-
-  const filled = (value / 100) * CIRCUMFERENCE;
-  const display = Math.round(value);
-
-  return (
-    <div className="relative w-[68px] h-[68px] flex-shrink-0">
-      <svg width="68" height="68" viewBox="0 0 72 72" className="-rotate-90">
-        <circle
-          cx="36"
-          cy="36"
-          r="28"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="6"
-          className="text-border"
-        />
-        <circle
-          cx="36"
-          cy="36"
-          r="28"
-          fill="none"
-          stroke={`url(#${gradientId})`}
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={`${filled} ${CIRCUMFERENCE}`}
-          className="transition-[stroke-dasharray] duration-75 ease-out"
-        />
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#4F8DFF" />
-            <stop offset="100%" stopColor="#826CF3" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold text-foreground tabular-nums">{display}%</span>
-      </div>
-    </div>
-  );
 };
 
 // ─── Recent Complaint Card ────────────────────────────────────────────────────
@@ -153,15 +80,17 @@ const RecentComplaintCard = ({
                 )}
               </div>
             </div>
-            <CircularProgress progress={progress} />
+            <AnimatedCircularProgress progress={progress} />
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-  <span className="text-xs font-medium text-foreground px-4">View Details</span>
-  <Link to="/user/complaints" className="transition-colors text-foreground px-4">
-    <ArrowRight className="w-5 h-5" />
-  </Link>
-</div>
+          <Link
+            to="/user/track-case"
+            state={{ complaint }}
+            className="mt-4 pt-3 border-t border-border flex items-center justify-between hover:bg-secondary/40 -mx-4 px-4 pb-0 transition-colors"
+          >
+            <span className="text-xs font-medium text-foreground">View Details</span>
+            <ArrowRight className="w-5 h-5 text-foreground" />
+          </Link>
         </div>
       ) : (
         <div className="py-8 text-center space-y-1">
@@ -205,7 +134,7 @@ export default memo(function UserHome() {
 
   const recentComplaint = useMemo(() => complaints[0] ?? null, [complaints]);
   const progress = recentComplaint
-    ? (progressMap[recentComplaint.status] ?? 10)
+    ? (grievanceProgressMap[recentComplaint.status] ?? 10)
     : 80;
 
   return (
