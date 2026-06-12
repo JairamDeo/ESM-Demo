@@ -1,8 +1,20 @@
-import { useState, memo, useCallback, useEffect } from "react";
+import { useState, memo, useCallback, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, User, Phone, Shield, MapPin, Mail, Edit2, Save, X } from "lucide-react";
+import {
+  ChevronLeft,
+  User,
+  Phone,
+  Shield,
+  MapPin,
+  Mail,
+  Edit2,
+  Save,
+  X,
+  BadgeCheck,
+  Hash,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUpdateProfile } from "@/hooks/useApi";
+import { useMyGrievances, useUpdateProfile } from "@/hooks/useApi";
 
 interface ProfileForm {
   name: string;
@@ -12,81 +24,311 @@ interface ProfileForm {
   address: string;
 }
 
+function FieldCard({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  label,
+  value,
+  editing,
+  onChange,
+  readOnly,
+  placeholder,
+}: {
+  icon: typeof User;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  value: string;
+  editing: boolean;
+  onChange?: (v: string) => void;
+  readOnly?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <div className="bg-card border border-border rounded-2xl p-4">
+      <div className="flex items-start gap-3">
+        <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+          {editing && onChange && !readOnly ? (
+            <input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              className="mt-1.5 w-full bg-secondary border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-[#826CF3]/50 focus:ring-1 focus:ring-[#826CF3]/20 transition-colors"
+            />
+          ) : (
+            <p className="text-sm font-medium text-foreground mt-1 break-words">
+              {value || <span className="text-muted-foreground font-normal">Not added</span>}
+            </p>
+          )}
+          {readOnly && (
+            <p className="text-[10px] text-muted-foreground mt-1">Cannot be changed</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default memo(function UserProfile() {
   const { user, updateUser } = useAuth();
   const updateProfile = useUpdateProfile();
+  const { data: grievances = [] } = useMyGrievances();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<ProfileForm>({ name: user?.name || "", rank: "", serviceNumber: "", email: user?.email || "", address: "" });
+  const [form, setForm] = useState<ProfileForm>({
+    name: user?.name || "",
+    rank: "",
+    serviceNumber: "",
+    email: user?.email || "",
+    address: "",
+  });
 
-  // Sync form whenever the auth user object changes (e.g. on first load after refresh)
+  const totalComplaints = Array.isArray(grievances) ? grievances.length : 0;
+
   useEffect(() => {
-    setForm((prev) => ({ ...prev, name: user?.name || "", email: user?.email || "" }));
+    setForm((prev) => ({
+      ...prev,
+      name: user?.name || "",
+      email: user?.email || "",
+    }));
   }, [user?.name, user?.email]);
+
+  const displayName = user?.name?.trim() || (user?.phone ? `Veteran` : "Veteran");
+  const initials = (user?.name?.trim() || user?.phone || "V")[0].toUpperCase();
 
   const handleSave = useCallback(async () => {
     await updateProfile.mutateAsync(form);
-    // Persist the updated name/email into AuthContext + localStorage so it survives refresh
     updateUser({ name: form.name, email: form.email });
     setEditing(false);
   }, [form, updateProfile, updateUser]);
 
-  const fields = [
-    { icon: User, label: "Full Name", value: form.name, key: "name" as keyof ProfileForm },
-    { icon: Phone, label: "Phone Number", value: user?.phone || "", key: null as null },
-    { icon: Shield, label: "Rank", value: form.rank, key: "rank" as keyof ProfileForm },
-    { icon: Shield, label: "Service Number", value: form.serviceNumber, key: "serviceNumber" as keyof ProfileForm },
-    { icon: Mail, label: "Email", value: form.email, key: "email" as keyof ProfileForm },
-    { icon: MapPin, label: "Address", value: form.address, key: "address" as keyof ProfileForm },
-  ];
+  const handleCancel = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      name: user?.name || "",
+      email: user?.email || "",
+    }));
+    setEditing(false);
+  }, [user?.name, user?.email]);
+
+  const setField = useCallback((key: keyof ProfileForm, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const profileComplete = useMemo(() => {
+    const filled = [form.name, form.rank, form.serviceNumber, form.email].filter(Boolean).length;
+    return Math.round((filled / 4) * 100);
+  }, [form.name, form.rank, form.serviceNumber, form.email]);
 
   return (
-    <div className="px-4 space-y-5 animate-fade-in pb-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-5">
-          <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"><ChevronLeft className="w-5 h-5 " color="#FFFFFF" /></Link>
-          <h1 className="text-xl font-bold text-foreground">My Profile</h1>
-        </div>
-
-        <button onClick={() => editing ? handleSave() : setEditing(true)} disabled={updateProfile.isPending} className="flex items-center gap-1.5 text-sm text-[#826CF3] font-medium">
-          {editing ? (updateProfile.isPending ? <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> : <><Save className="w-4 h-4"/>Save</>) : <><Edit2 className="w-4 h-4"/>Edit</>}
-        </button>
-      </div>
-
-      {/* Avatar */}
-      <div className="flex flex-col items-center py-4">
-        <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center mb-3">
-          <span className="text-primary text-2xl font-bold">{(user?.name || "V")[0]}</span>
-        </div>
-        <h2 className="font-bold text-foreground">{user?.name || "Veteran"}</h2>
-        <p className="text-sm text-muted-foreground">{user?.phone ? `+91 ${user.phone}` : ""}</p>
-      </div>
-
-      {/* Fields */}
-      <div className="space-y-3">
-        {fields.map(({ icon: Icon, label, value, key }) => (
-          <div key={label} className="bg-card rounded-2xl border border-border p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                <Icon className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                {editing && key ? (
-                  <input value={form[key]} onChange={(e) => setForm({...form, [key]: e.target.value})} className="mt-1 w-full bg-secondary rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 border border-border" />
-                ) : (
-                  <p className="text-sm font-medium text-foreground mt-0.5 truncate">{value || "—"}</p>
-                )}
-              </div>
+    <div className="flex flex-col min-h-full pb-6 animate-fade-in">
+      {/* Header */}
+      <div className="px-4 pt-2 pb-5 bg-gradient-to-b from-[#826CF3]/10 to-transparent">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/user"
+              className="p-1.5 rounded-full hover:bg-secondary/80 text-foreground transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">My Profile</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Manage your personal details</p>
             </div>
           </div>
-        ))}
+          {!editing ? (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#826CF3] bg-[#826CF3]/10 px-3 py-1.5 rounded-full hover:bg-[#826CF3]/15 transition-colors"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              Edit
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="p-2 rounded-full hover:bg-secondary text-muted-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={updateProfile.isPending}
+                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#826CF3] px-3 py-1.5 rounded-full hover:opacity-90 disabled:opacity-50"
+              >
+                {updateProfile.isPending ? (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    Save
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Profile hero */}
+        <div className="relative overflow-hidden rounded-2xl border border-[#826CF3]/25 bg-gradient-to-br from-[#826CF3]/15 via-card to-[#4F81FF]/10 p-5">
+          <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-[#826CF3]/10 blur-2xl pointer-events-none" />
+          <div className="flex flex-col items-center text-center relative">
+            <div className="relative mb-3">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#826CF3] to-[#4F81FF] flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-[#826CF3]/30 ring-4 ring-background">
+                {initials}
+              </div>
+              {user?.phone && (
+                <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
+                  <BadgeCheck className="w-4 h-4 text-white" />
+                </span>
+              )}
+            </div>
+            <h2 className="text-lg font-bold text-foreground">{displayName}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {user?.phone ? `+91 ${user.phone}` : "Phone not linked"}
+            </p>
+
+            <div className="flex items-center gap-4 mt-4 w-full max-w-xs">
+              <div className="flex-1 bg-background/60 backdrop-blur rounded-xl py-2.5 px-3 border border-border/50">
+                <p className="text-lg font-bold text-foreground">{totalComplaints}</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Complaints</p>
+              </div>
+              <div className="flex-1 bg-background/60 backdrop-blur rounded-xl py-2.5 px-3 border border-border/50">
+                <p className="text-lg font-bold text-[#826CF3]">{profileComplete}%</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Profile</p>
+              </div>
+            </div>
+
+            {/* Profile completion bar */}
+            <div className="w-full mt-4">
+              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#4F81FF] to-[#826CF3] transition-all duration-500"
+                  style={{ width: `${profileComplete}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                {profileComplete < 100 ? "Complete your profile for faster grievance processing" : "Profile complete"}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {editing && (
-        <button onClick={() => setEditing(false)} className="w-full py-3 bg-secondary text-foreground rounded-xl text-sm flex items-center justify-center gap-2">
-          <X className="w-4 h-4" /> Cancel
-        </button>
-      )}
+      <div className="px-4 space-y-6">
+        {/* Personal */}
+        <section>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
+            Personal
+          </p>
+          <div className="space-y-2">
+            <FieldCard
+              icon={User}
+              iconBg="bg-[#826CF3]/15"
+              iconColor="text-[#826CF3]"
+              label="Full Name"
+              value={form.name}
+              editing={editing}
+              onChange={(v) => setField("name", v)}
+              placeholder="Enter your full name"
+            />
+            <FieldCard
+              icon={Phone}
+              iconBg="bg-[#4F81FF]/15"
+              iconColor="text-[#4F81FF]"
+              label="Phone Number"
+              value={user?.phone ? `+91 ${user.phone}` : ""}
+              editing={false}
+              readOnly
+            />
+          </div>
+        </section>
+
+        {/* Service */}
+        <section>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
+            Service Details
+          </p>
+          <div className="space-y-2">
+            <FieldCard
+              icon={Shield}
+              iconBg="bg-amber-500/15"
+              iconColor="text-amber-500"
+              label="Rank"
+              value={form.rank}
+              editing={editing}
+              onChange={(v) => setField("rank", v)}
+              placeholder="e.g. Havildar, Naik"
+            />
+            <FieldCard
+              icon={Hash}
+              iconBg="bg-emerald-500/15"
+              iconColor="text-emerald-500"
+              label="Army / Service Number"
+              value={form.serviceNumber}
+              editing={editing}
+              onChange={(v) => setField("serviceNumber", v)}
+              placeholder="Enter service number"
+            />
+          </div>
+        </section>
+
+        {/* Contact */}
+        <section>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
+            Contact
+          </p>
+          <div className="space-y-2">
+            <FieldCard
+              icon={Mail}
+              iconBg="bg-[#4F81FF]/15"
+              iconColor="text-[#4F81FF]"
+              label="Email"
+              value={form.email}
+              editing={editing}
+              onChange={(v) => setField("email", v)}
+              placeholder="your@email.com"
+            />
+            <FieldCard
+              icon={MapPin}
+              iconBg="bg-rose-500/15"
+              iconColor="text-rose-500"
+              label="Address"
+              value={form.address}
+              editing={editing}
+              onChange={(v) => setField("address", v)}
+              placeholder="City, State, PIN"
+            />
+          </div>
+        </section>
+
+        {editing && (
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="w-full py-3.5 bg-secondary border border-border text-foreground rounded-2xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-secondary/80 transition-colors"
+          >
+            <X className="w-4 h-4" />
+            Cancel changes
+          </button>
+        )}
+
+        <Link
+          to="/user/settings"
+          className="block text-center text-xs text-muted-foreground hover:text-[#826CF3] transition-colors py-2"
+        >
+          Account settings →
+        </Link>
+      </div>
     </div>
   );
 });

@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, useEffect, useRef, useId } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Icon } from "@iconify/react";
@@ -28,29 +28,66 @@ const statusLabel: Record<string, string> = {
   resolved:     "Resolved",
 };
 
-// ─── Circular Progress ────────────────────────────────────────────────────────
+// ─── Circular Progress (animated fill to target %) ───────────────────────────
 const CircularProgress = ({ progress }: { progress: number }) => {
-  const filled = (progress / 100) * CIRCUMFERENCE;
+  const gradientId = `prog-${useId().replace(/:/g, "")}`;
+  const [value, setValue] = useState(0);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const target = Math.min(100, Math.max(0, progress));
+    const duration = 1400;
+    const startTime = performance.now();
+
+    const animate = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(target * eased);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    setValue(0);
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [progress]);
+
+  const filled = (value / 100) * CIRCUMFERENCE;
+  const display = Math.round(value);
+
   return (
     <div className="relative w-[68px] h-[68px] flex-shrink-0">
       <svg width="68" height="68" viewBox="0 0 72 72" className="-rotate-90">
-        <circle cx="36" cy="36" r="28" fill="none" stroke="currentColor"
-          strokeWidth="6" className="text-border" />
-        <circle cx="36" cy="36" r="28" fill="none"
-          stroke="url(#prog-grad)" strokeWidth="6"
+        <circle
+          cx="36"
+          cy="36"
+          r="28"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="6"
+          className="text-border"
+        />
+        <circle
+          cx="36"
+          cy="36"
+          r="28"
+          fill="none"
+          stroke={`url(#${gradientId})`}
+          strokeWidth="6"
           strokeLinecap="round"
-          strokeDasharray={`${filled} ${CIRCUMFERENCE - filled}`}
-          style={{ transition: "stroke-dasharray 0.5s ease" }}
+          strokeDasharray={`${filled} ${CIRCUMFERENCE}`}
+          className="transition-[stroke-dasharray] duration-75 ease-out"
         />
         <defs>
-          <linearGradient id="prog-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#4F8DFF" />
             <stop offset="100%" stopColor="#826CF3" />
           </linearGradient>
         </defs>
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs font-bold text-foreground">{progress}%</span>
+        <span className="text-xs font-bold text-foreground tabular-nums">{display}%</span>
       </div>
     </div>
   );

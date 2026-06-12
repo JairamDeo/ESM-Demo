@@ -1,5 +1,6 @@
 import { lazy, Suspense, memo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/hooks/useTheme";
@@ -39,13 +40,6 @@ const UserProfile    = lazy(() => import("@/pages/user/UserProfile"));
 const Notifications  = lazy(() => import("@/pages/user/Notifications"));
 const UserSettings   = lazy(() => import("@/pages/user/UserSettings"));
 const Success        = lazy(() => import("@/pages/user/Success"));
-
- export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 30_000, gcTime: 5 * 60_000, retry: 1, refetchOnWindowFocus: false },
-    mutations: { retry: 0 },
-  },
-});
 
 const PageLoader = memo(() => (
   <div className="flex items-center justify-center h-64">
@@ -125,7 +119,9 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <Toaster richColors position="top-right" closeButton duration={5000} />
-      <BrowserRouter>
+      <BrowserRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <AuthProvider>
           <RBACHydrator />
           <Routes>
