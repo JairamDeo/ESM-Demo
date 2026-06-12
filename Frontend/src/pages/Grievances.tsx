@@ -130,7 +130,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         {grievance.description && (
           <div className="bg-secondary/30 rounded-lg p-3">
             <p className="text-xs text-muted-foreground mb-1">Description</p>
-            <p className="text-sm text-foreground">{grievance.description}</p>
+            <p className="text-sm text-foreground break-words overflow-hidden">{grievance.description}</p>
           </div>
         )}
         {grievance.attachments && grievance.attachments.length > 0 && (
@@ -144,8 +144,8 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                 const fullUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
                 return isPdf ? (
                   <a key={idx} href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-24 h-24 bg-secondary rounded-lg border border-border hover:border-primary transition-colors text-primary flex-col gap-2">
-                    <FileText className="w-8 h-8" />
-                    <span className="text-xs font-medium">PDF Document</span>
+                    <img src="/icons/pdf2.svg" className="w-12 h-12" />
+                    <span className="text-xs font-medium text-[#ffff] invert dark:invert-0">PDF Document</span>
                   </a>
                 ) : (
                   <img key={idx} src={fullUrl} alt={`Attachment ${idx + 1}`} onClick={() => setPreviewImage(fullUrl)} className="w-24 h-24 object-cover rounded-lg border border-border cursor-pointer hover:border-primary transition-all hover:scale-105 shadow-sm" />

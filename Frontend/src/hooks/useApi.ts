@@ -107,7 +107,7 @@ export const useCreateGrievance = () => {
       qc.invalidateQueries({ queryKey: ["reports"] });  
 
 
-      // toast.success("Grievance submitted successfully!");
+      toast.success("Grievance submitted successfully!");
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Failed to submit grievance");
@@ -489,6 +489,70 @@ export const useRequiredDocumentsForCaseType = (params: {
     enabled: !!(params.enabled !== false && (params.caseTypeId || params.slug || params.name)),
     staleTime: 60_000,
   });
+
+// ─── Veteran Document Uploads ──────────────────────────────────────────────────
+export const useVeteranDocumentChecklist = (caseTypeId: string) =>
+  useQuery({
+    queryKey: ["veteran-document-checklist", caseTypeId],
+    queryFn: async () => {
+      const { data } = await api.get("/veteran/required-documents/checklist", { params: { caseTypeId } });
+      return data.data;
+    },
+    enabled: !!caseTypeId,
+    staleTime: 0,
+  });
+
+export const useUploadVeteranRequiredDocument = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ caseTypeId, documentLabel, itemIndex, file }: { caseTypeId: string; documentLabel: string; itemIndex?: number; file: File }) => {
+      const formData = new FormData();
+      formData.append("caseTypeId", caseTypeId);
+      formData.append("documentLabel", documentLabel);
+      if (itemIndex !== undefined) formData.append("itemIndex", String(itemIndex));
+      formData.append("file", file);
+
+      const { data } = await api.post("/veteran/required-documents/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return data.data;
+    },
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ["veteran-document-checklist", variables.caseTypeId] });
+      qc.invalidateQueries({ queryKey: ["veteran-document-uploads", variables.caseTypeId] });
+    },
+  });
+};
+
+export const useListVeteranUploads = (caseTypeId: string) =>
+  useQuery({
+    queryKey: ["veteran-document-uploads", caseTypeId],
+    queryFn: async () => {
+      const { data } = await api.get("/veteran/required-documents/uploads", { params: { caseTypeId } });
+      return data.data;
+    },
+    enabled: !!caseTypeId,
+    staleTime: 0,
+  });
+
+export const useDeleteVeteranUpload = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ uploadId, caseTypeId }: { uploadId: string; caseTypeId?: string }) => {
+      const { data } = await api.delete(`/veteran/required-documents/uploads/${uploadId}`);
+      return data.data;
+    },
+    onSuccess: (_, variables) => {
+      if (variables.caseTypeId) {
+        qc.invalidateQueries({ queryKey: ["veteran-document-checklist", variables.caseTypeId] });
+        qc.invalidateQueries({ queryKey: ["veteran-document-uploads", variables.caseTypeId] });
+      } else {
+        qc.invalidateQueries({ queryKey: ["veteran-document-checklist"] });
+        qc.invalidateQueries({ queryKey: ["veteran-document-uploads"] });
+      }
+    },
+  });
+};
 
 export const useUpsertCaseTypeDocuments = () => {
   const qc = useQueryClient();

@@ -9,13 +9,12 @@ export default function ReviewSubmit() {
   const { user } = useAuth();
   const createGrievance = useCreateGrievance();
 
-  const { form = {}, filesByReq = {}, isFromQR = false, documents: stateDocuments } = location.state || {};
+  const { form = {}, isFromQR = false, documents: stateDocuments } = location.state || {};
   const caseType = form.caseType || "General Grievance";
   const documents = stateDocuments || [];
 
-  const handleViewFile = (file: File) => {
-    const fileURL = URL.createObjectURL(file);
-    window.open(fileURL, "_blank");
+  const handleViewFile = (url: string) => {
+    window.open(url, "_blank");
   };
 
   const handleSubmit = async () => {
@@ -31,9 +30,7 @@ export default function ReviewSubmit() {
       if (form.description) formData.append("description", form.description);
       formData.append("submissionSource", isFromQR ? "qr_code" : "portal");
       formData.append("priority", "medium");
-      Object.values(filesByReq).forEach((files: any) => {
-        files.forEach((file: File) => formData.append("attachments", file));
-      });
+      
       const result = await createGrievance.mutateAsync(formData);
       navigate("/user/success", {
         state: {
@@ -139,8 +136,8 @@ export default function ReviewSubmit() {
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-foreground">Documents summary</h2>
         <div className="bg-card border border-border rounded-xl p-4 space-y-5">
-          {documents.length > 0 ? documents.map((doc, index) => {
-            const uploadedFiles = (filesByReq as Record<number, File[]>)[index] || [];
+          {documents.length > 0 ? documents.map((doc: any, index: number) => {
+            const upload = doc.upload;
             return (
               <div key={index} className={`space-y-3 ${index !== documents.length - 1 ? "pb-5 border-b border-border" : ""}`}>
 
@@ -157,32 +154,30 @@ export default function ReviewSubmit() {
                 </div>
 
                 {/* Uploaded files */}
-                {uploadedFiles.length > 0 ? (
+                {upload ? (
                   <div className="ml-10 space-y-2">
-                    {uploadedFiles.map((file, fIndex) => (
-                      <div key={fIndex} className="flex items-center justify-between bg-secondary/30 border border-border rounded-xl p-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                        {file.type === "application/pdf" ? (
-                          <img src="/icons/pdf2.svg" className="w-7 h-7 "/>
-                        ) : (
-                          <img src="/icons/file.svg" className="w-6 h-6 invert dark:invert-0" />
-                        )}
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                            <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
-                          </div>
+                    <div className="flex items-center justify-between bg-secondary/30 border border-border rounded-xl p-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                      {upload.mimeType === "application/pdf" ? (
+                        <img src="/icons/pdf2.svg" className="w-7 h-7 "/>
+                      ) : (
+                        <img src="/icons/file.svg" className="w-6 h-6 invert dark:invert-0" />
+                      )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{upload.originalFileName}</p>
+                          <p className="text-xs text-muted-foreground">{(upload.fileSize / 1024).toFixed(0)} KB</p>
                         </div>
-                        <button 
-                          onClick={() => handleViewFile(file)}
-                          className="bg-[#0051AE] text-white text-xs font-medium px-4 py-1.5 rounded-sm hover:opacity-90 transition-colors flex-shrink-0"
-                        >
-                          View
-                        </button>
                       </div>
-                    ))}
+                      <button 
+                        onClick={() => handleViewFile(upload.previewUrl)}
+                        className="bg-[#0051AE] text-white text-xs font-medium px-4 py-1.5 rounded-sm hover:opacity-90 transition-colors flex-shrink-0"
+                      >
+                        View
+                      </button>
+                    </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
                       <img src="/icons/upload.svg" className="w-4 h-4 " />
-                      {uploadedFiles.length} file{uploadedFiles.length > 1 ? "s" : ""} uploaded
+                      1 file uploaded
                     </div>
                   </div>
                 ) : (

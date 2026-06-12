@@ -79,6 +79,7 @@ export default memo(function RaiseGrievance() {
   const [form, setForm] = useState({
     concernType: "",
     caseType:    preselectedType || "",
+    caseTypeId:  "",
     stationHQ:   stationFromQR  || "",
     description: "",
     armyNumber:  "",
@@ -95,6 +96,9 @@ export default memo(function RaiseGrievance() {
     if (preselectedType) {
       // open the category that contains the preselected case type
       const ct = (caseTypesList as any[]).find((c: any) => c.name === preselectedType);
+      if (ct && !form.caseTypeId) {
+        setForm(prev => ({ ...prev, caseTypeId: ct._id }));
+      }
       const category = ct ? getCaseTypeCategoryLabel(ct) : null;
       const matched = CATEGORY_CONFIG.find(
         (cfg) => normalizeCategory(cfg.key) === normalizeCategory(category || "")
@@ -216,7 +220,7 @@ export default memo(function RaiseGrievance() {
                             <button
                               key={item._id || item.name}
                               onClick={() => {
-                                setForm((prev) => ({ ...prev, caseType: item.name }));
+                                setForm((prev) => ({ ...prev, caseType: item.name, caseTypeId: item._id }));
                                 setServicesOpen(false);
                               }}
                               className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 bg-[#efefef] dark:bg-[#2f2f2f]

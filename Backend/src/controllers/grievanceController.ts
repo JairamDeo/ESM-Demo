@@ -117,6 +117,8 @@ export const getGrievanceById = async (req: Request, res: Response): Promise<voi
 };
 
 // ─── CREATE grievance ────────────────────────────────────────────────────────
+import VeteranRequiredDocumentUpload from "../models/VeteranRequiredDocumentUpload";
+
 export const createGrievance = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
@@ -173,6 +175,19 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       }
     }
 
+    // ── Fetch pre-uploaded documents ───────────────────────────────────────
+    let uploads: any[] = [];
+    if (userId) {
+      uploads = await VeteranRequiredDocumentUpload.find({
+        userId,
+        caseTypeName: type,
+        grievanceId: { $exists: false },
+      });
+      for (const upload of uploads) {
+        attachments.push(upload.storedPath);
+      }
+    }
+
     const grievance = await Grievance.create({
       grievanceId, type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
       stationName, officerName: officerName || "Unassigned",
@@ -184,6 +199,14 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       slaDeadline, userId,
       timeline: [{ status: "pending", note: "Grievance submitted", updatedBy: veteranName, updatedAt: new Date(), attachments }],
     });
+
+    // ── Assign grievanceId to pre-uploaded documents ───────────────────────
+    if (uploads.length > 0) {
+      await VeteranRequiredDocumentUpload.updateMany(
+        { _id: { $in: uploads.map((u) => u._id) } },
+        { $set: { grievanceId: grievance._id } }
+      );
+    }
 
     if (userId) {
       await Notification.create({
