@@ -122,26 +122,45 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     const {
       type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
       stationName, officerName, priority, description, submissionSource,
+      caseTypeId,
     } = req.body;
 
-    if (!type || !veteranName || !stationName) {
-      res.status(400).json({ success: false, message: "type, veteranName, stationName are required" });
+    const currentUser = (req as any).user;
+    const isVeteran = currentUser?.role === "user";
+
+    let resolvedType = String(type || "").trim();
+    let resolvedName = String(veteranName || "").trim();
+    let resolvedStation = String(stationName || "").trim();
+    let resolvedPhone = String(veteranPhone || "").trim();
+
+    if (isVeteran) {
+      if (!resolvedPhone && currentUser?.phone) resolvedPhone = String(currentUser.phone).trim();
+      if (!resolvedName) {
+        resolvedName = resolvedPhone ? `Veteran (${resolvedPhone})` : "Veteran";
+      }
+    }
+
+    const fieldErrors: string[] = [];
+    if (!resolvedType) fieldErrors.push("Please select a service type for your grievance.");
+    if (!resolvedName) fieldErrors.push("Your name is required — add it in Profile or contact support.");
+    if (!resolvedStation) fieldErrors.push("Please select your Station HQ before submitting.");
+
+    if (fieldErrors.length > 0) {
+      res.status(400).json({ success: false, message: fieldErrors.join(" ") });
       return;
     }
 
     const slaDeadline = new Date();
     slaDeadline.setDate(slaDeadline.getDate() + 15);
 
-    const userId = (req as any).user?.role === "user" ? (req as any).user.id : undefined;
+    const userId = isVeteran ? currentUser.id : undefined;
     const grievanceId = `GRV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // ── Build createdBy string ─────────────────────────────────────────────
-    const currentUser = (req as any).user;
     let createdBy = "";
-    if (currentUser?.role === "user") {
-      // Veteran: show name + phone or armyNo
-      const identifier = veteranPhone || veteranArmyNo || currentUser.id;
-      createdBy = `${veteranName} (${identifier})`;
+    if (isVeteran) {
+      const identifier = resolvedPhone || veteranArmyNo || currentUser.id;
+      createdBy = `${resolvedName} (${identifier})`;
     } else {
       // Admin / Officer: show email + id
       const adminEmail = currentUser?.email || currentUser?.name || "Admin";
@@ -170,19 +189,31 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     // ── Fetch pre-uploaded documents ───────────────────────────────────────
     let uploads: any[] = [];
     if (userId) {
-      uploads = await VeteranRequiredDocumentUpload.find({
+      const uploadFilter: Record<string, unknown> = {
         userId,
-        caseTypeName: type,
         grievanceId: { $exists: false },
-      });
+      };
+      const caseTypeIdStr = String(caseTypeId || "").trim();
+      if (caseTypeIdStr && mongoose.isValidObjectId(caseTypeIdStr)) {
+        uploadFilter.caseType = caseTypeIdStr;
+      } else {
+        uploadFilter.caseTypeName = resolvedType;
+      }
+      uploads = await VeteranRequiredDocumentUpload.find(uploadFilter);
       for (const upload of uploads) {
         attachments.push(upload.storedPath);
       }
     }
 
     const grievance = await Grievance.create({
-      grievanceId, type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
-      stationName, officerName: officerName || "Unassigned",
+      grievanceId,
+      type: resolvedType,
+      veteranName: resolvedName,
+      veteranPhone: resolvedPhone || veteranPhone,
+      veteranArmyNo,
+      veteranRank,
+      stationName: resolvedStation,
+      officerName: officerName || "Unassigned",
       priority: priority || "medium",
       description,
       attachments,

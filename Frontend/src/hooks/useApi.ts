@@ -110,7 +110,14 @@ export const useCreateGrievance = () => {
       toast.success("Grievance submitted successfully!");
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to submit grievance");
+      const raw = err?.response?.data?.message || "";
+      const friendly =
+        raw.includes("type, veteranName, stationName") || raw.includes("service type")
+          ? "Please complete all required fields: service type, station HQ, and your details."
+          : raw.includes("Station HQ")
+            ? "Please select your Station HQ before submitting."
+            : raw || "Could not submit your grievance. Please try again.";
+      toast.error(friendly);
     },
   });
 };
