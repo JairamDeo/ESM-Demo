@@ -7,6 +7,7 @@ import {
 import { useTrackGrievance, useAddComment } from "@/hooks/useApi";
 import { getApiBaseUrl } from "@/lib/apiBase";
 import { Icon } from "@iconify/react";
+import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
 
 const STEP_LABELS: Record<string, string> = {
   pending: "Submitted",
@@ -83,6 +84,8 @@ export default memo(function TrackCase() {
   ];
 
   const apiBase = getApiBaseUrl().replace("/api", "");
+  const progressPct =
+    complaint.progress ?? grievanceProgressMap[complaint.status] ?? 10;
 
   return (
     <div className="px-3 space-y-4 pb-8">
@@ -282,8 +285,8 @@ export default memo(function TrackCase() {
                           <p className="text-[10px] text-muted-foreground mt-0.5">Document</p>
                         </div>
                       </div>
-                      
-                       <a href={submittedResponse.attachments[0].startsWith("http")
+
+                      <a href={submittedResponse.attachments[0].startsWith("http")
                           ? submittedResponse.attachments[0]
                           : `${apiBase}${submittedResponse.attachments[0]}`}
                         target="_blank"
@@ -342,8 +345,8 @@ export default memo(function TrackCase() {
                       <p className="text-[10px] text-muted-foreground">Uploaded</p>
                     </div>
                   </div>
-                  
-                   <a href={fullUrl}
+
+                  <a href={fullUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0"
@@ -360,72 +363,46 @@ export default memo(function TrackCase() {
       {/* Tracking History */}
       <Accordion title="Tracking History" defaultOpen={true}>
         <div className="space-y-0 pt-1">
-          {(() => {
-            const currentStatus = timeline[timeline.length - 1]?.status || "pending";
-            
-            // Build full sequence
-            const displaySteps = timeline.map((step: any) => ({ ...step, done: true }));
-            
-            if (currentStatus !== "resolved" && currentStatus !== "closed") {
-              if (currentStatus === "pending") {
-                displaySteps.push({ status: "acknowledged", done: false });
-                displaySteps.push({ status: "in-progress", done: false });
-                displaySteps.push({ status: "resolved", done: false });
-              } else {
-                // If there's an active query from the admin, it means it's reverted
-                if (activeQuery) {
-                  displaySteps.push({ status: "in-progress", done: false });
-                }
-                displaySteps.push({ status: "resolved", done: false });
-              }
-            }
-
-            return displaySteps.map((step: any, i: number) => {
-              const isLast = i === displaySteps.length - 1;
-              const done = step.done;
-              const nextDone = !isLast && displaySteps[i + 1].done;
-              
-              return (
-                <div key={i} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${done ? "bg-[#22A346]" : "bg-[#5B6676]"}`}>
-                      <img src="/icons/check-fill.svg" className="w-3.5 h-3.5 text-white" />
-                    </div>
-                    {!isLast && (
-                      <div className={`w-px flex-1 my-1 min-h-[32px] ${nextDone ? "bg-[#22A346]/40" : "bg-border/60"}`} />
+          {timeline.map((step: any, i: number) => {
+            const isLast = i === timeline.length - 1;
+            return (
+              <div key={i} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 z-10">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  {!isLast && (
+                    <div className="w-0.5 flex-1 bg-green-500/30 my-1 min-h-[32px]" />
+                  )}
+                </div>
+                <div className={`flex-1 flex items-start justify-between ${!isLast ? "pb-5" : "pb-1"}`}>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {STEP_LABELS[step.status] || step.status.charAt(0).toUpperCase() + step.status.slice(1)}
+                    </p>
+                    {step.status === "in-progress" && isLast && (
+                      <p className="text-[10px] text-muted-foreground">(Documents Required)</p>
                     )}
                   </div>
-                  <div className={`flex-1 flex items-start justify-between ${!isLast ? "pb-5" : "pb-1"}`}>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        {step.status === "in-progress" ? "In Progress" : 
-                         step.status === "acknowledged" ? "Acknowledged" :
-                         STEP_LABELS[step.status] || step.status.charAt(0).toUpperCase() + step.status.slice(1)}
-                      </p>
-                      {step.status === "in-progress" && done && activeQuery && i === displaySteps.filter((s: any)=>s.done).length - 1 && (
-                        <p className="text-xs text-foreground mt-0.5 font-medium">Revert <span className="font-normal">(Documents Required)</span></p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        {step.updatedAt && done
-                          ? new Date(step.updatedAt).toLocaleDateString("en-IN", {
-                              day: "2-digit", month: "long", year: "numeric",
-                            })
-                          : ""}
-                        <br />
-                        {step.updatedAt && done
-                          ? new Date(step.updatedAt).toLocaleTimeString("en-IN", {
-                              hour: "2-digit", minute: "2-digit",
-                            })
-                          : ""}
-                      </p>
-                    </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      {step.updatedAt
+                        ? new Date(step.updatedAt).toLocaleDateString("en-IN", {
+                            day: "2-digit", month: "long", year: "numeric",
+                          })
+                        : "—"}
+                      <br />
+                      {step.updatedAt
+                        ? new Date(step.updatedAt).toLocaleTimeString("en-IN", {
+                            hour: "2-digit", minute: "2-digit",
+                          })
+                        : ""}
+                    </p>
                   </div>
                 </div>
-              );
-            });
-          })()}
+              </div>
+            );
+          })}
         </div>
       </Accordion>
 

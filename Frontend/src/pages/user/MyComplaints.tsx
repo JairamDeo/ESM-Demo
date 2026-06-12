@@ -114,8 +114,41 @@ export default memo(function MyComplaints() {
             <div key={i} className="h-40 bg-card rounded-2xl border border-border animate-pulse" />
           ))
         ) : filtered.length === 0 ? (
-          <div className="py-12 text-center text-muted-foreground text-sm">
-            {complaints.length === 0 ? "No complaints submitted yet." : "No results found."}
+          <div className="flex flex-col items-center justify-center py-14 px-6 text-center bg-card border border-border rounded-2xl">
+            <div className="relative w-40 h-32 mb-5">
+              <div className="absolute inset-0 rounded-full bg-primary/10 blur-2xl" />
+              <img
+                src="/icons/notepad.svg"
+                alt=""
+                className="absolute left-1/2 top-2 w-14 h-14 -translate-x-[70%] opacity-90"
+              />
+              <img
+                src="/icons/folder.svg"
+                alt=""
+                className="absolute left-1/2 top-6 w-16 h-16 -translate-x-[10%] opacity-80"
+              />
+              <img
+                src="/icons/Veteran.svg"
+                alt=""
+                className="absolute bottom-0 left-1/2 w-24 h-auto -translate-x-1/2"
+              />
+            </div>
+            <p className="text-base font-semibold text-foreground">
+              {complaints.length === 0 ? "No complaints yet" : "No results found"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1.5 max-w-[260px]">
+              {complaints.length === 0
+                ? "Raise a grievance to track its status here."
+                : "Try a different search term or filter."}
+            </p>
+            {complaints.length === 0 && (
+              <Link
+                to="/user/services"
+                className="mt-5 inline-flex items-center gap-2 bg-[#826CF3] hover:bg-[#7260e0] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+              >
+                Raise Grievance
+              </Link>
+            )}
           </div>
         ) : filtered.map((c: any) => {
           const config = statusConfig[c.status] || statusConfig.pending;
@@ -182,17 +215,14 @@ export default memo(function MyComplaints() {
                 )}
 
                 {/* Divider + View Details */}
-                <div className="pt-3 border-t border-border flex items-center justify-between">
-                  <span className="text-xs font-medium text-foreground px-4">View Details</span>
-                  <Link
-                    to="/user/track-case"
-                    state={{ complaint: c }}
-                    className="text-foreground hover:text-primary transition-colors px-4"
-                  >
-                        <ArrowRight className="w-5 h-5 " />
-
-                  </Link>
-                </div>
+                <Link
+                  to="/user/track-case"
+                  state={{ complaint: c }}
+                  className="-mx-4 px-4 pt-3 border-t border-border flex items-center justify-between hover:bg-secondary/40 transition-colors"
+                >
+                  <span className="text-xs font-medium text-foreground">View Details</span>
+                  <ArrowRight className="w-5 h-5 text-foreground" />
+                </Link>
 
               </div>
             </div>

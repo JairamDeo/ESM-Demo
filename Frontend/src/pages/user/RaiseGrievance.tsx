@@ -72,18 +72,19 @@ export default memo(function RaiseGrievance() {
   const stationHQsList = stationsData?.data || [];
 
   const urlParams = new URLSearchParams(window.location.search);
-  const stationFromQR = urlParams.get("station") || (location.state as any)?.station || "";
-  const preselectedType = (location.state as any)?.caseType || "";
+  const savedForm = (location.state as any)?.form || {};
+  const stationFromQR = urlParams.get("station") || (location.state as any)?.station || savedForm.stationHQ || "";
+  const preselectedType = (location.state as any)?.caseType || savedForm.caseType || "";
   const isFromQR = !!stationFromQR;
 
   const [form, setForm] = useState({
-    concernType: "",
+    concernType: savedForm.concernType || "",
     caseType:    preselectedType || "",
-    caseTypeId:  "",
-    stationHQ:   stationFromQR  || "",
-    description: "",
-    armyNumber:  "",
-    rank:        "",
+    caseTypeId:  savedForm.caseTypeId || "",
+    stationHQ:   stationFromQR || savedForm.stationHQ || "",
+    description: savedForm.description || "",
+    armyNumber:  savedForm.armyNumber || "",
+    rank:        savedForm.rank || "",
   });
 
   const [openCategory, setOpenCategory] = useState<string | null>(null);

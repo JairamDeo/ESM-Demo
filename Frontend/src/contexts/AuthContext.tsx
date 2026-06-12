@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useMemo } from "react";
 import api, { setAuthToken, clearAuthToken, setStoredUser, getStoredUser } from "@/lib/api";
-import { queryClient } from "@/App";
+import { queryClient } from "@/lib/queryClient";
 import { resolveRbacRole, type UserRole } from "@/lib/rbacRole";
 
 export type { UserRole };

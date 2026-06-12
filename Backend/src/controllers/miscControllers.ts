@@ -301,7 +301,7 @@ export const getNotifications = async (req: Request, res: Response): Promise<voi
     };
     if (unreadOnly === "true") query.isRead = false;
 
-    const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(30).lean();
+    const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(100).lean();
     const unreadCount = await Notification.countDocuments({
       recipientId: userId,
       recipientType: userRole === "user" ? "user" : "admin",
