@@ -1,9 +1,8 @@
-import dotenv from "dotenv";
-dotenv.config();
-
+import "./config/env";
 import app from "./app";
 import connectDB from "./config/database";
 import { ensureRolePermissionsSeeded } from "./services/rbacService";
+import { verifyCloudinaryConnection } from "./services/storageService";
 import { getLanIPv4Addresses } from "./utils/network";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
@@ -14,6 +13,7 @@ const startServer = async () => {
     // Connect to MongoDB first
     await connectDB();
     await ensureRolePermissionsSeeded();
+    await verifyCloudinaryConnection();
 
     // Start Express server
     const server = app.listen(PORT, HOST, () => {
