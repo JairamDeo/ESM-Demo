@@ -37,7 +37,7 @@ interface AuthContextType {
   isUser: boolean;
   adminLogin: (username: string, password: string) => Promise<void>;
   sendOtp: (phone: string) => Promise<SendOtpResponse>;
-  verifyOtp: (phone: string, otp: string) => Promise<void>;
+  verifyOtp: (phone: string, otp: string) => Promise<{ isNewUser: boolean }>;
   updateUser: (updates: Partial<AuthUser>) => void;
   logout: () => void;
 }
@@ -93,21 +93,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const verifyOtp = useCallback(async (phone: string, otp: string) => {
+  const verifyOtp = useCallback(async (phone: string, otp: string): Promise<{ isNewUser: boolean }> => {
     const res = await api.post("/auth/user/verify-otp", { phone, otp });
-    const { token, user: userInfo } = res.data;
-    setAuthToken(token, "user");          // ← pass "user"
+    const { token, user: userInfo, isNewUser } = res.data;
+    setAuthToken(token, "user");
     const authUser: AuthUser = {
       id: userInfo.id,
-      // Use name from DB only — leave empty if not set (don't fall back to phone)
       name: userInfo.name || "",
       phone: userInfo.phone,
       role: "user",
       station: userInfo.stationHQ,
     };
-    setStoredUser(authUser, "user");      // ← pass "user"
+    setStoredUser(authUser, "user");
     setUser(authUser);
     queryClient.clear();
+    return { isNewUser: !!isNewUser };
   }, []);
 
   const updateUser = useCallback((updates: Partial<AuthUser>) => {

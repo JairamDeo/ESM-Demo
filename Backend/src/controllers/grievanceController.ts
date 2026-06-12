@@ -340,24 +340,15 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     const attachments: string[] = [];
 
     if (files && files.length > 0) {
-      const uploadDir = path.join(__dirname, "../../uploads");
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-
+      const grievanceFolder = `grievances/comments/${grievance.grievanceId}`;
       for (const file of files) {
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        if (file.mimetype === "application/pdf") {
-          const filename = file.fieldname + "-" + uniqueSuffix + ".pdf";
-          await fs.promises.writeFile(path.join(uploadDir, filename), file.buffer);
-          attachments.push(`/uploads/${filename}`);
-        } else {
-          const filename = file.fieldname + "-" + uniqueSuffix + ".webp";
-          await sharp(file.buffer)
-            .webp({ quality: 80 })
-            .toFile(path.join(uploadDir, filename));
-          attachments.push(`/uploads/${filename}`);
-        }
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        const stored = await storeUploadedBuffer(file.buffer, {
+          folder: grievanceFolder,
+          fileName: `${file.fieldname}-${uniqueSuffix}`,
+          mimetype: file.mimetype,
+        });
+        attachments.push(stored.url);
       }
     }
 

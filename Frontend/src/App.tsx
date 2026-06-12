@@ -39,6 +39,7 @@ const UserProfile    = lazy(() => import("@/pages/user/UserProfile"));
 const Notifications  = lazy(() => import("@/pages/user/Notifications"));
 const UserSettings   = lazy(() => import("@/pages/user/UserSettings"));
 const Success        = lazy(() => import("@/pages/user/Success"));
+const CompleteProfile = lazy(() => import("@/pages/user/CompleteProfile"));
 
  export const queryClient = new QueryClient({
   defaultOptions: {
@@ -132,6 +133,7 @@ const App = () => (
             <Route path="/admin/login"     element={<AdminLoginGuard />} />
             <Route path="/user/login"      element={<S><Login /></S>} />
             <Route path="/user/verify-otp" element={<S><VerifyOTP /></S>} />
+            <Route path="/user/complete-profile" element={<S><CompleteProfile /></S>} />
             <Route path="/user/*"          element={<UserRoutes />} />
             <Route path="/*"               element={<AdminGuard />} />
           </Routes>

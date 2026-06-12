@@ -159,9 +159,7 @@ export const useAddComment = () => {
     mutationFn: async (payload: any) => {
       const isFormData = payload instanceof FormData;
       const id = isFormData ? payload.get("id") : payload.id;
-      const { data } = await api.post(`/grievances/${id}/comments`, payload, {
-        headers: isFormData ? { "Content-Type": "multipart/form-data" } : {}
-      });
+      const { data } = await api.post(`/grievances/${id}/comments`, payload);
       return data.data;
     },
     onSuccess: (_data, vars) => {
@@ -724,6 +722,24 @@ export const useMarkNotificationRead = () => {
 };
 
 // ─── User Profile ─────────────────────────────────────────────────────────────
+export const useUserMe = () =>
+  useQuery({
+    queryKey: queryKeys.userMe,
+    queryFn: async () => {
+      const { data } = await api.get("/auth/user/me");
+      return data.user as {
+        _id: string;
+        name?: string;
+        phone?: string;
+        rank?: string;
+        serviceNumber?: string;
+        email?: string;
+        address?: string;
+        stationHQ?: string;
+      };
+    },
+    staleTime: 60_000,
+  });
 export const useUpdateProfile = () => {
   const qc = useQueryClient();
   return useMutation({

@@ -264,6 +264,7 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
       success: true,
       message: "OTP verified successfully",
       token,
+      isNewUser: !user.name,
       user: {
         id: user._id,
         phone: user.phone,

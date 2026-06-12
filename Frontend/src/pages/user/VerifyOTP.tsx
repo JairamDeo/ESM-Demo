@@ -62,9 +62,13 @@ export default memo(function VerifyOTP() {
     }
     setLoading(true);
     try {
-      await verifyOtp(phone, otpValue);
+      const { isNewUser } = await verifyOtp(phone, otpValue);
       toast.success("Verified successfully!");
-      navigate("/user");
+      if (isNewUser) {
+        navigate("/user/complete-profile");
+      } else {
+        navigate("/user");
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Invalid OTP. Please try again.");
       setOtp(["", "", "", ""]);
