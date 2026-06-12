@@ -1,6 +1,3 @@
-import fs from "fs";
-import path from "path";
-
 export function slugifySegment(value: string): string {
   return value
     .toLowerCase()
@@ -20,29 +17,18 @@ export function veteranStorageKey(user: { id: string; phone?: string; name?: str
   return `user-${user.id}`;
 }
 
-export function buildRequiredDocDir(
+/** Cloudinary folder path (under esm/ root): required_doc/{veteran}/{category}/{caseType}/{label} */
+export function buildRequiredDocFolder(
   veteranKey: string,
   categoryName: string,
   caseTypeSlug: string,
   documentLabel: string
 ): string {
-  const rel = path.join(
+  return [
     "required_doc",
     veteranKey,
     slugifySegment(categoryName || "general"),
     slugifySegment(caseTypeSlug),
-    slugifySegment(documentLabel)
-  );
-  const abs = path.join(__dirname, "../../uploads", rel);
-  if (!fs.existsSync(abs)) fs.mkdirSync(abs, { recursive: true });
-  return rel;
-}
-
-export function toPublicUploadPath(relativeDir: string, filename: string): string {
-  return `/uploads/${relativeDir.replace(/\\/g, "/")}/${filename}`;
-}
-
-export function absoluteFromPublicPath(publicPath: string): string {
-  const rel = publicPath.replace(/^\/uploads\//, "").replace(/\//g, path.sep);
-  return path.join(__dirname, "../../uploads", rel);
+    slugifySegment(documentLabel),
+  ].join("/");
 }

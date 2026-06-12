@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 import mongoose from "mongoose";
 import CaseType from "../models/CaseType";
 import CaseTypeRequiredDocuments, { IDocumentChecklistItem } from "../models/CaseTypeRequiredDocuments";
+import { deleteStoredAsset } from "../services/storageResolver";
+import { storeUploadedBuffer } from "../services/storageService";
 
 function actorMeta(user: any) {
   return {
@@ -240,14 +240,19 @@ export const uploadDocumentTemplate = async (req: Request, res: Response): Promi
       return;
     }
 
-    const uploadDir = path.join(__dirname, "../../uploads/case-type-templates", caseType.id);
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
     const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filename = `${itemIndex}-${Date.now()}-${safeName}`;
-    await fs.promises.writeFile(path.join(uploadDir, filename), file.buffer);
 
-    const templateUrl = `/uploads/case-type-templates/${caseType.id}/${filename}`;
+    const oldUrl = doc.documents[itemIndex].templateUrl;
+    if (oldUrl) await deleteStoredAsset(oldUrl);
+
+    const stored = await storeUploadedBuffer(file.buffer, {
+      folder: `case-type-templates/${caseType.id}`,
+      fileName: filename,
+      mimetype: file.mimetype || "application/pdf",
+    });
+
+    const templateUrl = stored.url;
     doc.documents[itemIndex].templateUrl = templateUrl;
     doc.documents[itemIndex].templateFileName = file.originalname;
     doc.updatedBy = actorMeta((req as any).user);
@@ -285,16 +290,7 @@ export const removeDocumentTemplate = async (req: Request, res: Response): Promi
     }
 
     const oldUrl = doc.documents[itemIndex].templateUrl;
-    if (oldUrl?.startsWith("/uploads/")) {
-      const filePath = path.join(__dirname, "../..", oldUrl);
-      if (fs.existsSync(filePath)) {
-        try {
-          await fs.promises.unlink(filePath);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
+    if (oldUrl) await deleteStoredAsset(oldUrl);
 
     doc.documents[itemIndex].templateUrl = undefined;
     doc.documents[itemIndex].templateFileName = undefined;
