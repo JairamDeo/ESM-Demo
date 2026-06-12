@@ -156,12 +156,18 @@ export const useAssignOfficer = () => {
 export const useAddComment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, message, authorName, authorRole }: { id: string; message: string; authorName?: string; authorRole?: string }) => {
-      const { data } = await api.post(`/grievances/${id}/comments`, { message, authorName, authorRole });
+    mutationFn: async (payload: any) => {
+      const isFormData = payload instanceof FormData;
+      const id = isFormData ? payload.get("id") : payload.id;
+      const { data } = await api.post(`/grievances/${id}/comments`, payload, {
+        headers: isFormData ? { "Content-Type": "multipart/form-data" } : {}
+      });
       return data.data;
     },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(vars.id) });
+      const id = vars instanceof FormData ? vars.get("id") : vars.id;
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id as string) });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.track(id as string) });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Failed to add comment");

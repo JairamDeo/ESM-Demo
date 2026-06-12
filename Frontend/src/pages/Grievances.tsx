@@ -84,12 +84,24 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   const addNote = useCallback(async () => {
   if (!note.trim() && noteFiles.length === 0) return;
   if (!grievance._id) return;
-  await addComment.mutateAsync({
-    id: grievance._id,
-    message: note || "(attachment)",
-    authorName: user?.name || "Admin",
-    authorRole: user?.role || "admin",
-  });
+
+  if (noteFiles.length > 0) {
+    const formData = new FormData();
+    formData.append("id", grievance._id);
+    formData.append("message", note || "(attachment)");
+    formData.append("authorName", user?.name || "Admin");
+    formData.append("authorRole", user?.role || "admin");
+    noteFiles.forEach(file => formData.append("attachments", file));
+    await addComment.mutateAsync(formData as any);
+  } else {
+    await addComment.mutateAsync({
+      id: grievance._id,
+      message: note || "(attachment)",
+      authorName: user?.name || "Admin",
+      authorRole: user?.role || "admin",
+    });
+  }
+  
   setNote("");
   setNoteFiles([]);
 }, [note, noteFiles, grievance._id, addComment, user]);

@@ -156,7 +156,7 @@ export default function DocumentCheckList() {
                     Download Format {doc.templateFileName ? `(${doc.templateFileName})` : ""}
                   </span>
                 </div>
-                <Download className="w-4 h-4 text-[#F0C902] invert dark:invert-0" />
+                <Download className="w-8 h-8 text-[#F0C902] invert dark:invert-0" />
               </a>
             )}
 

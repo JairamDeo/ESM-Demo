@@ -38,7 +38,7 @@ router.patch("/:id/status", protect, adminOnly, updateGrievanceStatus);
 router.patch("/:id/assign", protect, adminOnly, assignOfficer);
 
 // ─── Comments (admin + user) ──────────────────────────────────────────────────
-router.post("/:id/comments", protect, addComment);
+router.post("/:id/comments", protect, upload.array("attachments", 3), addComment);
 
 // ─── Admin: delete ────────────────────────────────────────────────────────────
 router.delete("/:id", protect, restrictTo("super_admin", "esm_officer"), deleteGrievance);

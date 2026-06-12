@@ -330,7 +330,10 @@ export const assignOfficer = async (req: Request, res: Response): Promise<void> 
 export const addComment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { message, authorName, authorRole } = req.body;
-    if (!message) { res.status(400).json({ success: false, message: "Message is required" }); return; }
+    if (!message && (!req.files || (req.files as any[]).length === 0)) {
+      res.status(400).json({ success: false, message: "Message or attachments required" });
+      return;
+    }
 
     const grievance = await Grievance.findOne({
       $or: [
@@ -341,11 +344,38 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     });
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
 
+    const files = req.files as Express.Multer.File[];
+    const attachments: string[] = [];
+
+    if (files && files.length > 0) {
+      const uploadDir = path.join(__dirname, "../../uploads");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      for (const file of files) {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        if (file.mimetype === "application/pdf") {
+          const filename = file.fieldname + "-" + uniqueSuffix + ".pdf";
+          await fs.promises.writeFile(path.join(uploadDir, filename), file.buffer);
+          attachments.push(`/uploads/${filename}`);
+        } else {
+          const filename = file.fieldname + "-" + uniqueSuffix + ".webp";
+          await sharp(file.buffer)
+            .webp({ quality: 80 })
+            .toFile(path.join(uploadDir, filename));
+          attachments.push(`/uploads/${filename}`);
+        }
+      }
+    }
+
     grievance.comments.push({
       authorId: (req as any).user?.id,
       authorName: authorName || (req as any).user?.name || "Unknown",
       authorRole: authorRole || (req as any).user?.role || "user",
-      message, createdAt: new Date(),
+      message: message || "(attachment)",
+      attachments,
+      createdAt: new Date(),
     });
     await grievance.save();
     res.status(200).json({ success: true, message: "Comment added", data: grievance });
@@ -389,7 +419,7 @@ export const trackGrievance = async (req: Request, res: Response): Promise<void>
         { _id: mongoose.isValidObjectId(id) ? id : null },
       ],
       isDeleted: false,
-    }).select("grievanceId type veteranName stationName officerName status priority timeline createdAt resolvedAt");
+    }).select("grievanceId type veteranName veteranRank veteranArmyNo stationName officerName status priority timeline description comments attachments createdAt resolvedAt");
 
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found. Check your complaint ID." }); return; }
     res.status(200).json({ success: true, data: grievance });
