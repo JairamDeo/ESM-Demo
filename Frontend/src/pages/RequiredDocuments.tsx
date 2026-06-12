@@ -9,7 +9,7 @@ import {
   useRemoveDocumentTemplate,
 } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
-import { getApiBaseUrl } from "@/lib/apiBase";
+import { resolveUploadUrl } from "@/lib/apiBase";
 
 interface DocItem {
   label: string;
@@ -18,10 +18,6 @@ interface DocItem {
   sortOrder: number;
   templateUrl?: string;
   templateFileName?: string;
-}
-
-function uploadBaseUrl() {
-  return getApiBaseUrl().replace(/\/api$/, "");
 }
 
 const CATEGORY_ORDER = [
@@ -419,7 +415,7 @@ export default memo(function RequiredDocuments() {
                         {doc.templateUrl && (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <a
-                              href={`${uploadBaseUrl()}${doc.templateUrl}`}
+                              href={resolveUploadUrl(doc.templateUrl) ?? "#"}
                               target="_blank"
                               rel="noreferrer"
                               className="flex items-center gap-1 text-primary hover:underline"

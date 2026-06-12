@@ -1,17 +1,14 @@
 import { Request, Response } from "express";
-import fs from "fs";
-import path from "path";
 import mongoose from "mongoose";
-import sharp from "sharp";
 import CaseType from "../models/CaseType";
 import CaseTypeRequiredDocuments from "../models/CaseTypeRequiredDocuments";
 import VeteranRequiredDocumentUpload from "../models/VeteranRequiredDocumentUpload";
 import User from "../models/User";
+import { deleteStoredAsset, serveStoredFile } from "../services/storageResolver";
+import { storeUploadedBuffer } from "../services/storageService";
 import {
-  absoluteFromPublicPath,
-  buildRequiredDocDir,
+  buildRequiredDocFolder,
   slugifySegment,
-  toPublicUploadPath,
   veteranStorageKey,
 } from "../services/veteranDocumentStorage";
 
@@ -198,7 +195,7 @@ export const uploadVeteranRequiredDocument = async (req: Request, res: Response)
       name: dbUser?.name ?? user.name,
     });
 
-    const relDir = buildRequiredDocDir(
+    const cloudFolder = buildRequiredDocFolder(
       veteranKey,
       checklist.categoryName,
       caseType.id,
@@ -206,24 +203,13 @@ export const uploadVeteranRequiredDocument = async (req: Request, res: Response)
     );
 
     const baseName = `${slugifySegment(docItem.label)}-${Date.now()}`;
-    let filename: string;
-    let absFile: string;
+    const stored = await storeUploadedBuffer(file.buffer, {
+      folder: cloudFolder,
+      fileName: baseName,
+      mimetype: file.mimetype,
+    });
 
-    if (file.mimetype === "application/pdf") {
-      filename = `${baseName}.pdf`;
-      absFile = path.join(__dirname, "../../uploads", relDir, filename);
-      await fs.promises.writeFile(absFile, file.buffer);
-    } else if (file.mimetype === "image/png") {
-      filename = `${baseName}.png`;
-      absFile = path.join(__dirname, "../../uploads", relDir, filename);
-      await fs.promises.writeFile(absFile, file.buffer);
-    } else {
-      filename = `${baseName}.jpg`;
-      absFile = path.join(__dirname, "../../uploads", relDir, filename);
-      await sharp(file.buffer).jpeg({ quality: 85 }).toFile(absFile);
-    }
-
-    const storedPath = toPublicUploadPath(relDir, filename);
+    const storedPath = stored.url;
 
     const existing = await VeteranRequiredDocumentUpload.findOne({
       userId: user.id,
@@ -233,14 +219,7 @@ export const uploadVeteranRequiredDocument = async (req: Request, res: Response)
     });
 
     if (existing?.storedPath) {
-      const oldAbs = absoluteFromPublicPath(existing.storedPath);
-      if (fs.existsSync(oldAbs)) {
-        try {
-          await fs.promises.unlink(oldAbs);
-        } catch {
-          /* ignore */
-        }
-      }
+      await deleteStoredAsset(existing.storedPath);
     }
 
     const record = existing
@@ -254,8 +233,8 @@ export const uploadVeteranRequiredDocument = async (req: Request, res: Response)
             documentSortOrder: docItem.sortOrder,
             originalFileName: file.originalname,
             storedPath,
-            mimeType: file.mimetype,
-            fileSize: file.size,
+            mimeType: stored.mimeType,
+            fileSize: stored.bytes,
           },
           { new: true }
         )
@@ -270,8 +249,8 @@ export const uploadVeteranRequiredDocument = async (req: Request, res: Response)
           documentSortOrder: docItem.sortOrder,
           originalFileName: file.originalname,
           storedPath,
-          mimeType: file.mimetype,
-          fileSize: file.size,
+          mimeType: stored.mimeType,
+          fileSize: stored.bytes,
         });
 
     res.status(201).json({
@@ -349,18 +328,11 @@ export const previewVeteranUpload = async (req: Request, res: Response): Promise
       return;
     }
 
-    const abs = absoluteFromPublicPath(upload.storedPath);
-    if (!fs.existsSync(abs)) {
-      res.status(404).json({ success: false, message: "File not found on disk" });
-      return;
-    }
-
-    res.setHeader("Content-Type", upload.mimeType);
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${upload.originalFileName.replace(/"/g, "")}"`
-    );
-    fs.createReadStream(abs).pipe(res);
+    serveStoredFile(res, upload.storedPath, {
+      mimeType: upload.mimeType,
+      fileName: upload.originalFileName,
+      disposition: "inline",
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -392,18 +364,11 @@ export const downloadChecklistTemplate = async (req: Request, res: Response): Pr
       return;
     }
 
-    const abs = absoluteFromPublicPath(docItem.templateUrl);
-    if (!fs.existsSync(abs)) {
-      res.status(404).json({ success: false, message: "Template file not found" });
-      return;
-    }
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${(docItem.templateFileName || "template.pdf").replace(/"/g, "")}"`
-    );
-    fs.createReadStream(abs).pipe(res);
+    serveStoredFile(res, docItem.templateUrl, {
+      mimeType: "application/pdf",
+      fileName: docItem.templateFileName || "template.pdf",
+      disposition: "attachment",
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -429,14 +394,7 @@ export const deleteVeteranUpload = async (req: Request, res: Response): Promise<
       return;
     }
 
-    const abs = absoluteFromPublicPath(upload.storedPath);
-    if (fs.existsSync(abs)) {
-      try {
-        await fs.promises.unlink(abs);
-      } catch {
-        /* ignore */
-      }
-    }
+    await deleteStoredAsset(upload.storedPath);
 
     await upload.deleteOne();
     res.json({ success: true, message: "Upload removed" });

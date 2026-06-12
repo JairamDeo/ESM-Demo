@@ -8,9 +8,7 @@ import CaseType from "../models/CaseType";
 import Officer from "../models/Officer";
 import QRCode from "../models/QRCode";
 import { getGrievanceScopeFilter } from "../utils/scopeFilter";
-import sharp from "sharp";
-import fs from "fs";
-import path from "path";
+import { storeUploadedBuffer } from "../services/storageService";
 
 // ─── Helper: get date filter ─────────────────────────────────────────────────
 const getDateFilter = (period?: string): any => {
@@ -154,24 +152,18 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     const attachments: string[] = [];
 
     if (files && files.length > 0) {
-      const uploadDir = path.join(__dirname, "../../uploads");
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
+      const grievanceFolder = userId
+        ? `grievances/attachments/${userId}`
+        : `grievances/attachments/anonymous`;
 
       for (const file of files) {
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        if (file.mimetype === "application/pdf") {
-          const filename = file.fieldname + "-" + uniqueSuffix + ".pdf";
-          await fs.promises.writeFile(path.join(uploadDir, filename), file.buffer);
-          attachments.push(`/uploads/${filename}`);
-        } else {
-          const filename = file.fieldname + "-" + uniqueSuffix + ".webp";
-          await sharp(file.buffer)
-            .webp({ quality: 80 })
-            .toFile(path.join(uploadDir, filename));
-          attachments.push(`/uploads/${filename}`);
-        }
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        const stored = await storeUploadedBuffer(file.buffer, {
+          folder: grievanceFolder,
+          fileName: `${file.fieldname}-${uniqueSuffix}`,
+          mimetype: file.mimetype,
+        });
+        attachments.push(stored.url);
       }
     }
 
