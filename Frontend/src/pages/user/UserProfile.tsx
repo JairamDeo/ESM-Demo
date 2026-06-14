@@ -1,10 +1,5 @@
 import { useState, memo, useCallback, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-<<<<<<< HEAD
-import { ChevronLeft, User, Phone, Shield, Star, MapPin, Mail, Edit2, Save, X } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useUpdateProfile, useUserMe } from "@/hooks/useApi";
-=======
 import {
   ChevronLeft,
   User,
@@ -19,8 +14,7 @@ import {
   Hash,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyGrievances, useUpdateProfile } from "@/hooks/useApi";
->>>>>>> dc985c718afcc56715bf72a7abaa73003a2484aa
+import { useMyGrievances, useUpdateProfile, useUserMe } from "@/hooks/useApi";
 
 interface ProfileForm {
   name: string;
@@ -83,8 +77,8 @@ function FieldCard({
 export default memo(function UserProfile() {
   const { user, updateUser } = useAuth();
   const updateProfile = useUpdateProfile();
-<<<<<<< HEAD
   const { data: userMe, isLoading } = useUserMe();
+  const { data: grievances = [] } = useMyGrievances();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProfileForm>({
     name: "",
@@ -94,7 +88,9 @@ export default memo(function UserProfile() {
     address: "",
   });
 
-  // Populate form from live backend data whenever it loads
+  const totalComplaints = Array.isArray(grievances) ? grievances.length : 0;
+  const phone = userMe?.phone || user?.phone || "";
+
   useEffect(() => {
     if (userMe) {
       setForm({
@@ -106,30 +102,9 @@ export default memo(function UserProfile() {
       });
     }
   }, [userMe]);
-=======
-  const { data: grievances = [] } = useMyGrievances();
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<ProfileForm>({
-    name: user?.name || "",
-    rank: "",
-    serviceNumber: "",
-    email: user?.email || "",
-    address: "",
-  });
 
-  const totalComplaints = Array.isArray(grievances) ? grievances.length : 0;
-
-  useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      name: user?.name || "",
-      email: user?.email || "",
-    }));
-  }, [user?.name, user?.email]);
->>>>>>> dc985c718afcc56715bf72a7abaa73003a2484aa
-
-  const displayName = user?.name?.trim() || (user?.phone ? `Veteran` : "Veteran");
-  const initials = (user?.name?.trim() || user?.phone || "V")[0].toUpperCase();
+  const displayName = form.name?.trim() || user?.name?.trim() || (phone ? "Veteran" : "Veteran");
+  const initials = (form.name?.trim() || user?.name?.trim() || phone || "V")[0].toUpperCase();
 
   const handleSave = useCallback(async () => {
     await updateProfile.mutateAsync(form);
@@ -137,26 +112,24 @@ export default memo(function UserProfile() {
     setEditing(false);
   }, [form, updateProfile, updateUser]);
 
-<<<<<<< HEAD
-  const phone = userMe?.phone || user?.phone || "";
-
-  const fields = [
-    { icon: User,   label: "Full Name",       value: form.name,          key: "name"          as keyof ProfileForm },
-    { icon: Phone,  label: "Phone Number",     value: phone ? `+91 ${phone}` : "—", key: null  as null },
-    { icon: Star,   label: "Rank",             value: form.rank,          key: "rank"          as keyof ProfileForm },
-    { icon: Shield, label: "Service Number",   value: form.serviceNumber, key: "serviceNumber" as keyof ProfileForm },
-    { icon: Mail,   label: "Email",            value: form.email,         key: "email"         as keyof ProfileForm },
-    { icon: MapPin, label: "Address",          value: form.address,       key: "address"       as keyof ProfileForm },
-  ];
-=======
   const handleCancel = useCallback(() => {
-    setForm((prev) => ({
-      ...prev,
-      name: user?.name || "",
-      email: user?.email || "",
-    }));
+    if (userMe) {
+      setForm({
+        name: userMe.name || "",
+        rank: userMe.rank || "",
+        serviceNumber: userMe.serviceNumber || "",
+        email: userMe.email || "",
+        address: userMe.address || "",
+      });
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        name: user?.name || "",
+        email: user?.email || "",
+      }));
+    }
     setEditing(false);
-  }, [user?.name, user?.email]);
+  }, [userMe, user?.name, user?.email]);
 
   const setField = useCallback((key: keyof ProfileForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -166,7 +139,6 @@ export default memo(function UserProfile() {
     const filled = [form.name, form.rank, form.serviceNumber, form.email].filter(Boolean).length;
     return Math.round((filled / 4) * 100);
   }, [form.name, form.rank, form.serviceNumber, form.email]);
->>>>>>> dc985c718afcc56715bf72a7abaa73003a2484aa
 
   if (isLoading) {
     return (
@@ -177,61 +149,6 @@ export default memo(function UserProfile() {
   }
 
   return (
-<<<<<<< HEAD
-    <div className="px-4 space-y-5 animate-fade-in pb-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-5">
-          <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
-            <ChevronLeft className="w-5 h-5" color="#FFFFFF" />
-          </Link>
-          <h1 className="text-xl font-bold text-foreground">My Profile</h1>
-        </div>
-
-        <button
-          onClick={() => editing ? handleSave() : setEditing(true)}
-          disabled={updateProfile.isPending}
-          className="flex items-center gap-1.5 text-sm text-[#826CF3] font-medium"
-        >
-          {editing
-            ? (updateProfile.isPending
-                ? <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                : <><Save className="w-4 h-4" />Save</>)
-            : <><Edit2 className="w-4 h-4" />Edit</>}
-        </button>
-      </div>
-
-      {/* Avatar */}
-      <div className="flex flex-col items-center py-4">
-        <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center mb-3">
-          <span className="text-primary text-2xl font-bold">
-            {(form.name || user?.name || "V")[0].toUpperCase()}
-          </span>
-        </div>
-        <h2 className="font-bold text-foreground">{form.name || user?.name || "Veteran"}</h2>
-        <p className="text-sm text-muted-foreground">{phone ? `+91 ${phone}` : ""}</p>
-      </div>
-
-      {/* Fields */}
-      <div className="space-y-3">
-        {fields.map(({ icon: Icon, label, value, key }) => (
-          <div key={label} className="bg-card rounded-2xl border border-border p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center shrink-0">
-                <Icon className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                {editing && key ? (
-                  <input
-                    value={form[key]}
-                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                    className="mt-1 w-full bg-secondary rounded-lg px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 border border-border"
-                  />
-                ) : (
-                  <p className="text-sm font-medium text-foreground mt-0.5 truncate">{value || "—"}</p>
-                )}
-              </div>
-=======
     <div className="flex flex-col min-h-full pb-6 animate-fade-in">
       {/* Header */}
       <div className="px-4 pt-2 pb-5 bg-gradient-to-b from-[#826CF3]/10 to-transparent">
@@ -246,7 +163,6 @@ export default memo(function UserProfile() {
             <div>
               <h1 className="text-xl font-bold text-foreground">My Profile</h1>
               <p className="text-xs text-muted-foreground mt-0.5">Manage your personal details</p>
->>>>>>> dc985c718afcc56715bf72a7abaa73003a2484aa
             </div>
           </div>
           {!editing ? (
@@ -294,7 +210,7 @@ export default memo(function UserProfile() {
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#826CF3] to-[#4F81FF] flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-[#826CF3]/30 ring-4 ring-background">
                 {initials}
               </div>
-              {user?.phone && (
+              {phone && (
                 <span className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
                   <BadgeCheck className="w-4 h-4 text-white" />
                 </span>
@@ -302,7 +218,7 @@ export default memo(function UserProfile() {
             </div>
             <h2 className="text-lg font-bold text-foreground">{displayName}</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {user?.phone ? `+91 ${user.phone}` : "Phone not linked"}
+              {phone ? `+91 ${phone}` : "Phone not linked"}
             </p>
 
             <div className="flex items-center gap-4 mt-4 w-full max-w-xs">
@@ -332,16 +248,6 @@ export default memo(function UserProfile() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {editing && (
-        <button
-          onClick={() => setEditing(false)}
-          className="w-full py-3 bg-secondary text-foreground rounded-xl text-sm flex items-center justify-center gap-2"
-        >
-          <X className="w-4 h-4" /> Cancel
-        </button>
-      )}
-=======
       <div className="px-4 space-y-6">
         {/* Personal */}
         <section>
@@ -364,7 +270,7 @@ export default memo(function UserProfile() {
               iconBg="bg-[#4F81FF]/15"
               iconColor="text-[#4F81FF]"
               label="Phone Number"
-              value={user?.phone ? `+91 ${user.phone}` : ""}
+              value={phone ? `+91 ${phone}` : ""}
               editing={false}
               readOnly
             />
@@ -447,7 +353,6 @@ export default memo(function UserProfile() {
           Account settings →
         </Link>
       </div>
->>>>>>> dc985c718afcc56715bf72a7abaa73003a2484aa
     </div>
   );
 });
