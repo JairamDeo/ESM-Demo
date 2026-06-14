@@ -84,6 +84,7 @@ export default memo(function RaiseGrievance() {
   const preselectedType = savedForm.caseType || routeState.caseType || "";
   const preselectedCaseTypeId = savedForm.caseTypeId || routeState.caseTypeId || "";
   const isFromQR = !!stationFromQR;
+  const freshGrievanceFlow = routeState.freshGrievanceFlow === true;
 
   const [form, setForm] = useState({
     concernType: savedForm.concernType || "",
@@ -170,8 +171,10 @@ export default memo(function RaiseGrievance() {
       });
       return;
     }
-    navigate("/user/document-checklist", { state: { form, isFromQR } });
-  }, [form, navigate, isFromQR, generalConcernMode, hasDocumentFixes, flaggedDocumentLabels, concernGrievanceId, concernMessage, concernComplaint]);
+    navigate("/user/document-checklist", {
+      state: { form, isFromQR, freshGrievanceFlow },
+    });
+  }, [form, navigate, isFromQR, freshGrievanceFlow, generalConcernMode, hasDocumentFixes, flaggedDocumentLabels, concernGrievanceId, concernMessage, concernComplaint]);
 
   return (
     <div className="bg-background min-h-full">

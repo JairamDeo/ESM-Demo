@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
   Check,
@@ -83,14 +83,18 @@ function groupByPeriod(items: any[]) {
   ].filter((g) => g.items.length > 0);
 }
 
-function emptyMessage(status: StatusFilter): string {
+function emptyMessage(status: StatusFilter, isAdminPortal: boolean): string {
   if (status === "unread") return "No unread notifications.";
   if (status === "read") return "No read notifications yet.";
-  return "Updates about your grievances will appear here.";
+  return isAdminPortal
+    ? "Updates about grievances, escalations, and announcements will appear here."
+    : "Updates about your grievances will appear here.";
 }
 
 export default memo(function Notifications() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminPortal = !location.pathname.startsWith("/user");
   const [status, setStatus] = useState<StatusFilter>("all");
   const { data, isLoading } = useNotifications(false);
   const markRead = useMarkNotificationRead();
@@ -116,10 +120,12 @@ export default memo(function Notifications() {
     (n: any) => {
       if (!n.isRead) markRead.mutate(n._id);
       if (n.grievanceCode) {
-        navigate("/user/track-case", { state: { grievanceId: n.grievanceCode } });
+        navigate(isAdminPortal ? "/grievances" : "/user/track-case", {
+          state: { grievanceId: n.grievanceCode },
+        });
       }
     },
-    [markRead, navigate]
+    [markRead, navigate, isAdminPortal]
   );
 
   const renderCard = (n: any) => {
@@ -174,18 +180,20 @@ export default memo(function Notifications() {
   };
 
   return (
-    <div className="flex flex-col min-h-full pb-6 animate-fade-in">
-      <div className="px-4 pt-2 pb-4 bg-gradient-to-b from-[#826CF3]/10 to-transparent">
-        <div className="flex items-center justify-between mb-4">
+    <div className={`flex flex-col min-h-full pb-6 animate-fade-in ${isAdminPortal ? "max-w-3xl" : ""}`}>
+      <div className={`${isAdminPortal ? "pb-4" : "px-4 pt-2 pb-4"} bg-gradient-to-b from-[#826CF3]/10 to-transparent`}>
+        <div className={`flex items-center justify-between mb-4 ${isAdminPortal ? "" : ""}`}>
           <div className="flex items-center gap-3">
-            <Link
-              to="/user"
-              className="p-1.5 rounded-full hover:bg-secondary/80 text-foreground transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Link>
+            {!isAdminPortal && (
+              <Link
+                to="/user"
+                className="p-1.5 rounded-full hover:bg-secondary/80 text-foreground transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Link>
+            )}
             <div>
-              <h1 className="text-xl font-bold text-foreground">Notifications</h1>
+              <h1 className={`${isAdminPortal ? "text-2xl" : "text-xl"} font-bold text-foreground`}>Notifications</h1>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up"}
               </p>
@@ -202,7 +210,7 @@ export default memo(function Notifications() {
           )}
         </div>
 
-        <div className="flex gap-1.5 p-1 bg-secondary/60 rounded-xl">
+        <div className={`flex gap-1.5 p-1 bg-secondary/60 rounded-xl ${isAdminPortal ? "" : ""}`}>
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.id}
@@ -225,7 +233,7 @@ export default memo(function Notifications() {
         </div>
       </div>
 
-      <div className="px-4 space-y-5 flex-1">
+      <div className={`space-y-5 flex-1 ${isAdminPortal ? "" : "px-4"}`}>
         {isLoading ? (
           <div className="space-y-3">
             {Array(5)
@@ -240,7 +248,7 @@ export default memo(function Notifications() {
               <Inbox className="w-8 h-8 text-[#826CF3]" />
             </div>
             <p className="text-base font-semibold text-foreground">No notifications</p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-[260px]">{emptyMessage(status)}</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-[260px]">{emptyMessage(status, isAdminPortal)}</p>
           </div>
         ) : (
           sections.map((section) => (

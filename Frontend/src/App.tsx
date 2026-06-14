@@ -74,6 +74,7 @@ const AdminGuard = memo(() => {
           <Route path="/escalations" element={<S><Escalations /></S>} />
           <Route path="/reports"     element={<S><Reports /></S>} />
           <Route path="/announcements" element={<S><Announcements /></S>} />
+          <Route path="/notifications" element={<S><Notifications /></S>} />
           <Route path="/settings"    element={<S><SettingsPage /></S>} />
           <Route path="*"            element={<S><NotFound /></S>} />
         </Routes>

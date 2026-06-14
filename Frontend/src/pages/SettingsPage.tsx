@@ -21,6 +21,8 @@ const PERMISSION_GROUPS: { label: string; perms: Array<{ key: keyof Permission; 
       { key: "updateGrievanceStatus", label: "Update status / progress cases"   },
       { key: "escalateGrievance",     label: "Escalate cases"                   },
       { key: "reassignOfficer",       label: "Reassign officer on a case"       },
+      { key: "viewSlaSettings",       label: "View SLA time settings"           },
+      { key: "manageSlaSettings",     label: "Edit SLA time settings"           },
       { key: "deleteGrievance",       label: "Delete grievances", danger: true  },
     ],
   },

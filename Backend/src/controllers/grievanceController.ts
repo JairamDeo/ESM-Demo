@@ -29,6 +29,20 @@ import {
   formatConcernDocumentLabels,
   type ConcernDocumentItem,
 } from "../services/concernHelpers";
+import { assignStationL1ForGrievance, findOfficerAtOrgTier, resolveStationOrg } from "../services/grievanceOfficerResolver";
+import { computeTierDeadline, getSlaConfig } from "../services/slaConfigService";
+import {
+  escalateGrievanceToLevel,
+  escalateGrievanceToOrgTier,
+  nextOrgTier,
+  REASON_LABELS,
+  ORG_TIER_LABELS,
+  EscalationReasonType,
+} from "../services/slaEscalationService";
+import { assertCanActOnGrievance } from "../services/grievanceActionGuard";
+import { OrgTier } from "../constants/orgTiers";
+import { notifyOfficer, notifyVeteran } from "../services/notificationService";
+import { OfficerLevel } from "../constants/officerLevels";
 import VeteranRequiredDocumentUpload from "../models/VeteranRequiredDocumentUpload";
 
 // ─── Helper: get date filter ─────────────────────────────────────────────────
@@ -172,8 +186,10 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const slaDeadline = new Date();
-    slaDeadline.setDate(slaDeadline.getDate() + 15);
+    const slaConfig = await getSlaConfig();
+    const now = new Date();
+    const slaTierDeadline = computeTierDeadline(slaConfig, "L1", now);
+    const { org, officer: l1Officer } = await assignStationL1ForGrievance(resolvedStation);
 
     const userId = isVeteran ? currentUser.id : undefined;
     const grievanceId = `GRV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -238,19 +254,28 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       veteranPhone: resolvedPhone || veteranPhone,
       veteranArmyNo,
       veteranRank,
-      stationName: resolvedStation,
-      officerName: officerName || "Unassigned",
+      stationName: org?.stationName || resolvedStation,
+      stationId: org?.stationId,
+      hqId: org?.hqId,
+      stateId: org?.stateId,
+      officerId: l1Officer?._id,
+      officerName: l1Officer?.name || officerName || "Unassigned",
+      assignedLevel: "L1",
+      assignedOrgTier: "station",
       priority: priority || "medium",
       description,
       attachments,
       createdBy,
       submissionSource: submissionSource || "portal",
-      slaDeadline, userId,
+      ...(slaTierDeadline ? { slaDeadline: slaTierDeadline, slaTierDeadline } : {}),
+      userId,
       timeline: [{
         status: "pending",
-        note: "Grievance submitted",
+        note: l1Officer
+          ? `Grievance submitted and assigned to Station HQ L1 officer ${l1Officer.name}`
+          : "Grievance submitted — no Station HQ L1 officer found",
         updatedBy: veteranName,
-        updatedAt: new Date(),
+        updatedAt: now,
         attachments,
         eventType: "status",
       }],
@@ -265,12 +290,24 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     }
 
     if (userId) {
-      await Notification.create({
-        recipientId: userId, recipientType: "user",
+      await notifyVeteran(userId, {
         title: "Grievance Submitted",
         message: `Your grievance ${grievanceId} has been submitted successfully`,
         type: "grievance_update",
-        grievanceId: grievance._id, grievanceCode: grievanceId,
+        grievanceId: grievance._id,
+        grievanceCode: grievanceId,
+        url: "/user/track-case",
+      });
+    }
+
+    if (l1Officer?._id) {
+      await notifyOfficer(l1Officer._id, {
+        title: "New grievance assigned",
+        message: `${grievanceId} from ${veteranName} at ${stationName}. Please review and take action.`,
+        type: "assignment",
+        grievanceId: grievance._id,
+        grievanceCode: grievanceId,
+        url: "/grievances",
       });
     }
 
@@ -308,6 +345,13 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
     });
 
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
+
+    const authUser = (req as any).user;
+    const actErr = assertCanActOnGrievance(authUser, grievance);
+    if (actErr) {
+      res.status(403).json({ success: false, message: actErr });
+      return;
+    }
 
     const concernStatus = effectiveConcernStatus(grievance);
     if (isConcernBlocking(concernStatus)) {
@@ -358,12 +402,13 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
     await grievance.save();
 
     if (grievance.userId) {
-      await Notification.create({
-        recipientId: grievance.userId, recipientType: "user",
+      await notifyVeteran(grievance.userId, {
         title: "Grievance Update",
         message: `Your grievance ${grievance.grievanceId} status changed to ${status}`,
         type: "grievance_update",
-        grievanceId: grievance._id, grievanceCode: grievance.grievanceId,
+        grievanceId: grievance._id,
+        grievanceCode: grievance.grievanceId,
+        url: "/user/track-case",
       });
     }
 
@@ -400,6 +445,17 @@ export const assignOfficer = async (req: Request, res: Response): Promise<void> 
       eventType: "status",
     });
     await grievance.save();
+
+    if (officerId) {
+      await notifyOfficer(officerId, {
+        title: "Grievance assigned to you",
+        message: `${grievance.grievanceId} has been assigned to you. Please review.`,
+        type: "assignment",
+        grievanceId: grievance._id,
+        grievanceCode: grievance.grievanceId,
+        url: "/grievances",
+      });
+    }
 
     res.status(200).json({ success: true, message: "Officer assigned", data: grievance });
   } catch (error: any) {
@@ -465,6 +521,11 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
           success: false,
           message: "Cannot raise concerns on a resolved grievance.",
         });
+        return;
+      }
+      const actErr = assertCanActOnGrievance(authUser, grievance);
+      if (actErr) {
+        res.status(403).json({ success: false, message: actErr });
         return;
       }
       if (currentConcernStatus === "awaiting_veteran") {
@@ -732,17 +793,14 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     await grievance.save();
 
     if (isVeteran) {
-      if (grievance.userId) {
-        await Notification.create({
-          recipientId: grievance.userId,
-          recipientType: "user",
-          title: "Response received",
-          message: `Your response on ${grievance.grievanceId} has been submitted. The officer will review it.`,
-          type: "grievance_update",
-          grievanceId: grievance._id,
-          grievanceCode: grievance.grievanceId,
-        });
-      }
+      await notifyOfficer(grievance.officerId, {
+        title: "Veteran responded to concern",
+        message: `${resolvedName} responded on ${grievance.grievanceId}. Please review the update.`,
+        type: "grievance_update",
+        grievanceId: grievance._id,
+        grievanceCode: grievance.grievanceId,
+        url: "/grievances",
+      });
       res.status(200).json({ success: true, message: "Response submitted", data: grievance });
       return;
     }
@@ -754,14 +812,13 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
           : scope === "both"
             ? " Details and documents need correction."
             : "";
-      await Notification.create({
-        recipientId: grievance.userId,
-        recipientType: "user",
+      await notifyVeteran(grievance.userId, {
         title: "Action required on your grievance",
         message: `Officer raised a concern on ${grievance.grievanceId}.${docHint} Please review and respond.`,
         type: "grievance_update",
         grievanceId: grievance._id,
         grievanceCode: grievance.grievanceId,
+        url: "/user/track-case",
       });
     }
 
@@ -785,6 +842,13 @@ export const resolveConcern = async (req: Request, res: Response): Promise<void>
 
     if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+
+    const authUser = (req as any).user;
+    const actErr = assertCanActOnGrievance(authUser, grievance);
+    if (actErr) {
+      res.status(403).json({ success: false, message: actErr });
       return;
     }
 
@@ -815,14 +879,13 @@ export const resolveConcern = async (req: Request, res: Response): Promise<void>
     await grievance.save();
 
     if (grievance.userId) {
-      await Notification.create({
-        recipientId: grievance.userId,
-        recipientType: "user",
+      await notifyVeteran(grievance.userId, {
         title: "Concern resolved",
         message: `The officer resolved the concern on ${grievance.grievanceId}. Your case will continue processing.`,
         type: "grievance_update",
         grievanceId: grievance._id,
         grievanceCode: grievance.grievanceId,
+        url: "/user/track-case",
       });
     }
 
@@ -973,6 +1036,386 @@ export const deleteAllGrievances = async (_req: Request, res: Response): Promise
     await Escalation.deleteMany({});
     await Notification.deleteMany({});
     res.status(200).json({ success: true, message: "All grievances, escalations and notifications deleted" });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── Escalation preview (manual escalate modal) ──────────────────────────────
+export const getEscalationPreview = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance || grievance.isDeleted) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+
+    const fromOrgTier = (grievance.assignedOrgTier || "station") as OrgTier;
+    const fromLevel = (grievance.assignedLevel || "L1") as OfficerLevel;
+    const toOrgTier = nextOrgTier(fromOrgTier);
+    let toOfficer: { _id: mongoose.Types.ObjectId; name: string } | null = null;
+
+    if (toOrgTier && fromLevel === "L1") {
+      const org = grievance.stationId || grievance.hqId || grievance.stateId
+        ? {
+            stationId: grievance.stationId,
+            stationName: grievance.stationName,
+            hqId: grievance.hqId,
+            stateId: grievance.stateId,
+          }
+        : await resolveStationOrg(grievance.stationName);
+      const officer = org ? await findOfficerAtOrgTier(toOrgTier, "L1", org) : null;
+      if (officer) {
+        toOfficer = { _id: officer._id, name: officer.name };
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        canEscalate: Boolean(toOrgTier && fromLevel === "L1"),
+        fromOrgTier,
+        toOrgTier,
+        fromLevel,
+        fromOfficerId: grievance.officerId,
+        fromOfficerName: grievance.officerName || `${ORG_TIER_LABELS[fromOrgTier]} ${fromLevel}`,
+        toLevel: toOrgTier ? "L1" : null,
+        toOfficerId: toOfficer?._id,
+        toOfficerName: toOfficer?.name || (toOrgTier ? `${ORG_TIER_LABELS[toOrgTier]} L1 (Unassigned)` : null),
+        escalationTypes: [
+          { value: "no_response", label: "No response — officer has not raised any concern" },
+          { value: "concern_pending", label: "Concern pending — veteran has not replied" },
+        ],
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── Manual escalation with type ─────────────────────────────────────────────
+export const manualEscalateGrievance = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { escalationReasonType, note } = req.body;
+    const allowed: EscalationReasonType[] = ["no_response", "concern_pending"];
+    if (!escalationReasonType || !allowed.includes(escalationReasonType)) {
+      res.status(400).json({
+        success: false,
+        message: "escalationReasonType must be no_response or concern_pending",
+      });
+      return;
+    }
+
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance || grievance.isDeleted) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+    if (grievance.status === "resolved" || grievance.status === "closed") {
+      res.status(400).json({ success: false, message: "Cannot escalate a resolved case" });
+      return;
+    }
+
+    const authUser = (req as any).user;
+    const actErr = assertCanActOnGrievance(authUser, grievance);
+    if (actErr) {
+      res.status(403).json({ success: false, message: actErr });
+      return;
+    }
+
+    const fromOrgTier = (grievance.assignedOrgTier || "station") as OrgTier;
+    const fromLevel = (grievance.assignedLevel || "L1") as OfficerLevel;
+    const targetOrgTier = nextOrgTier(fromOrgTier);
+    if (!targetOrgTier || fromLevel !== "L1") {
+      res.status(400).json({
+        success: false,
+        message: fromLevel !== "L1"
+          ? "Manual org escalation only from L1 at current tier"
+          : "Case is already at Area — cannot escalate further",
+      });
+      return;
+    }
+
+    const user = authUser;
+    const reasonType = escalationReasonType as EscalationReasonType;
+    const reasonText = note?.trim() || REASON_LABELS[reasonType];
+
+    const { grievance: updated } = await escalateGrievanceToOrgTier(grievance, targetOrgTier, {
+      reasonType,
+      escalatedBy: user?.name || "Admin",
+      note: reasonText,
+      isAuto: false,
+      level: "L1",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Escalated from ${ORG_TIER_LABELS[fromOrgTier]} to ${ORG_TIER_LABELS[targetOrgTier]}`,
+      data: updated,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── L2/L3 request escalation to take case from L1 ───────────────────────────
+export const requestEscalationTakeover = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    const level = user?.level as string | undefined;
+    if (level !== "L2" && level !== "L3") {
+      res.status(403).json({ success: false, message: "Only L2 and L3 officers can request escalation takeover" });
+      return;
+    }
+
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance || grievance.isDeleted) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+    if (grievance.status === "resolved" || grievance.status === "closed") {
+      res.status(400).json({ success: false, message: "Cannot request escalation on a resolved case" });
+      return;
+    }
+    if ((grievance.assignedOrgTier || "station") !== "station") {
+      res.status(400).json({ success: false, message: "Takeover requests only apply at Station HQ tier" });
+      return;
+    }
+    if ((grievance.assignedLevel || "L1") !== "L1") {
+      res.status(400).json({ success: false, message: "Case is not at L1 — escalation request not applicable" });
+      return;
+    }
+    if (grievance.pendingEscalationRequest?.status === "pending") {
+      res.status(400).json({ success: false, message: "An escalation request is already pending L1 approval" });
+      return;
+    }
+
+    const requester = await Officer.findById(user.id);
+    if (!requester || requester.role !== "Station HQ Officer") {
+      res.status(403).json({ success: false, message: "Only Station HQ officers can request takeover" });
+      return;
+    }
+    if (!grievance.stationId || String(requester.station) !== String(grievance.stationId)) {
+      res.status(403).json({ success: false, message: "You can only request takeover for your own Station HQ" });
+      return;
+    }
+
+    const { reason } = req.body;
+    grievance.pendingEscalationRequest = {
+      requestedByOfficerId: user.id,
+      requestedByOfficerName: user.name,
+      requestedByLevel: level as "L2" | "L3",
+      reason: reason || `Escalation requested by ${level} officer`,
+      requestedAt: new Date(),
+      status: "pending",
+    };
+    grievance.timeline.push({
+      status: "escalated",
+      note: `${user.name} (${level}) requested escalation takeover — awaiting L1 approval`,
+      updatedBy: user.name,
+      updatedAt: new Date(),
+      eventType: "escalation_request",
+    });
+    await grievance.save();
+
+    await notifyOfficer(grievance.officerId, {
+      title: "Escalation takeover request",
+      message: `${user.name} (${level}) requested to take over ${grievance.grievanceId}. Approve or reject in grievance details.`,
+      type: "escalation",
+      grievanceId: grievance._id,
+      grievanceCode: grievance.grievanceId,
+      url: "/grievances",
+    });
+
+    res.status(200).json({ success: true, message: "Escalation request sent to L1 for approval", data: grievance });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── L1 approve escalation request ───────────────────────────────────────────
+export const approveEscalationRequest = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance || grievance.isDeleted) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+
+    const pending = grievance.pendingEscalationRequest;
+    if (!pending || pending.status !== "pending") {
+      res.status(400).json({ success: false, message: "No pending escalation request" });
+      return;
+    }
+
+    const isSuperAdmin = user?.role === "super_admin";
+    const isAssignedStationL1 =
+      (grievance.assignedOrgTier || "station") === "station" &&
+      user?.level === "L1" &&
+      grievance.officerId &&
+      String(grievance.officerId) === String(user.id);
+    if (!isSuperAdmin && !isAssignedStationL1) {
+      res.status(403).json({ success: false, message: "Only the assigned Station HQ L1 can approve escalation requests" });
+      return;
+    }
+
+    const targetLevel = pending.requestedByLevel;
+    const requestingOfficer = await Officer.findById(pending.requestedByOfficerId);
+    if (!requestingOfficer) {
+      res.status(400).json({ success: false, message: "Requesting officer not found" });
+      return;
+    }
+
+    const { grievance: updated } = await escalateGrievanceToLevel(grievance, targetLevel, {
+      reasonType: "approved_request",
+      escalatedBy: user.name,
+      note: `L1 approved — case assigned to ${requestingOfficer.name} (${targetLevel}). ${pending.reason || ""}`.trim(),
+      targetOfficer: { _id: requestingOfficer._id, name: requestingOfficer.name },
+      approvalStatus: "approved",
+      requestedByLevel: pending.requestedByLevel,
+      requestedByOfficerId: pending.requestedByOfficerId,
+      isAuto: false,
+    });
+
+    updated.pendingEscalationRequest = { ...pending, status: "approved" };
+    await updated.save();
+
+    await notifyOfficer(pending.requestedByOfficerId, {
+      title: "Escalation request approved",
+      message: `L1 approved your request. ${grievance.grievanceId} is now assigned to you.`,
+      type: "escalation",
+      grievanceId: grievance._id,
+      grievanceCode: grievance.grievanceId,
+      url: "/grievances",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Case assigned to ${requestingOfficer.name} (${targetLevel})`,
+      data: updated,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── Station officer: request escalation to upper org tier (e.g. HQ L1) ───────
+export const requestEscalateToUpperTier = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance || grievance.isDeleted) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+    if (grievance.status === "resolved" || grievance.status === "closed") {
+      res.status(400).json({ success: false, message: "Cannot escalate a resolved case" });
+      return;
+    }
+
+    const currentTier = (grievance.assignedOrgTier || "station") as OrgTier;
+    const targetTier = nextOrgTier(currentTier);
+    if (!targetTier) {
+      res.status(400).json({ success: false, message: "Case is already at the highest tier" });
+      return;
+    }
+
+    const requester = await Officer.findById(user.id);
+    if (!requester) {
+      res.status(403).json({ success: false, message: "Officer not found" });
+      return;
+    }
+
+    if (currentTier === "station") {
+      if (requester.role !== "Station HQ Officer" || !grievance.stationId ||
+          String(requester.station) !== String(grievance.stationId)) {
+        res.status(403).json({
+          success: false,
+          message: "Only officers of this Station HQ can request escalation to HQ",
+        });
+        return;
+      }
+    } else if (currentTier === "hq") {
+      if (requester.role !== "Headquarter Officer" || !grievance.hqId ||
+          String(requester.hqId) !== String(grievance.hqId)) {
+        res.status(403).json({
+          success: false,
+          message: "Only officers of this HQ can request escalation to Area",
+        });
+        return;
+      }
+      if (user.level !== "L1") {
+        res.status(403).json({ success: false, message: "Only HQ L1 can request escalation to Area" });
+        return;
+      }
+    }
+
+    const { reason } = req.body;
+    const { grievance: updated } = await escalateGrievanceToOrgTier(grievance, targetTier, {
+      reasonType: "manual_request",
+      escalatedBy: user.name,
+      note: reason || `Escalation requested by ${user.name} (${user.level || "officer"}) to ${ORG_TIER_LABELS[targetTier]} L1`,
+      level: "L1",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Case escalated to ${ORG_TIER_LABELS[targetTier]} L1`,
+      data: updated,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── L1 reject escalation request ────────────────────────────────────────────
+export const rejectEscalationRequest = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance || grievance.isDeleted) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+
+    const pending = grievance.pendingEscalationRequest;
+    if (!pending || pending.status !== "pending") {
+      res.status(400).json({ success: false, message: "No pending escalation request" });
+      return;
+    }
+
+    const isSuperAdmin = user?.role === "super_admin";
+    const isAssignedStationL1 =
+      (grievance.assignedOrgTier || "station") === "station" &&
+      user?.level === "L1" &&
+      grievance.officerId &&
+      String(grievance.officerId) === String(user.id);
+    if (!isSuperAdmin && !isAssignedStationL1) {
+      res.status(403).json({ success: false, message: "Only the assigned Station HQ L1 can reject escalation requests" });
+      return;
+    }
+
+    grievance.pendingEscalationRequest = { ...pending, status: "rejected" };
+    grievance.timeline.push({
+      status: grievance.status,
+      note: `L1 rejected escalation request from ${pending.requestedByOfficerName}`,
+      updatedBy: user.name,
+      updatedAt: new Date(),
+      eventType: "escalation_request",
+    });
+    await grievance.save();
+
+    await notifyOfficer(pending.requestedByOfficerId, {
+      title: "Escalation request rejected",
+      message: `L1 rejected your takeover request for ${grievance.grievanceId}.`,
+      type: "escalation",
+      grievanceId: grievance._id,
+      grievanceCode: grievance.grievanceId,
+      url: "/grievances",
+    });
+
+    res.status(200).json({ success: true, message: "Escalation request rejected", data: grievance });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

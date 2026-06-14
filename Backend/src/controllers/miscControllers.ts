@@ -318,12 +318,19 @@ export const getNotifications = async (req: Request, res: Response): Promise<voi
 
 export const markNotificationRead = async (req: Request, res: Response): Promise<void> => {
   try {
+    const userId = (req as any).user.id;
+    const userRole = (req as any).user.role;
+    const recipientType = userRole === "user" ? "user" : "admin";
     const { id } = req.params;
     if (id === "all") {
-      await Notification.updateMany({ recipientId: (req as any).user.id }, { isRead: true });
+      await Notification.updateMany({ recipientId: userId, recipientType }, { isRead: true });
       res.status(200).json({ success: true, message: "All notifications marked as read" });
     } else {
-      const notification = await Notification.findByIdAndUpdate(id, { isRead: true }, { new: true });
+      const notification = await Notification.findOneAndUpdate(
+        { _id: id, recipientId: userId, recipientType },
+        { isRead: true },
+        { new: true }
+      );
       if (!notification) { res.status(404).json({ success: false, message: "Notification not found" }); return; }
       res.status(200).json({ success: true, data: notification });
     }
@@ -505,10 +512,51 @@ export const removeCategoryIconHandler = async (req: Request, res: Response): Pr
 // PUSH NOTIFICATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+export const getPushConfig = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const publicKey = process.env.VAPID_PUBLIC_KEY?.trim() || "";
+    const configured = Boolean(publicKey && process.env.VAPID_PRIVATE_KEY?.trim());
+    res.status(200).json({
+      success: true,
+      data: { publicKey, configured },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPushStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { getPushDevices } = await import("../services/pushDeviceService");
+    const userId = (req as any).user.id;
+    const userType = (req as any).user.role === "user" ? "user" : "admin";
+
+    const devices = await getPushDevices(userId, userType);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        count: devices.length,
+        configured: Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+        storedIn: userType === "user" ? "users" : "officers",
+        devices: devices.map((d, i) => ({
+          id: d._id || i,
+          endpointPreview: d.endpoint.slice(0, 48) + "…",
+          userAgent: d.userAgent || "Unknown device",
+          registeredAt: d.lastSyncedAt,
+          lastSyncedAt: d.lastSyncedAt,
+        })),
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const subscribeToPushNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
-    const PushSubscription = (await import("../models/PushSubscription")).default;
-    const { subscription } = req.body;
+    const { registerPushDevice } = await import("../services/pushDeviceService");
+    const { subscription, userAgent } = req.body;
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
     const userType = userRole === "user" ? "user" : "admin";
@@ -517,20 +565,29 @@ export const subscribeToPushNotifications = async (req: Request, res: Response):
       res.status(400).json({ success: false, message: "Invalid subscription object" });
       return;
     }
+    if (!subscription.keys?.p256dh || !subscription.keys?.auth) {
+      res.status(400).json({ success: false, message: "Invalid subscription keys" });
+      return;
+    }
 
-    // Upsert the subscription based on the endpoint
-    await PushSubscription.findOneAndUpdate(
-      { endpoint: subscription.endpoint },
-      {
-        endpoint: subscription.endpoint,
-        keys: subscription.keys,
-        userId,
-        userType,
+    const devices = await registerPushDevice(userId, userType, {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
       },
-      { upsert: true, new: true }
-    );
+      userAgent: userAgent || (req.headers["user-agent"] as string) || undefined,
+    });
 
-    res.status(200).json({ success: true, message: "Subscribed to push notifications" });
+    res.status(200).json({
+      success: true,
+      message: `Device saved on ${userType === "user" ? "veteran profile" : "officer profile"}`,
+      data: {
+        count: devices.length,
+        endpointPreview: subscription.endpoint.slice(0, 48) + "…",
+        storedIn: userType === "user" ? "users" : "officers",
+      },
+    });
   } catch (error: any) {
     console.error("Push subscription error:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -539,30 +596,30 @@ export const subscribeToPushNotifications = async (req: Request, res: Response):
 
 export const sendTestPushNotification = async (req: Request, res: Response): Promise<void> => {
   try {
-    const PushSubscription = (await import("../models/PushSubscription")).default;
+    const { getPushDevices, removePushDevice } = await import("../services/pushDeviceService");
     const { sendPushNotification } = await import("../utils/webPush");
     const userId = (req as any).user.id;
+    const userType = (req as any).user.role === "user" ? "user" : "admin";
 
-    const subscriptions = await PushSubscription.find({ userId });
+    const subscriptions = await getPushDevices(userId, userType);
     
     if (!subscriptions.length) {
       res.status(404).json({ success: false, message: "No push subscriptions found for this user." });
       return;
     }
 
-    const payload = JSON.stringify({
-      title: "Test Notification",
-      body: "This is a test push notification from Vitric ESM.",
-      icon: "/Logo.svg",
-    });
-
     let successCount = 0;
     for (const sub of subscriptions) {
-      const success = await sendPushNotification(sub, payload);
+      const subscription = { endpoint: sub.endpoint, keys: sub.keys };
+      const success = await sendPushNotification(subscription, {
+        title: "Test Notification",
+        body: "This is a test push notification from Vitric ESM.",
+        icon: "/Logo.svg",
+        url: "/notifications",
+      });
       if (success) successCount++;
       else {
-        // Optionally remove invalid subscriptions
-        // await PushSubscription.findByIdAndDelete(sub._id);
+        await removePushDevice(userId, userType, sub.endpoint).catch(() => undefined);
       }
     }
 

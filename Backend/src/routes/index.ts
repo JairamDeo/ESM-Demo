@@ -21,6 +21,7 @@ import {
   getCaseTypes, getCaseTypeById, createCaseType, updateCaseType, deleteCaseType,
   getReports,
   getNotifications, markNotificationRead,
+  getPushConfig, getPushStatus,
   subscribeToPushNotifications, sendTestPushNotification,
   updateUserProfile, getCategories, createCategory, updateCategory,
   uploadCategoryIcon, removeCategoryIconHandler
@@ -159,6 +160,8 @@ reportsRouter.get("/", protect, adminOnly, getReports);
 // ═══════════════════════════════════════════════════════════════════════════════
 export const notificationRouter = Router();
 
+notificationRouter.get("/push-config", getPushConfig);
+notificationRouter.get("/push-status", protect, getPushStatus);
 notificationRouter.get("/",          protect, getNotifications);
 notificationRouter.patch("/:id/read", protect, markNotificationRead);
 notificationRouter.post("/subscribe", protect, subscribeToPushNotifications);

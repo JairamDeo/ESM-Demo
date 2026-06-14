@@ -9,6 +9,13 @@ import {
 import { Link } from "react-router-dom";
 import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, Trash2, ToggleLeft, ToggleRight, Network } from "lucide-react";
 import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus, useDeleteOfficer, useStations, useHQs, useStates } from "@/hooks/useApi";
+import ConfirmDialog from "@/components/ConfirmDialog";
+
+type PendingConfirm =
+  | { kind: "add" }
+  | { kind: "update" }
+  | { kind: "toggle"; officer: any }
+  | { kind: "delete"; officer: any };
 
 const ALL_ROLES: OfficerJobRole[] = [
   "Super Admin", "Area Officer", "Headquarter Officer", "Station HQ Officer",
@@ -374,6 +381,7 @@ export default memo(function UsersOfficers() {
   const [roleFilter, setRoleFilter] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editOfficer, setEditOfficer] = useState<any>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const [form, setForm] = useState({
     rank: "Maj.",
@@ -452,46 +460,93 @@ export default memo(function UsersOfficers() {
     password: form.canLogin ? form.password : undefined,
   }), [form]);
 
-  const handleAdd = useCallback(async () => {
+  const handleAdd = useCallback(() => {
     if (!form.name.trim() || !form.email.trim() || !form.level) return;
-    const label = form.assignName || "assignment";
-    const confirmed = window.confirm(`Add officer "${form.rank} ${form.name}" (${form.role}) — ${label}?`);
-    if (!confirmed) return;
-    await createOfficer.mutateAsync(buildPayload());
-    resetForm();
-    setAddOpen(false);
-  }, [form, createOfficer, resetForm, buildPayload]);
+    setPendingConfirm({ kind: "add" });
+  }, [form]);
 
-  const handleUpdate = useCallback(async () => {
+  const handleUpdate = useCallback(() => {
     if (!editOfficer?._id || !form.level) return;
-    const confirmed = window.confirm(`Save changes to "${form.name}"?`);
-    if (!confirmed) return;
-    await updateOfficer.mutateAsync({
-      id: editOfficer._id,
-      name: form.name,
-      role: form.role,
-      level: form.level,
-      email: form.email,
-      stateId: form.stateId || undefined,
-      hqId: form.hqId || undefined,
-      stationId: form.stationId || undefined,
-    });
-    setEditOfficer(null);
-    resetForm();
-  }, [editOfficer, form, updateOfficer, resetForm]);
+    setPendingConfirm({ kind: "update" });
+  }, [editOfficer, form]);
 
   const handleToggle = useCallback((o: any) => {
-    const action = o.status === "active" ? "deactivate" : "activate";
-    if (window.confirm(`Are you sure you want to ${action} "${o.name}"?`)) {
-      toggleStatus.mutate(o._id);
-    }
-  }, [toggleStatus]);
+    setPendingConfirm({ kind: "toggle", officer: o });
+  }, []);
 
   const handleDelete = useCallback((o: any) => {
-    if (window.confirm(`Delete "${o.name}"? This cannot be undone.`)) {
-      deleteOfficer.mutate(o._id);
+    setPendingConfirm({ kind: "delete", officer: o });
+  }, []);
+
+  const confirmDialogProps = useMemo(() => {
+    if (!pendingConfirm) return null;
+    switch (pendingConfirm.kind) {
+      case "add":
+        return {
+          title: "Add Officer",
+          message: `Add officer "${form.rank} ${form.name}" (${form.role}) — ${form.assignName || "assignment"}?`,
+          confirmLabel: "Add Officer",
+          variant: "default" as const,
+        };
+      case "update":
+        return {
+          title: "Save Changes",
+          message: `Save changes to "${form.name}"?`,
+          confirmLabel: "Save Changes",
+          variant: "default" as const,
+        };
+      case "toggle": {
+        const action = pendingConfirm.officer.status === "active" ? "deactivate" : "activate";
+        return {
+          title: action === "activate" ? "Activate Officer" : "Deactivate Officer",
+          message: `Are you sure you want to ${action} "${pendingConfirm.officer.name}"?`,
+          confirmLabel: action === "activate" ? "Activate" : "Deactivate",
+          variant: "warning" as const,
+        };
+      }
+      case "delete":
+        return {
+          title: "Delete Officer",
+          message: `Delete "${pendingConfirm.officer.name}"? This cannot be undone.`,
+          confirmLabel: "Delete",
+          variant: "danger" as const,
+        };
+      default:
+        return null;
     }
-  }, [deleteOfficer]);
+  }, [pendingConfirm, form]);
+
+  const handleConfirmAction = useCallback(async () => {
+    if (!pendingConfirm) return;
+    switch (pendingConfirm.kind) {
+      case "add":
+        await createOfficer.mutateAsync(buildPayload());
+        resetForm();
+        setAddOpen(false);
+        break;
+      case "update":
+        await updateOfficer.mutateAsync({
+          id: editOfficer._id,
+          name: form.name,
+          role: form.role,
+          level: form.level,
+          email: form.email,
+          stateId: form.stateId || undefined,
+          hqId: form.hqId || undefined,
+          stationId: form.stationId || undefined,
+        });
+        setEditOfficer(null);
+        resetForm();
+        break;
+      case "toggle":
+        await toggleStatus.mutateAsync(pendingConfirm.officer._id);
+        break;
+      case "delete":
+        await deleteOfficer.mutateAsync(pendingConfirm.officer._id);
+        break;
+    }
+    setPendingConfirm(null);
+  }, [pendingConfirm, createOfficer, updateOfficer, toggleStatus, deleteOfficer, buildPayload, resetForm, editOfficer, form]);
 
   const modalProps = {
     form, setForm, handleAdd, handleUpdate,
@@ -667,6 +722,19 @@ export default memo(function UsersOfficers() {
           </table>
         </div>
       </div>
+
+      {confirmDialogProps && (
+        <ConfirmDialog
+          open={!!pendingConfirm}
+          title={confirmDialogProps.title}
+          message={confirmDialogProps.message}
+          confirmLabel={confirmDialogProps.confirmLabel}
+          variant={confirmDialogProps.variant}
+          loading={createOfficer.isPending || updateOfficer.isPending || toggleStatus.isPending || deleteOfficer.isPending}
+          onClose={() => setPendingConfirm(null)}
+          onConfirm={handleConfirmAction}
+        />
+      )}
     </div>
   );
 });

@@ -170,6 +170,7 @@ export default function DocumentRequiredInfo() {
         state={{
           caseType: displayTitle,
           caseTypeId: resolvedCaseTypeId,
+          freshGrievanceFlow: true,
         }}
         className="w-full flex items-center justify-center bg-[#826CF3] text-white font-bold py-4 rounded-xl hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(130,108,243,0.35)]"
       >

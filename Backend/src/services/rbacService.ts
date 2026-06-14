@@ -14,7 +14,19 @@ export type RolePermissionsMap = Record<string, PermissionMap>;
 
 export async function ensureRolePermissionsSeeded(): Promise<void> {
   const count = await RolePermission.countDocuments();
-  if (count > 0) return;
+  if (count > 0) {
+    // Keep station_hq action permissions in sync (assigned officers must act on cases)
+    await RolePermission.updateOne(
+      { role: "station_hq" },
+      {
+        $set: {
+          "permissions.updateGrievanceStatus": true,
+          "permissions.escalateGrievance": true,
+        },
+      }
+    );
+    return;
+  }
 
   await RolePermission.insertMany(
     (Object.keys(DEFAULT_ROLE_PERMISSIONS) as RbacRole[]).map((role) => ({

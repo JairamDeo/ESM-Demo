@@ -413,6 +413,41 @@ export const downloadChecklistTemplate = async (req: Request, res: Response): Pr
   }
 };
 
+/** Clear all draft uploads for a case type (new grievance — not linked to any grievance yet) */
+export const clearVeteranDraftUploads = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const caseTypeId = paramString(req.query.caseTypeId as string | string[]);
+    if (!caseTypeId) {
+      res.status(400).json({ success: false, message: "caseTypeId query parameter is required" });
+      return;
+    }
+
+    const caseType = await resolveCaseTypeById(caseTypeId);
+    if (!caseType) {
+      res.status(404).json({ success: false, message: "Case type not found" });
+      return;
+    }
+
+    const userId = (req as any).user.id;
+    const uploads = await VeteranRequiredDocumentUpload.find({
+      userId,
+      caseType: caseType._id,
+      grievanceId: { $exists: false },
+    });
+
+    for (const upload of uploads) {
+      if (upload.storedPath) {
+        await deleteStoredAsset(upload.storedPath).catch(() => undefined);
+      }
+      await upload.deleteOne();
+    }
+
+    res.json({ success: true, message: "Draft uploads cleared", cleared: uploads.length });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 /** Delete veteran upload — :uploadId = upload record MongoDB _id from upload/checklist response */
 export const deleteVeteranUpload = async (req: Request, res: Response): Promise<void> => {
   try {

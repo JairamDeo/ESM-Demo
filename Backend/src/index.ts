@@ -5,6 +5,8 @@ import { ensureRolePermissionsSeeded } from "./services/rbacService";
 import { verifyCloudinaryConnection } from "./services/storageService";
 import { getLanIPv4Addresses } from "./utils/network";
 
+import { runSlaEscalationCheck } from "./services/slaEscalationService";
+
 const PORT = parseInt(process.env.PORT || "5000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 
@@ -14,6 +16,21 @@ const startServer = async () => {
     await connectDB();
     await ensureRolePermissionsSeeded();
     await verifyCloudinaryConnection();
+
+    // Auto SLA escalation check every 5 minutes (+ once on startup)
+    const SLA_CHECK_MS = 5 * 60 * 1000;
+    const runSlaCheck = async (label: string) => {
+      try {
+        const count = await runSlaEscalationCheck();
+        if (count > 0) {
+          console.log(`⏫  ${label}: auto-escalated ${count} grievance step(s) due to SLA breach`);
+        }
+      } catch (err: any) {
+        console.error("SLA escalation check failed:", err.message);
+      }
+    };
+    void runSlaCheck("Startup");
+    setInterval(() => void runSlaCheck("Scheduled"), SLA_CHECK_MS);
 
     // Start Express server
     const server = app.listen(PORT, HOST, () => {

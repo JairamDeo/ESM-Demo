@@ -4,6 +4,8 @@ import { Sun, Moon, Home, FileText, Layers, User, Settings } from "lucide-react"
 import { useTheme } from "@/hooks/useTheme";
 import { Icon } from "@iconify/react";
 import { useNotifications } from "@/hooks/useApi";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePushSync } from "@/hooks/usePushSync";
 
 const MOCKUP_WIDTH = 390;
 const MOCKUP_HEIGHT = 844;
@@ -90,8 +92,10 @@ const BottomNavItem = ({
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { data } = useNotifications();
+  usePushSync(!!user, user?.id);
   const unreadCount = data?.unreadCount || 0;
   const { isMockup, scale } = useMockupScale();
 

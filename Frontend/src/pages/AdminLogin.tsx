@@ -21,7 +21,7 @@ const AdminLogin = memo(() => {
     }
     setLoading(true);
     try {
-      await adminLogin(username.trim(), password);
+      await adminLogin(username.trim(), password.trim());
       toast.success("Login successful");
       navigate("/");
     } catch (err: any) {
@@ -68,7 +68,7 @@ const AdminLogin = memo(() => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyDown={onKey}
-                placeholder="Enter username"
+                placeholder="Username or email (e.g. test-st1-l1@esm.in)"
                 className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground flex-1"
               />
             </div>
@@ -103,7 +103,7 @@ const AdminLogin = memo(() => {
           </button>
 
           <p className="text-xs text-center text-muted-foreground">
-            Demo: <span className="font-mono text-foreground">admin</span> / <span className="font-mono text-foreground">admin123</span>
+            Test: <span className="font-mono text-foreground">test-st1-l1@esm.in</span> / <span className="font-mono text-foreground">Jairam@123</span>
           </p>
         </div>
 

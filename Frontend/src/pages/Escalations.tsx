@@ -3,6 +3,14 @@ import { useState, memo, useCallback, useMemo } from "react";
 import { AlertTriangle, Clock, ArrowUpRight, CheckCircle2, Search, X, ChevronDown } from "lucide-react";
 import { useEscalations, useResolveEscalation } from "@/hooks/useApi";
 
+const ESCALATION_REASON_LABELS: Record<string, string> = {
+  no_response: "No response",
+  concern_pending: "Concern pending",
+  sla_breach: "SLA breach",
+  manual_request: "Manual",
+  approved_request: "L1 approved request",
+};
+
 export default memo(function Escalations() {
   const permissions = usePermissions();
   const canResolve = permissions.resolveEscalations;
@@ -110,7 +118,19 @@ export default memo(function Escalations() {
                 </div>
                 <p className="text-sm font-medium text-foreground">{e.veteranName} — {e.type}</p>
                 <p className="text-xs text-muted-foreground mt-1">{e.stationName} · {e.reason}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Escalated to: <span className="text-foreground">{e.escalatedTo}</span></p>
+                {e.escalationReasonType && (
+                  <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                    {ESCALATION_REASON_LABELS[e.escalationReasonType] || e.escalationReasonType}
+                    {e.fromLevel && e.toLevel ? ` · ${e.fromLevel}→${e.toLevel}` : ""}
+                  </span>
+                )}
+                {e.fromOfficerName && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    From: <span className="text-foreground">{e.fromOfficerName}</span>
+                    {e.fromLevel ? ` (${e.fromLevel})` : ""}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-0.5">Escalated to: <span className="text-foreground">{e.escalatedTo}</span>{e.toLevel ? ` (${e.toLevel})` : ""}</p>
               </div>
             </div>
             <div className="text-right shrink-0 flex flex-col items-end gap-2">

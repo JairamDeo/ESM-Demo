@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronLeft, UploadCloud, Download, X, Folder, Loader2, AlertTriangle,
@@ -7,7 +7,9 @@ import {
   useVeteranDocumentChecklist,
   useUploadVeteranRequiredDocument,
   useDeleteVeteranUpload,
+  clearVeteranDraftUploads,
 } from "@/hooks/useApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { resolveUploadUrl, getApiBaseUrl } from "@/lib/apiBase";
 import { toast } from "sonner";
 
@@ -34,6 +36,8 @@ export default function DocumentCheckList() {
   const isFromQR = location.state?.isFromQR || false;
   const concernMode = location.state?.concernMode === true;
   const generalConcernMode = location.state?.generalConcernMode === true;
+  const freshGrievanceFlow = location.state?.freshGrievanceFlow === true;
+  const isNewGrievanceFlow = !concernMode && !generalConcernMode;
   const documentOnlyConcernMode = concernMode && !generalConcernMode;
   const flaggedDocumentLabels: string[] = location.state?.flaggedDocumentLabels || [];
   const flaggedSet = useMemo(() => new Set(flaggedDocumentLabels), [flaggedDocumentLabels]);
@@ -44,7 +48,47 @@ export default function DocumentCheckList() {
   const caseTypeId = formState.caseTypeId;
   const useGrievanceUpload = (generalConcernMode || documentOnlyConcernMode) && !!grievanceId;
 
-  const { data: checklistData, isLoading } = useVeteranDocumentChecklist(caseTypeId || "");
+  const qc = useQueryClient();
+  const clearedFreshRef = useRef(false);
+  const [draftsReady, setDraftsReady] = useState(!(freshGrievanceFlow && isNewGrievanceFlow && !!caseTypeId));
+
+  useEffect(() => {
+    if (!freshGrievanceFlow || !isNewGrievanceFlow || !caseTypeId || clearedFreshRef.current) {
+      setDraftsReady(true);
+      return;
+    }
+
+    clearedFreshRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await clearVeteranDraftUploads(caseTypeId);
+        await qc.invalidateQueries({ queryKey: ["veteran-document-checklist", caseTypeId] });
+        if (!cancelled) {
+          navigate(location.pathname, {
+            state: { ...location.state, freshGrievanceFlow: false },
+            replace: true,
+          });
+          setDraftsReady(true);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("Could not reset document uploads. Please remove old files manually.");
+          setDraftsReady(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- clear once per fresh filing entry
+  }, [freshGrievanceFlow, isNewGrievanceFlow, caseTypeId]);
+
+  const { data: checklistData, isLoading } = useVeteranDocumentChecklist(
+    draftsReady ? caseTypeId || "" : ""
+  );
   const allDocuments = checklistData?.items || [];
   const submittedDocs: any[] = complaint.submittedDocuments || [];
 
@@ -211,7 +255,7 @@ export default function DocumentCheckList() {
     navigate("/user/raise-grievance", { state: { form: formState, isFromQR } });
   };
 
-  if (isLoading && !documentOnlyConcernMode && !generalConcernMode) {
+  if ((isLoading && !documentOnlyConcernMode && !generalConcernMode) || !draftsReady) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -309,7 +353,14 @@ export default function DocumentCheckList() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{upload.originalFileName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {reuploaded ? "Updated" : "Current file"} · {(upload.fileSize / 1024).toFixed(0)} KB
+                        {reuploaded
+                          ? "Updated"
+                          : useGrievanceUpload
+                            ? "Current file"
+                            : upload
+                              ? "Uploaded"
+                              : ""}
+                        {upload?.fileSize ? ` · ${(upload.fileSize / 1024).toFixed(0)} KB` : ""}
                       </p>
                     </div>
                   </div>
@@ -357,7 +408,15 @@ export default function DocumentCheckList() {
               )}
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  {isUploading ? "Uploading..." : reuploaded ? "Upload again" : "Upload corrected document"}
+                  {isUploading
+                    ? "Uploading..."
+                    : useGrievanceUpload
+                      ? reuploaded
+                        ? "Upload again"
+                        : "Upload corrected document"
+                      : upload
+                        ? "Replace document"
+                        : "Upload Document"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, PDF (Max 5 MB)</p>
               </div>

@@ -7,8 +7,9 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-// import { useNotifications } from "@/hooks/useApi";
+import { useNotifications } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
+import { usePushSync } from "@/hooks/usePushSync";
 
 const ALL_NAV = [
   { icon: LayoutDashboard, label: "Dashboard",     path: "/",            perm: "viewDashboard"   },
@@ -50,6 +51,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { resolvedTheme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const permissions = usePermissions();
+  usePushSync(!!user, user?.id);
 
   // Filter nav items by role permissions
   const navItems = useMemo(() =>
@@ -59,15 +61,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     [permissions, user]
   );
 
-  // Live unread notification count
-  // const { data: notifData } = useNotifications();
-  // const unreadCount = useMemo(() => {
-  //   const list: any[] = (notifData as any)?.data?.notifications ?? (notifData as any)?.data ?? [];
-  //   return Array.isArray(list) ? list.filter((n: any) => !n.isRead).length : 0;
-  // }, [notifData]);
-
-  // Admin notifications — disabled for now
-  const unreadCount = 0;
+  const { data: notifData } = useNotifications();
+  const unreadCount = useMemo(() => {
+    const count = (notifData as any)?.unreadCount;
+    if (typeof count === "number") return count;
+    const list: any[] = (notifData as any)?.data ?? [];
+    return Array.isArray(list) ? list.filter((n: any) => !n.isRead).length : 0;
+  }, [notifData]);
 
   const handleLogout = useCallback(() => {
     logout();
@@ -231,14 +231,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
 
             {/* Notifications */}
-            <button className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground relative">
+            <Link to="/notifications" className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground relative">
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
-            </button>
+            </Link>
 
             <div className="w-px h-8 bg-border mx-1" />
 

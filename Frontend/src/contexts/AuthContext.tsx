@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, ReactNode, useMemo } 
 import api, { setAuthToken, clearAuthToken, setStoredUser, getStoredUser } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { resolveRbacRole, type UserRole } from "@/lib/rbacRole";
+import { registerPushDeviceOnLogin } from "@/lib/pushNotifications";
 
 export type { UserRole };
 
@@ -44,6 +45,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function schedulePushSync() {
+  setTimeout(() => {
+    registerPushDeviceOnLogin().catch(() => undefined);
+  }, 800);
+}
+
 function normalizeAdminFromApi(admin: Record<string, unknown>): AuthUser {
   const rawRole = (admin.role ?? admin.rbacRole) as string | undefined;
   return {
@@ -80,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStoredUser(authUser, "admin");     // ← pass "admin"
     setUser(authUser);
     queryClient.clear();
+    schedulePushSync();
   }, []);
 
   const sendOtp = useCallback(async (phone: string): Promise<SendOtpResponse> => {
@@ -107,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStoredUser(authUser, "user");
     setUser(authUser);
     queryClient.clear();
+    schedulePushSync();
     return { isNewUser: !!isNewUser };
   }, []);
 
