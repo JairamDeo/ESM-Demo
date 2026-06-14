@@ -34,6 +34,7 @@ const DocumentRequiredInfo = lazy(() => import("@/pages/user/DocumentRequiredInf
 const RaiseGrievance = lazy(() => import("@/pages/user/RaiseGrievance"));
 const DocumentCheckList = lazy(() => import("@/pages/user/DocumentCheckList"));
 const ReviewSubmit   = lazy(() => import("@/pages/user/ReviewSubmit"));
+const ConcernReviewSubmit = lazy(() => import("@/pages/user/ConcernReviewSubmit"));
 const MyComplaints   = lazy(() => import("@/pages/user/MyComplaints"));
 const TrackCase      = lazy(() => import("@/pages/user/TrackCase"));
 const UserProfile    = lazy(() => import("@/pages/user/UserProfile"));
@@ -99,6 +100,7 @@ const UserRoutes = memo(() => {
         <Route path="/raise-grievance" element={<S><RaiseGrievance /></S>} />
         <Route path="/document-checklist" element={<S><DocumentCheckList /></S>} />
         <Route path="/review-submit" element={<S><ReviewSubmit /></S>} />
+        <Route path="/concern-review-submit" element={<S><ConcernReviewSubmit /></S>} />
         <Route path="/complaints"      element={<S><MyComplaints /></S>} />
         <Route path="/track-case"      element={<S><TrackCase /></S>} />
         <Route path="/profile"         element={<S><UserProfile /></S>} />

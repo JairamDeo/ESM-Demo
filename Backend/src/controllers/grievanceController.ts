@@ -5,10 +5,31 @@ import Escalation from "../models/Escalation";
 import Notification from "../models/Notification";
 import Station from "../models/Station";
 import CaseType from "../models/CaseType";
+import CaseTypeRequiredDocuments from "../models/CaseTypeRequiredDocuments";
 import Officer from "../models/Officer";
 import QRCode from "../models/QRCode";
 import { getGrievanceScopeFilter } from "../utils/scopeFilter";
-import { storeUploadedBuffer } from "../services/storageService";
+import { storeUploadedBuffer, storeConcernAttachment } from "../services/storageService";
+import {
+  enrichGrievanceWithDocuments,
+  reuploadGrievanceDocument,
+  isValidObjectId,
+} from "../services/grievanceDocuments";
+import {
+  effectiveConcernStatus,
+  isConcernBlocking,
+  concernStatusLabel,
+} from "../services/concernWorkflow";
+import {
+  parseDocumentUploadIds,
+  getConcernDocumentsFromComment,
+  concernNeedsGeneral,
+  concernNeedsDocuments,
+  resolveOfficerConcernScope,
+  formatConcernDocumentLabels,
+  type ConcernDocumentItem,
+} from "../services/concernHelpers";
+import VeteranRequiredDocumentUpload from "../models/VeteranRequiredDocumentUpload";
 
 // ─── Helper: get date filter ─────────────────────────────────────────────────
 const getDateFilter = (period?: string): any => {
@@ -108,15 +129,16 @@ export const getGrievanceById = async (req: Request, res: Response): Promise<voi
       isDeleted: false,
     });
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
-    res.status(200).json({ success: true, data: grievance });
+    const obj = grievance.toObject();
+    obj.concernStatus = effectiveConcernStatus(obj);
+    const data = await enrichGrievanceWithDocuments(obj);
+    res.status(200).json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // ─── CREATE grievance ────────────────────────────────────────────────────────
-import VeteranRequiredDocumentUpload from "../models/VeteranRequiredDocumentUpload";
-
 export const createGrievance = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
@@ -208,6 +230,10 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     const grievance = await Grievance.create({
       grievanceId,
       type: resolvedType,
+      caseTypeId:
+        caseTypeId && mongoose.isValidObjectId(String(caseTypeId))
+          ? caseTypeId
+          : undefined,
       veteranName: resolvedName,
       veteranPhone: resolvedPhone || veteranPhone,
       veteranArmyNo,
@@ -220,7 +246,14 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       createdBy,
       submissionSource: submissionSource || "portal",
       slaDeadline, userId,
-      timeline: [{ status: "pending", note: "Grievance submitted", updatedBy: veteranName, updatedAt: new Date(), attachments }],
+      timeline: [{
+        status: "pending",
+        note: "Grievance submitted",
+        updatedBy: veteranName,
+        updatedAt: new Date(),
+        attachments,
+        eventType: "status",
+      }],
     });
 
     // ── Assign grievanceId to pre-uploaded documents ───────────────────────
@@ -276,6 +309,15 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
 
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
 
+    const concernStatus = effectiveConcernStatus(grievance);
+    if (isConcernBlocking(concernStatus)) {
+      res.status(400).json({
+        success: false,
+        message: `Cannot update status while a concern is open (${concernStatusLabel(concernStatus)}). Resolve the concern first.`,
+      });
+      return;
+    }
+
     const oldStatus = grievance.status;
     grievance.status = status;
     grievance.timeline.push({
@@ -283,6 +325,7 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
       note: note || `Status updated to ${status}`,
       updatedBy: officerName || (req as any).user?.name || "System",
       updatedAt: new Date(),
+      eventType: "status",
     });
 
     if (status === "resolved") {
@@ -334,27 +377,58 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
 export const assignOfficer = async (req: Request, res: Response): Promise<void> => {
   try {
     const { officerId, officerName } = req.body;
-    const grievance = await Grievance.findByIdAndUpdate(
-      req.params.id,
-      {
-        officerId, officerName, status: "in-progress",
-        $push: { timeline: { status: "in-progress", note: `Assigned to ${officerName}`, updatedBy: "Admin", updatedAt: new Date() } },
-      },
-      { new: true }
-    );
+    const grievance = await Grievance.findById(req.params.id);
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
+
+    const concernStatus = effectiveConcernStatus(grievance);
+    if (isConcernBlocking(concernStatus)) {
+      res.status(400).json({
+        success: false,
+        message: `Cannot assign officer while a concern is open (${concernStatusLabel(concernStatus)}). Resolve the concern first.`,
+      });
+      return;
+    }
+
+    grievance.officerId = officerId;
+    grievance.officerName = officerName;
+    grievance.status = "in-progress";
+    grievance.timeline.push({
+      status: "in-progress",
+      note: `Assigned to ${officerName}`,
+      updatedBy: "Admin",
+      updatedAt: new Date(),
+      eventType: "status",
+    });
+    await grievance.save();
+
     res.status(200).json({ success: true, message: "Officer assigned", data: grievance });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ─── ADD comment ─────────────────────────────────────────────────────────────
+// ─── ADD concern (officer) or response (veteran) ─────────────────────────────
 export const addComment = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { message, authorName, authorRole } = req.body;
-    if (!message && (!req.files || (req.files as any[]).length === 0)) {
-      res.status(400).json({ success: false, message: "Message or attachments required" });
+    const { message, authorName, authorRole, concernScope, documentLabel, documentUploadId } = req.body;
+    const detailDescription = req.body.description;
+    const detailArmyNo = req.body.veteranArmyNo ?? req.body.armyNumber;
+    const detailRank = req.body.veteranRank ?? req.body.rank;
+    const detailStation = req.body.stationName ?? req.body.stationHQ;
+    const uploadedFiles = req.files as
+      | Express.Multer.File[]
+      | { attachments?: Express.Multer.File[]; documentFile?: Express.Multer.File[] }
+      | undefined;
+
+    const attachmentFiles = Array.isArray(uploadedFiles)
+      ? uploadedFiles
+      : uploadedFiles?.attachments ?? [];
+    const documentFile = Array.isArray(uploadedFiles)
+      ? undefined
+      : uploadedFiles?.documentFile?.[0];
+
+    if (!message && attachmentFiles.length === 0 && !documentFile && !detailDescription && !detailArmyNo && !detailRank && !detailStation) {
+      res.status(400).json({ success: false, message: "Concern message or attachments required" });
       return;
     }
 
@@ -367,32 +441,392 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     });
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
 
-    const files = req.files as Express.Multer.File[];
+    const authUser = (req as any).user;
+    const isVeteran = authUser?.role === "user";
+
+    if (isVeteran && grievance.userId?.toString() !== authUser.id) {
+      res.status(403).json({ success: false, message: "Not authorized for this grievance" });
+      return;
+    }
+
+    const currentConcernStatus = effectiveConcernStatus(grievance);
+
+    if (isVeteran) {
+      if (currentConcernStatus !== "awaiting_veteran") {
+        res.status(400).json({
+          success: false,
+          message: "No open concern awaiting your response.",
+        });
+        return;
+      }
+    } else {
+      if (grievance.status === "resolved" || grievance.status === "closed") {
+        res.status(400).json({
+          success: false,
+          message: "Cannot raise concerns on a resolved grievance.",
+        });
+        return;
+      }
+      if (currentConcernStatus === "awaiting_veteran") {
+        res.status(400).json({
+          success: false,
+          message: "Veteran must respond before you can raise another concern.",
+        });
+        return;
+      }
+    }
+
+    const resolvedName = authorName || authUser?.name || "Unknown";
+    const resolvedRole = isVeteran ? "user" : (authorRole || authUser?.role || "officer");
+    const eventType = isVeteran ? "veteran_response" : "concern";
+
+    let scope: "general" | "document" | "both" =
+      concernScope === "both" ? "both" : concernScope === "document" ? "document" : "general";
+    let resolvedDocumentLabel = String(documentLabel || "").trim();
+    let resolvedDocumentText = "";
+    let resolvedUploadId: mongoose.Types.ObjectId | undefined;
+    let replacedDocumentUrl: string | undefined;
+    let concernDocuments: ConcernDocumentItem[] = [];
     const attachments: string[] = [];
 
-    if (files && files.length > 0) {
-      const grievanceFolder = `grievances/comments/${grievance.grievanceId}`;
-      for (const file of files) {
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-        const stored = await storeUploadedBuffer(file.buffer, {
-          folder: grievanceFolder,
-          fileName: `${file.fieldname}-${uniqueSuffix}`,
-          mimetype: file.mimetype,
+    async function resolveUploadToConcernDoc(uploadId: string): Promise<ConcernDocumentItem | null> {
+      const uploadQuery: Record<string, unknown> = { grievanceId: grievance!._id };
+      if (isValidObjectId(uploadId)) {
+        uploadQuery._id = uploadId;
+      } else {
+        return null;
+      }
+
+      const docUpload =
+        (await VeteranRequiredDocumentUpload.findOne(uploadQuery)) ||
+        (grievance!.userId
+          ? await VeteranRequiredDocumentUpload.findOne({
+              userId: grievance!.userId,
+              _id: uploadId,
+            })
+          : null);
+      if (!docUpload) return null;
+
+      const checklist = await CaseTypeRequiredDocuments.findOne({ caseType: docUpload.caseType }).lean();
+      const meta = checklist?.documents.find((d) => d.label === docUpload.documentLabel);
+      return {
+        documentLabel: docUpload.documentLabel,
+        documentText: meta?.text ?? docUpload.documentLabel,
+        documentUploadId: docUpload._id,
+      };
+    }
+
+    if (!isVeteran) {
+      const uploadIds = parseDocumentUploadIds(req.body);
+      const includeGeneral =
+        req.body.includeGeneral === true ||
+        req.body.includeGeneral === "true" ||
+        scope === "general" ||
+        scope === "both";
+
+      if (uploadIds.length > 0) {
+        for (const uploadId of uploadIds) {
+          const doc = await resolveUploadToConcernDoc(uploadId);
+          if (!doc) {
+            res.status(400).json({ success: false, message: "One or more selected documents were not found on this grievance" });
+            return;
+          }
+          concernDocuments.push(doc);
+        }
+      } else if (scope === "document" && (resolvedDocumentLabel || documentUploadId)) {
+        const legacyId = documentUploadId ? String(documentUploadId) : "";
+        if (legacyId && isValidObjectId(legacyId)) {
+          const doc = await resolveUploadToConcernDoc(legacyId);
+          if (doc) concernDocuments.push(doc);
+        }
+      }
+
+      if (!includeGeneral && concernDocuments.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: "Select general details and/or at least one document for the concern",
         });
+        return;
+      }
+
+      scope = resolveOfficerConcernScope(includeGeneral, concernDocuments.length);
+      if (concernDocuments.length > 0) {
+        resolvedDocumentLabel = concernDocuments[0].documentLabel;
+        resolvedDocumentText = concernDocuments[0].documentText || resolvedDocumentLabel;
+        resolvedUploadId = concernDocuments[0].documentUploadId;
+      }
+    } else {
+      const lastOfficerComment = [...grievance.comments]
+        .reverse()
+        .find((c) => c.authorRole !== "user");
+
+      scope = (lastOfficerComment?.concernScope as typeof scope) || "general";
+      const flaggedDocs = getConcernDocumentsFromComment(lastOfficerComment);
+      const concernRaisedAt = lastOfficerComment?.createdAt
+        ? new Date(lastOfficerComment.createdAt)
+        : new Date(0);
+
+      if (concernNeedsDocuments(scope)) {
+        if (flaggedDocs.length === 0) {
+          res.status(400).json({ success: false, message: "No documents flagged in this concern" });
+          return;
+        }
+
+        if (documentFile && flaggedDocs.length === 1 && !concernNeedsGeneral(scope)) {
+          const reupload = await reuploadGrievanceDocument({
+            grievance,
+            userId: authUser.id,
+            documentLabel: flaggedDocs[0].documentLabel,
+            file: documentFile,
+          });
+          replacedDocumentUrl = reupload.storedUrl;
+          attachments.push(reupload.storedUrl);
+          concernDocuments = [{
+            documentLabel: flaggedDocs[0].documentLabel,
+            documentText: flaggedDocs[0].documentText,
+            documentUploadId: flaggedDocs[0].documentUploadId,
+            replacedDocumentUrl: reupload.storedUrl,
+          }];
+          resolvedDocumentLabel = flaggedDocs[0].documentLabel;
+          resolvedDocumentText = flaggedDocs[0].documentText || resolvedDocumentLabel;
+          resolvedUploadId = flaggedDocs[0].documentUploadId;
+        } else {
+          const missing: string[] = [];
+          concernDocuments = [];
+
+          for (const doc of flaggedDocs) {
+            const uploadQuery: Record<string, unknown> = {
+              grievanceId: grievance._id,
+              documentLabel: doc.documentLabel,
+              userId: authUser.id,
+            };
+            if (doc.documentUploadId) uploadQuery._id = doc.documentUploadId;
+
+            let upload = await VeteranRequiredDocumentUpload.findOne(uploadQuery);
+            if (!upload) {
+              upload = await VeteranRequiredDocumentUpload.findOne({
+                userId: authUser.id,
+                documentLabel: doc.documentLabel,
+                ...(doc.documentUploadId ? { _id: doc.documentUploadId } : {}),
+              });
+            }
+
+            const updatedAt = upload?.updatedAt ? new Date(upload.updatedAt) : null;
+            if (!upload || !updatedAt || updatedAt <= concernRaisedAt) {
+              missing.push(doc.documentLabel);
+              continue;
+            }
+
+            concernDocuments.push({
+              documentLabel: doc.documentLabel,
+              documentText: doc.documentText,
+              documentUploadId: upload._id,
+              replacedDocumentUrl: upload.storedPath,
+            });
+            if (upload.storedPath) attachments.push(upload.storedPath);
+          }
+
+          if (missing.length > 0) {
+            res.status(400).json({
+              success: false,
+              message: `Please re-upload corrected document(s): ${missing.join(", ")}`,
+            });
+            return;
+          }
+
+          if (concernDocuments.length > 0) {
+            resolvedDocumentLabel = concernDocuments[0].documentLabel;
+            resolvedDocumentText = concernDocuments[0].documentText || resolvedDocumentLabel;
+            resolvedUploadId = concernDocuments[0].documentUploadId;
+            replacedDocumentUrl = concernDocuments[0].replacedDocumentUrl;
+          }
+        }
+      }
+
+      if (concernNeedsGeneral(scope)) {
+        if (detailDescription !== undefined && String(detailDescription).trim()) {
+          grievance.description = String(detailDescription).trim();
+        }
+        if (detailArmyNo !== undefined && String(detailArmyNo).trim()) {
+          grievance.veteranArmyNo = String(detailArmyNo).trim();
+        }
+        if (detailRank !== undefined && String(detailRank).trim()) {
+          grievance.veteranRank = String(detailRank).trim();
+        }
+        if (detailStation !== undefined && String(detailStation).trim()) {
+          grievance.stationName = String(detailStation).trim();
+        }
+      }
+    }
+
+    if (attachmentFiles.length > 0) {
+      for (const file of attachmentFiles) {
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        const stored = isVeteran
+          ? await storeUploadedBuffer(file.buffer, {
+              folder: `grievances/veteran-responses/${grievance.grievanceId}`,
+              fileName: `response-${uniqueSuffix}`,
+              mimetype: file.mimetype,
+            })
+          : await storeConcernAttachment(
+              file.buffer,
+              grievance.grievanceId,
+              `concern-${uniqueSuffix}`,
+              file.mimetype
+            );
         attachments.push(stored.url);
       }
     }
 
-    grievance.comments.push({
-      authorId: (req as any).user?.id,
-      authorName: authorName || (req as any).user?.name || "Unknown",
-      authorRole: authorRole || (req as any).user?.role || "user",
-      message: message || "(attachment)",
+    const docLabelSummary = formatConcernDocumentLabels(concernDocuments);
+    const noteText =
+      message ||
+      (isVeteran
+        ? scope === "document" || scope === "both"
+          ? concernDocuments.length > 1
+            ? `Re-uploaded ${docLabelSummary}`
+            : `Re-uploaded ${resolvedDocumentLabel || docLabelSummary}`
+          : "Corrected details submitted"
+        : scope === "both"
+          ? `Concern on details${docLabelSummary ? ` and ${docLabelSummary}` : ""}`
+          : scope === "document"
+            ? concernDocuments.length > 1
+              ? `Concern on ${docLabelSummary}`
+              : `Concern on ${resolvedDocumentLabel}`
+            : "General concern raised");
+
+    const commentPayload = {
+      authorId: authUser?.id,
+      authorName: resolvedName,
+      authorRole: resolvedRole,
+      message: noteText,
       attachments,
+      concernScope: scope,
+      documentLabel: concernDocuments.length === 1 ? resolvedDocumentLabel : undefined,
+      documentText: concernDocuments.length === 1 ? resolvedDocumentText : undefined,
+      documentUploadId: concernDocuments.length === 1 ? resolvedUploadId : undefined,
+      concernDocuments: concernDocuments.length > 0 ? concernDocuments : undefined,
+      replacedDocumentUrl,
       createdAt: new Date(),
+    };
+
+    grievance.comments.push(commentPayload);
+
+    grievance.timeline.push({
+      status: grievance.status,
+      note: noteText,
+      updatedBy: resolvedName,
+      updatedAt: new Date(),
+      attachments,
+      eventType,
+      concernScope: scope,
+      documentLabel: concernDocuments.length === 1 ? resolvedDocumentLabel : undefined,
+      documentText: concernDocuments.length === 1 ? resolvedDocumentText : undefined,
+      documentUploadId: concernDocuments.length === 1 ? resolvedUploadId : undefined,
+      concernDocuments: concernDocuments.length > 0 ? concernDocuments : undefined,
+      replacedDocumentUrl,
     });
+
+    grievance.concernStatus = isVeteran ? "awaiting_officer" : "awaiting_veteran";
+
     await grievance.save();
-    res.status(200).json({ success: true, message: "Comment added", data: grievance });
+
+    if (isVeteran) {
+      if (grievance.userId) {
+        await Notification.create({
+          recipientId: grievance.userId,
+          recipientType: "user",
+          title: "Response received",
+          message: `Your response on ${grievance.grievanceId} has been submitted. The officer will review it.`,
+          type: "grievance_update",
+          grievanceId: grievance._id,
+          grievanceCode: grievance.grievanceId,
+        });
+      }
+      res.status(200).json({ success: true, message: "Response submitted", data: grievance });
+      return;
+    }
+
+    if (grievance.userId) {
+      const docHint =
+        concernDocuments.length > 0
+          ? ` Document(s): ${docLabelSummary}.`
+          : scope === "both"
+            ? " Details and documents need correction."
+            : "";
+      await Notification.create({
+        recipientId: grievance.userId,
+        recipientType: "user",
+        title: "Action required on your grievance",
+        message: `Officer raised a concern on ${grievance.grievanceId}.${docHint} Please review and respond.`,
+        type: "grievance_update",
+        grievanceId: grievance._id,
+        grievanceCode: grievance.grievanceId,
+      });
+    }
+
+    res.status(200).json({ success: true, message: "Concern added", data: grievance });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── RESOLVE open concern (officer reviewed veteran response) ─────────────────
+export const resolveConcern = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { note, officerName } = req.body;
+    const grievance = await Grievance.findOne({
+      $or: [
+        { _id: mongoose.isValidObjectId(req.params.id) ? req.params.id : null },
+        { grievanceId: (req.params.id as string).toUpperCase() },
+      ],
+      isDeleted: false,
+    });
+
+    if (!grievance) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+
+    const concernStatus = effectiveConcernStatus(grievance);
+    if (concernStatus !== "awaiting_officer") {
+      res.status(400).json({
+        success: false,
+        message:
+          concernStatus === "awaiting_veteran"
+            ? "Veteran has not responded to the concern yet."
+            : "There is no concern awaiting officer review.",
+      });
+      return;
+    }
+
+    const resolvedBy = officerName || (req as any).user?.name || "Officer";
+    const noteText = note || "Concern resolved — veteran response accepted.";
+
+    grievance.concernStatus = "none";
+    grievance.timeline.push({
+      status: grievance.status,
+      note: noteText,
+      updatedBy: resolvedBy,
+      updatedAt: new Date(),
+      eventType: "concern_resolved",
+    });
+
+    await grievance.save();
+
+    if (grievance.userId) {
+      await Notification.create({
+        recipientId: grievance.userId,
+        recipientType: "user",
+        title: "Concern resolved",
+        message: `The officer resolved the concern on ${grievance.grievanceId}. Your case will continue processing.`,
+        type: "grievance_update",
+        grievanceId: grievance._id,
+        grievanceCode: grievance.grievanceId,
+      });
+    }
+
+    res.status(200).json({ success: true, message: "Concern resolved", data: grievance });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -433,10 +867,15 @@ export const trackGrievance = async (req: Request, res: Response): Promise<void>
         { _id: mongoose.isValidObjectId(id) ? id : null },
       ],
       isDeleted: false,
-    }).select("grievanceId type veteranName veteranRank veteranArmyNo stationName officerName status priority timeline description comments attachments createdAt resolvedAt");
+    }).select(
+      "grievanceId type caseTypeId veteranName veteranRank veteranArmyNo stationName officerName status priority timeline description comments attachments concernStatus createdAt resolvedAt"
+    );
 
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found. Check your complaint ID." }); return; }
-    res.status(200).json({ success: true, data: grievance });
+    const obj = grievance.toObject();
+    obj.concernStatus = effectiveConcernStatus(obj);
+    const data = await enrichGrievanceWithDocuments(obj);
+    res.status(200).json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

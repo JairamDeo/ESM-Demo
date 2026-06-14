@@ -1,13 +1,20 @@
 import { memo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronLeft, FileText, CheckCircle2,
   AlertTriangle, MessageSquare, ChevronDown, ChevronUp, UploadCloud, User, Calendar
 } from "lucide-react";
-import { useTrackGrievance, useAddComment } from "@/hooks/useApi";
+import { useTrackGrievance } from "@/hooks/useApi";
 import { getApiBaseUrl } from "@/lib/apiBase";
 import { Icon } from "@iconify/react";
 import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
+import {
+  getConcernDocuments,
+  concernNeedsGeneral,
+  concernNeedsDocuments,
+  timelineConcernLabel,
+  getEffectiveConcernStatus,
+} from "@/lib/concernUtils";
 
 const STEP_LABELS: Record<string, string> = {
   pending: "Submitted",
@@ -15,7 +22,27 @@ const STEP_LABELS: Record<string, string> = {
   escalated: "Escalated",
   resolved: "Resolved",
   closed: "Closed",
+  concern: "Officer Concern",
+  veteran_response: "Your Response",
+  concern_resolved: "Concern Resolved",
 };
+
+function timelineStepLabel(step: any) {
+  const docs = getConcernDocuments(step);
+  if (step.eventType === "concern_resolved") return "Concern Resolved";
+  if (step.eventType === "concern") {
+    return timelineConcernLabel(step.concernScope, docs);
+  }
+  if (step.eventType === "veteran_response") {
+    if (step.concernScope === "both") {
+      return docs.length > 0 ? `Corrected details + ${docs.length} doc(s)` : "Corrected details";
+    }
+    if (docs.length > 1) return `Re-uploaded · ${docs.length} documents`;
+    if (docs.length === 1) return `Re-uploaded · ${docs[0].documentLabel}`;
+    return "Your Response";
+  }
+  return STEP_LABELS[step.status] || step.status?.charAt(0).toUpperCase() + step.status?.slice(1);
+}
 
 function Accordion({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -42,48 +69,95 @@ function Accordion({ title, defaultOpen = false, children }: { title: string; de
 
 export default memo(function TrackCase() {
   const location = useLocation();
+  const navigate = useNavigate();
   const initialComplaint = (location.state as any)?.complaint;
   const grievanceId = initialComplaint?._id || initialComplaint?.id || "";
 
   const { data: liveData } = useTrackGrievance(grievanceId);
   const complaint = liveData || initialComplaint || {};
 
-  const addComment = useAddComment();
-  const [responseText, setResponseText] = useState("");
-  const [responseFile, setResponseFile] = useState<File | null>(null);
-
   const comments = complaint.comments || [];
-  const activeQuery = comments.length > 0 && comments[comments.length - 1].authorRole !== "user"
-    ? comments[comments.length - 1] : null;
-  const submittedResponse = comments.length > 0 && comments[comments.length - 1].authorRole === "user"
+  const concernStatus = getEffectiveConcernStatus(complaint);
+  const activeQuery =
+    concernStatus === "awaiting_veteran" && comments.length > 0
+      ? [...comments].reverse().find((c) => c.authorRole !== "user") || null
+      : null;
+  const awaitingOfficerReview = concernStatus === "awaiting_officer";
+  const flaggedDocs = getConcernDocuments(activeQuery);
+  const needsGeneral = concernNeedsGeneral(activeQuery?.concernScope);
+  const needsDocuments = concernNeedsDocuments(activeQuery?.concernScope);
+  const flaggedDocumentLabels = flaggedDocs.map((d) => d.documentLabel);
+  const submittedDocs: any[] = complaint.submittedDocuments || [];
+  const submittedResponse = awaitingOfficerReview && comments.length > 0 && comments[comments.length - 1].authorRole === "user"
     ? comments[comments.length - 1] : null;
   const previousQuery = submittedResponse && comments.length > 1
     ? comments[comments.length - 2] : null;
 
-  const handleSubmitResponse = async () => {
-    if (!responseText.trim() && !responseFile) return;
-    const targetId = complaint._id || complaint.id || complaint.grievanceId;
-    if (!targetId) return;
-    
-    const formData = new FormData();
-    formData.append("id", targetId);
-    formData.append("message", responseText || "(attachment)");
-    if (responseFile) formData.append("attachments", responseFile);
-    
-    try {
-      await addComment.mutateAsync(formData);
-      setResponseText("");
-      setResponseFile(null);
-    } catch (error) {
-      console.error("Failed to submit response:", error);
+  const goRespond = () => {
+    const baseState = {
+      grievanceId: complaint._id || complaint.id,
+      concernMessage: activeQuery?.message,
+      complaint,
+      flaggedDocumentLabels,
+      concernScope: activeQuery?.concernScope,
+      form: {
+        concernType: "Self",
+        caseType: complaint.type,
+        caseTypeId: complaint.caseTypeId,
+        stationHQ: complaint.stationName,
+        description: complaint.description || "",
+        armyNumber: complaint.veteranArmyNo || "",
+        rank: complaint.veteranRank || "",
+      },
+    };
+
+    if (needsGeneral) {
+      navigate("/user/raise-grievance", {
+        state: {
+          ...baseState,
+          generalConcernMode: true,
+          hasDocumentFixes: needsDocuments,
+        },
+      });
+      return;
     }
+
+    navigate("/user/document-checklist", {
+      state: {
+        ...baseState,
+        concernMode: true,
+        documentConcernMode: true,
+      },
+    });
   };
 
-  const timeline = complaint.timeline?.length > 0 ? complaint.timeline : [
-    { status: "pending", note: "Grievance submitted via portal", updatedAt: complaint.createdAt || new Date().toISOString() },
-  ];
+  const respondStepLabel = needsGeneral
+    ? needsDocuments
+      ? "Correct Details & Documents — Step 1 of 3"
+      : "Correct Details — Step 1 of 3"
+    : flaggedDocumentLabels.length > 1
+      ? `Fix ${flaggedDocumentLabels.length} Documents — Step 1 of 2`
+      : "Fix Document — Step 1 of 2";
+
+  const respondHint = needsGeneral && needsDocuments
+    ? "Correct your details and re-upload the flagged documents using the same filing steps."
+    : needsGeneral
+      ? "Correct your details using the same Step 1–3 flow."
+      : flaggedDocumentLabels.length > 1
+        ? `Re-upload all ${flaggedDocumentLabels.length} flagged documents.`
+        : "Re-upload the corrected document using the same steps as when you filed.";
 
   const apiBase = getApiBaseUrl().replace("/api", "");
+
+  const timeline = (complaint.timeline?.length > 0 ? complaint.timeline : [
+    { status: "pending", note: "Grievance submitted via portal", updatedAt: complaint.createdAt || new Date().toISOString(), eventType: "status" },
+  ]).slice().sort(
+    (a: any, b: any) => new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime()
+  );
+
+  const resolveFileUrl = (url: string) =>
+    url.startsWith("http") ? url : `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
+
   const progressPct =
     complaint.progress ?? grievanceProgressMap[complaint.status] ?? 10;
 
@@ -133,14 +207,32 @@ export default memo(function TrackCase() {
         </div>
       </div>
 
+      {awaitingOfficerReview && submittedResponse && (
+        <div className="bg-info/10 border border-info/25 rounded-xl p-4 flex gap-3">
+          <CheckCircle2 className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-info">Response Submitted</p>
+            <p className="text-xs mt-0.5">
+              Your response has been sent to the officer. They are reviewing it — you will be notified when the concern is resolved.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ACTIVE QUERY */}
       {activeQuery && (
         <div className="space-y-3">
           <div className="bg-destructive/10 border border-destructive/25 rounded-xl p-4 flex gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-bold text-destructive">Additional Requirement</p>
-              <p className="text-xs mt-0.5">Please upload the requested documents to continue.</p>
+              <p className="text-sm font-bold text-destructive">Action Required</p>
+              <p className="text-xs mt-0.5">
+                {needsGeneral && needsDocuments
+                  ? "Correct your details and re-upload flagged documents."
+                  : needsDocuments && flaggedDocumentLabels.length > 0
+                    ? `Please re-upload: ${flaggedDocumentLabels.join(", ")}`
+                    : "An officer raised a concern. Please review and respond below."}
+              </p>
             </div>
           </div>
 
@@ -150,7 +242,7 @@ export default memo(function TrackCase() {
                 <div className="w-7 h-7 rounded-full bg-[#2c59b8] dark:bg-[#080808] flex items-center justify-center flex-shrink-0">
                   <img src="/icons/comment-dots.svg" className="w-4 h-4" />
                 </div>
-              <span className="text-sm font-semibold text-foreground">Officer Remarks</span>
+              <span className="text-sm font-semibold text-foreground">Officer Concern</span>
               </div>
               <span className="text-[10px] text-foreground">
                 {new Date(activeQuery.createdAt).toLocaleDateString("en-IN", {
@@ -163,12 +255,42 @@ export default memo(function TrackCase() {
             </div>
 
             <div className="bg-secondary/40 rounded-xl p-3 space-y-2">
-              <span className="text-[10px] font-semibold bg-destructive/20 text-[#ff1810] dark:text-[#ffff]  dark:bg-destructive px-2 py-0.5 rounded-full inline-block">
-                Query #01
+              <span className="text-[10px] font-semibold bg-destructive/20 text-[#ff1810] dark:text-[#ffff] dark:bg-destructive px-2 py-0.5 rounded-full inline-block">
+                {needsGeneral && needsDocuments
+                  ? "Details + Documents"
+                  : needsDocuments
+                    ? flaggedDocumentLabels.length > 1
+                      ? `${flaggedDocumentLabels.length} Documents`
+                      : "Document Concern"
+                    : "General Concern"}
               </span>
+              {flaggedDocs.length > 0 && (
+                <div className="space-y-1">
+                  {flaggedDocs.map((doc, i) => (
+                    <p key={i} className="text-xs font-semibold text-primary">{doc.documentLabel}</p>
+                  ))}
+                </div>
+              )}
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {activeQuery.message}
               </p>
+              {activeQuery.attachments?.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {activeQuery.attachments.map((url: string, idx: number) => {
+                    const fullUrl = resolveFileUrl(url);
+                    const isPdf = url.toLowerCase().includes(".pdf");
+                    return isPdf ? (
+                      <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary rounded-lg border border-border text-xs font-medium text-primary">
+                        <FileText className="w-3.5 h-3.5" /> View attachment
+                      </a>
+                    ) : (
+                      <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="block">
+                        <img src={fullUrl} alt="" className="w-20 h-20 object-cover rounded-lg border border-border" />
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
               <p className="text-xs font-medium">
                 <span className="text-[#2D7FF9]">Requested By: </span>
                 <span className="font-semibold">
@@ -177,45 +299,16 @@ export default memo(function TrackCase() {
               </p>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Your Response <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                value={responseText}
-                onChange={(e) => setResponseText(e.target.value)}
-                rows={3}
-                placeholder="Enter your response here..."
-                className="w-full bg-secondary/40 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors resize-none"
-              />
-              <p className="text-[12px] text-foreground/70 px-1">
-                Example: No, the DOB has not been updated in PPO records yet
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Upload Document <span className="text-destructive">*</span>
-              </label>
-              <label className="flex items-center justify-center gap-4 w-full border-2 border-dashed border-[#2952A3] rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/5 transition-colors">
-                <UploadCloud className="w-8 h-8 text-[#4F81FF] flex-shrink-0" />
-              <div>
-                  <p className="text-sm font-semibold text-foreground">Upload Document</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, PDF (Max 5 MB)</p>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".jpg,.jpeg,.png,.pdf"
-                  onChange={(e) => setResponseFile(e.target.files?.[0] || null)}
-                />
-              </label>
-              {responseFile && (
-                <div className="flex items-center gap-2 px-3 py-3 bg-secondary/10 border border-border rounded-xl text-xs text-foreground">
-                  <img src="/icons/pdf2.svg" className="w-4 h-4 " />
-                  {responseFile.name}
-                </div>
-              )}
+            <div className="rounded-xl bg-[#826CF3]/10 border border-[#826CF3]/30 p-3 space-y-2">
+              <p className="text-xs text-foreground/90">{respondHint}</p>
+              <button
+                type="button"
+                onClick={goRespond}
+                className="w-full py-3.5 bg-[#826CF3] text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(130,108,243,0.35)] hover:opacity-90 transition-all flex items-center justify-center gap-2"
+              >
+                <UploadCloud className="w-5 h-5" />
+                {respondStepLabel}
+              </button>
             </div>
           </div>
         </div>
@@ -329,7 +422,27 @@ export default memo(function TrackCase() {
 
       {/* Uploaded Documents */}
       <Accordion title="Uploaded Documents" defaultOpen={true}>
-        {(!complaint.attachments || complaint.attachments.length === 0) ? (
+        {submittedDocs.length > 0 ? (
+          <div className="space-y-2">
+            {submittedDocs.map((doc: any) => {
+              const fullUrl = resolveFileUrl(doc.fileUrl);
+              return (
+                <div key={doc.uploadId} className="flex items-center justify-between dark:bg-[#1d1c1c] bg-secondary/20 border border-border rounded-xl p-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src="/icons/pdf2.svg" alt="" className="w-8 h-8" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-primary truncate">{doc.documentLabel}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{doc.originalFileName}</p>
+                    </div>
+                  </div>
+                  <a href={fullUrl} target="_blank" rel="noreferrer" className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0">
+                    View
+                  </a>
+                </div>
+              );
+            })}
+          </div>
+        ) : (!complaint.attachments || complaint.attachments.length === 0) ? (
           <p className="text-xs text-muted-foreground text-center py-2">No documents attached.</p>
         ) : (
           <div className="space-y-2">
@@ -365,22 +478,56 @@ export default memo(function TrackCase() {
         <div className="space-y-0 pt-1">
           {timeline.map((step: any, i: number) => {
             const isLast = i === timeline.length - 1;
+            const isConcern = step.eventType === "concern";
+            const isConcernResolved = step.eventType === "concern_resolved";
+            const dotColor = isConcern ? "bg-warning" : isConcernResolved ? "bg-green-500" : step.eventType === "veteran_response" ? "bg-[#826CF3]" : "bg-green-500";
             return (
               <div key={i} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 z-10">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                  <div className={`w-6 h-6 rounded-full ${dotColor} flex items-center justify-center flex-shrink-0 z-10`}>
+                    {isConcern ? (
+                      <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                    )}
                   </div>
                   {!isLast && (
                     <div className="w-0.5 flex-1 bg-green-500/30 my-1 min-h-[32px]" />
                   )}
                 </div>
-                <div className={`flex-1 flex items-start justify-between ${!isLast ? "pb-5" : "pb-1"}`}>
-                  <div>
+                <div className={`flex-1 flex items-start justify-between gap-2 ${!isLast ? "pb-5" : "pb-1"}`}>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-foreground">
-                      {STEP_LABELS[step.status] || step.status.charAt(0).toUpperCase() + step.status.slice(1)}
+                      {timelineStepLabel(step)}
                     </p>
-                    {step.status === "in-progress" && isLast && (
+                    {step.note && step.eventType !== "status" && (
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{step.note}</p>
+                    )}
+                    {step.concernDocuments?.length > 0 ? (
+                      <div className="text-[10px] text-primary mt-1 space-y-0.5">
+                        {step.concernDocuments.map((d: any, di: number) => (
+                          <p key={di}>Document: {d.documentLabel}</p>
+                        ))}
+                      </div>
+                    ) : step.documentLabel && step.concernScope !== "general" ? (
+                      <p className="text-[10px] text-primary mt-1">Document: {step.documentLabel}</p>
+                    ) : null}
+                    {step.attachments?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {step.attachments.map((url: string, idx: number) => {
+                          const fullUrl = resolveFileUrl(url);
+                          const isPdf = url.toLowerCase().includes(".pdf");
+                          return isPdf ? (
+                            <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="text-[10px] text-primary underline">PDF attachment</a>
+                          ) : (
+                            <a key={idx} href={fullUrl} target="_blank" rel="noreferrer">
+                              <img src={fullUrl} alt="" className="w-14 h-14 object-cover rounded-md border border-border" />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {step.status === "in-progress" && isLast && step.eventType !== "concern" && (
                       <p className="text-[10px] text-muted-foreground">(Documents Required)</p>
                     )}
                   </div>
@@ -405,21 +552,6 @@ export default memo(function TrackCase() {
           })}
         </div>
       </Accordion>
-
-      {/* Submit Response Button */}
-      {activeQuery && (
-        <button
-          onClick={handleSubmitResponse}
-          disabled={addComment.isPending || (!responseText.trim() && !responseFile)}
-          className="w-full py-4 bg-[#826CF3] text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(130,108,243,0.35)] transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center"
-        >
-          {addComment.isPending ? (
-            <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-          ) : (
-            "Submit Response"
-          )}
-        </button>
-      )}
 
     </div>
   );

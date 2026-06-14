@@ -5,10 +5,12 @@ import {
   UserCheck, Printer, ChevronDown, Building2,
   User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon,
 } from "lucide-react";
-import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, type GrievanceParams } from "@/hooks/useApi";
+import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useResolveConcern, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiBaseUrl } from "@/lib/apiBase";
+import { toast } from "sonner";
+import { getConcernDocuments, timelineConcernLabel, veteranResponseLabel, getEffectiveConcernStatus, isConcernBlockingStatus } from "@/lib/concernUtils";
 
 type Status = "pending" | "in-progress" | "escalated" | "resolved";
 type Priority = "low" | "medium" | "high" | "critical";
@@ -20,10 +22,25 @@ const priorityBadge: Record<string, string> = { low:"bg-muted text-muted-foregro
 // Existing records may have stored the phone as veteranName — suppress those.
 const getVeteranDisplay = (name?: string): string => {
   if (!name) return "";
-  // If the value is purely numeric / phone-like (10+ digits, optional +/spaces), treat it as no name
   if (/^[+\s\d]{10,}$/.test(name.trim())) return "";
   return name;
 };
+
+function isConcernBlocking(status?: string): boolean {
+  return isConcernBlockingStatus(status);
+}
+
+function concernStatusBadge(status?: string): string {
+  if (status === "awaiting_veteran") return "bg-warning/15 text-warning";
+  if (status === "awaiting_officer") return "bg-info/15 text-info";
+  return "bg-secondary text-muted-foreground";
+}
+
+function concernStatusText(status?: string): string {
+  if (status === "awaiting_veteran") return "Concern · Awaiting veteran";
+  if (status === "awaiting_officer") return "Concern · Review veteran response";
+  return "";
+}
 
 interface FilterState { priority:string; station:string; officer:string; caseType:string; dateFrom:string; dateTo:string; }
 
@@ -60,51 +77,270 @@ function InputField({ value, onChange, placeholder, type="text" }: { value:strin
   return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />;
 }
 
+function CollapsiblePanel({
+  title,
+  icon: Icon,
+  open,
+  onToggle,
+  count,
+  children,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  open: boolean;
+  onToggle: () => void;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border border-border rounded-xl overflow-hidden bg-secondary/10">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Icon className="w-4 h-4 text-muted-foreground" />
+          {title}
+          {count !== undefined && count > 0 && (
+            <span className="text-xs font-normal text-muted-foreground">({count})</span>
+          )}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-3 border-t border-border">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getStatusConfirmCopy(status: string, grievanceId: string) {
+  if (status === "in-progress") {
+    return {
+      title: "Start Processing",
+      description: `Move ${grievanceId} from Pending to In Progress? The veteran will see that their case is being handled.`,
+      confirmLabel: "Start Processing",
+    };
+  }
+  if (status === "resolved") {
+    return {
+      title: "Mark Resolved",
+      description: `Mark ${grievanceId} as Resolved? Use this when the grievance is fully complete.`,
+      confirmLabel: "Mark Resolved",
+    };
+  }
+  return {
+    title: "Update Status",
+    description: `Update status for ${grievanceId}?`,
+    confirmLabel: "Confirm",
+  };
+}
+
+function StatusConfirmModal({
+  grievanceId,
+  grievanceType,
+  nextStatus,
+  onClose,
+  onConfirm,
+  isPending,
+}: {
+  grievanceId: string;
+  grievanceType?: string;
+  nextStatus: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  isPending?: boolean;
+}) {
+  const copy = getStatusConfirmCopy(nextStatus, grievanceId);
+  const isResolve = nextStatus === "resolved";
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={isPending ? undefined : onClose} />
+      <div className="relative bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isResolve ? "bg-success/15" : "bg-info/15"}`}>
+              {isResolve
+                ? <CheckCircle2 className="w-5 h-5 text-success" />
+                : <ArrowUpRight className="w-5 h-5 text-info" />
+              }
+            </div>
+            <h2 className="text-base font-semibold text-foreground">{copy.title}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="p-1 rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">{copy.description}</p>
+        {grievanceType && (
+          <p className="text-xs text-foreground/80 mt-2">
+            Case: <span className="font-medium">{grievanceType}</span>
+          </p>
+        )}
+        <div className="flex gap-2 pt-5">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm font-medium disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isPending}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-60 ${
+              isResolve ? "bg-success text-white hover:bg-success/90" : "bg-info text-white hover:bg-info/90"
+            }`}
+          >
+            {isPending
+              ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : copy.confirmLabel
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:any; onClose:()=>void }) {
   const [note, setNote] = useState("");
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
+  const [includeGeneral, setIncludeGeneral] = useState(true);
+  const [selectedUploadIds, setSelectedUploadIds] = useState<string[]>([]);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [concernOpen, setConcernOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [statusConfirm, setStatusConfirm] = useState<{ status: string; label: string } | null>(null);
   const updateStatus = useUpdateGrievanceStatus();
   const addComment = useAddComment();
+  const resolveConcern = useResolveConcern();
   const { user } = useAuth();
   const permissions = usePermissions();
 
-  // ── LIVE DATA FIX: fetch fresh grievance from server so notes persist after refresh ──
-  // This replaces the stale prop with a live React Query subscription
   const { data: liveGrievance, isLoading: detailLoading } = useGrievance(initialGrievance._id || "");
-  // Merge: use live data when available, fall back to prop
   const grievance = liveGrievance || initialGrievance;
+  const submittedDocs: any[] = grievance.submittedDocuments || [];
+  const concernStatus: string = getEffectiveConcernStatus(grievance);
+  const concernBlocking = isConcernBlocking(concernStatus);
+  const awaitingVeteran = concernStatus === "awaiting_veteran";
+  const awaitingOfficer = concernStatus === "awaiting_officer";
+  const isResolvedCase = grievance.status === "resolved" || grievance.status === "closed";
 
-  // const addNote = useCallback(async () => {
-  //   if (!note.trim() || !grievance._id) return;
-  //   await addComment.mutateAsync({ id: grievance._id, message: note, authorName: user?.name || "Admin", authorRole: user?.role || "admin" });
-  //   setNote("");
-  // }, [note, grievance._id, addComment, user]);
+  const selectedDocs = useMemo(
+    () => submittedDocs.filter((d: any) => selectedUploadIds.includes(d.uploadId)),
+    [submittedDocs, selectedUploadIds]
+  );
+
+  const toggleDocSelection = (uploadId: string) => {
+    setSelectedUploadIds((prev) =>
+      prev.includes(uploadId) ? prev.filter((id) => id !== uploadId) : [...prev, uploadId]
+    );
+  };
 
   const addNote = useCallback(async () => {
-  if (!note.trim() && noteFiles.length === 0) return;
-  if (!grievance._id) return;
+    if (!note.trim() || !grievance._id) return;
+    if (isResolvedCase) {
+      toast.error("This grievance is resolved. Concerns cannot be raised.");
+      return;
+    }
+    if (!includeGeneral && selectedUploadIds.length === 0) {
+      toast.error("Select general details and/or at least one document.");
+      return;
+    }
 
-  if (noteFiles.length > 0) {
-    const formData = new FormData();
-    formData.append("id", grievance._id);
-    formData.append("message", note || "(attachment)");
-    formData.append("authorName", user?.name || "Admin");
-    formData.append("authorRole", user?.role || "admin");
-    noteFiles.forEach(file => formData.append("attachments", file));
-    await addComment.mutateAsync(formData as any);
-  } else {
-    await addComment.mutateAsync({
+    const concernScope =
+      includeGeneral && selectedUploadIds.length > 0
+        ? "both"
+        : includeGeneral
+          ? "general"
+          : "document";
+
+    const payload: Record<string, unknown> = {
       id: grievance._id,
-      message: note || "(attachment)",
+      message: note,
       authorName: user?.name || "Admin",
       authorRole: user?.role || "admin",
-    });
-  }
-  
-  setNote("");
-  setNoteFiles([]);
-}, [note, noteFiles, grievance._id, addComment, user]);
+      concernScope,
+      includeGeneral,
+      documentUploadIds: selectedUploadIds,
+    };
+
+    try {
+      if (noteFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("id", payload.id as string);
+        formData.append("message", payload.message as string);
+        formData.append("authorName", payload.authorName as string);
+        formData.append("authorRole", payload.authorRole as string);
+        formData.append("concernScope", payload.concernScope as string);
+        formData.append("includeGeneral", String(includeGeneral));
+        formData.append("documentUploadIds", JSON.stringify(selectedUploadIds));
+        noteFiles.forEach((file) => formData.append("attachments", file));
+        await addComment.mutateAsync(formData as any);
+      } else {
+        await addComment.mutateAsync(payload);
+      }
+      setNote("");
+      setNoteFiles([]);
+      setIncludeGeneral(true);
+      setSelectedUploadIds([]);
+      toast.success(
+        concernScope === "both"
+          ? "Concern raised on details and documents"
+          : concernScope === "document"
+            ? `Concern raised on ${selectedUploadIds.length} document(s)`
+            : "General concern raised"
+      );
+    } catch {
+      /* toast handled in hook */
+    }
+  }, [note, noteFiles, includeGeneral, selectedUploadIds, grievance._id, isResolvedCase, addComment, user]);
+
+  const sortedTimeline = useMemo(
+    () =>
+      [...(grievance.timeline || [])].sort(
+        (a: any, b: any) =>
+          new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime()
+      ),
+    [grievance.timeline]
+  );
+
+  const resolveFileUrl = (url: string) => {
+    const baseUrl = getApiBaseUrl().replace("/api", "");
+    return url.startsWith("http") ? url : `${baseUrl}${url}`;
+  };
+
+  const timelineEventLabel = (t: any) => {
+    const docs = getConcernDocuments(t);
+    if (t.eventType === "concern") {
+      return timelineConcernLabel(t.concernScope, docs);
+    }
+    if (t.eventType === "concern_resolved") return "Concern Resolved";
+    if (t.eventType === "veteran_response") {
+      return veteranResponseLabel(t.concernScope, docs);
+    }
+    return t.status?.replace("-", " ") || "Update";
+  };
+
+  const timelineEventBadge = (t: any) => {
+    if (t.eventType === "concern") return "bg-warning/15 text-warning";
+    if (t.eventType === "concern_resolved") return "bg-success/15 text-success";
+    if (t.eventType === "veteran_response") return "bg-success/15 text-success";
+    return statusBadge[t.status] || "bg-secondary text-foreground";
+  };
 
   const nextStatus: Record<string, {label:string;status:string;cls:string}|null> = {
     pending: { label:"Start Processing", status:"in-progress", cls:"bg-info/15 text-info hover:bg-info/25" },
@@ -114,16 +350,66 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   };
   const action = nextStatus[grievance.status];
 
+  const confirmStatusUpdate = () => {
+    if (!statusConfirm) return;
+    updateStatus.mutate(
+      {
+        id: grievance._id || grievance.id,
+        status: statusConfirm.status,
+        officerName: user?.name,
+      },
+      {
+        onSuccess: () => {
+          setStatusConfirm(null);
+          onClose();
+        },
+      }
+    );
+  };
+
   return (
+    <>
     <Modal open onClose={onClose} title={`${grievance.grievanceId || grievance.id} — ${grievance.type}`} wide>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${statusBadge[grievance.status]}`}>{grievance.status}</span>
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${priorityBadge[grievance.priority]}`}>{grievance.priority} priority</span>
-          {action && permissions.updateGrievanceStatus && (
-            <button onClick={() => { updateStatus.mutate({ id: grievance._id || grievance.id, status: action.status, officerName: user?.name }); onClose(); }} className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ml-auto ${action.cls}`}>{action.label}</button>
+          {concernBlocking && (
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${concernStatusBadge(concernStatus)}`}>
+              {concernStatusText(concernStatus)}
+            </span>
+          )}
+          {awaitingOfficer && concernBlocking && !isResolvedCase && (
+            <button
+              type="button"
+              onClick={() => resolveConcern.mutate({ id: grievance._id, officerName: user?.name })}
+              disabled={resolveConcern.isPending}
+              className="text-xs px-3 py-1 rounded-full font-medium transition-colors ml-auto bg-success/15 text-success hover:bg-success/25 border border-success/30 flex items-center gap-1.5 disabled:opacity-60"
+            >
+              {resolveConcern.isPending
+                ? <span className="w-3 h-3 border-2 border-success/30 border-t-success rounded-full animate-spin" />
+                : <><CheckCircle2 className="w-3.5 h-3.5" /> Resolve Concern</>
+              }
+            </button>
+          )}
+          {action && permissions.updateGrievanceStatus && !concernBlocking && (
+            <button
+              type="button"
+              onClick={() => setStatusConfirm({ status: action.status, label: action.label })}
+              className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ml-auto ${action.cls}`}
+            >
+              {action.label}
+            </button>
           )}
         </div>
+        {awaitingVeteran && (
+          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs text-foreground">
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+            <p>
+              An open concern is waiting for the veteran. Status changes are blocked until the concern is resolved.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           {[
             { icon:User, label:"Veteran", value: getVeteranDisplay(grievance.veteranName || grievance.veteran) || "—" },
@@ -145,15 +431,47 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
             <p className="text-sm text-foreground break-words overflow-hidden">{grievance.description}</p>
           </div>
         )}
-        {grievance.attachments && grievance.attachments.length > 0 && (
+        {submittedDocs.length > 0 ? (
+          <CollapsiblePanel
+            title={`Submitted Documents (${grievance.type})`}
+            icon={Paperclip}
+            open={documentsOpen}
+            onToggle={() => setDocumentsOpen((v) => !v)}
+            count={submittedDocs.length}
+          >
+            <div className="space-y-2">
+              {submittedDocs.map((doc: any) => {
+                const fullUrl = resolveFileUrl(doc.fileUrl);
+                const isPdf = doc.mimeType === "application/pdf" || doc.fileUrl.toLowerCase().includes(".pdf");
+                return (
+                  <div key={doc.uploadId} className="flex items-start gap-3 bg-secondary/40 border border-border rounded-lg p-3">
+                    <div className="flex-shrink-0">
+                      {isPdf ? (
+                        <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-16 h-16 bg-secondary rounded-lg border border-border">
+                          <img src="/icons/pdf2.svg" className="w-8 h-8" alt="" />
+                        </a>
+                      ) : (
+                        <img src={fullUrl} alt="" onClick={() => setPreviewImage(fullUrl)} className="w-16 h-16 object-cover rounded-lg border border-border cursor-pointer hover:border-primary" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-primary">{doc.documentLabel}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.documentText}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1 truncate">{doc.originalFileName}</p>
+                    </div>
+                    <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline shrink-0">View</a>
+                  </div>
+                );
+              })}
+            </div>
+          </CollapsiblePanel>
+        ) : grievance.attachments && grievance.attachments.length > 0 ? (
           <div className="bg-secondary/30 rounded-lg p-3">
             <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5"><Paperclip className="w-3.5 h-3.5" /> Complaint Attachments</p>
             <div className="flex flex-wrap gap-3">
               {grievance.attachments.map((url: string, idx: number) => {
                 const isPdf = url.toLowerCase().endsWith(".pdf");
-                // Create absolute URL if it is a relative path
-                const baseUrl = getApiBaseUrl().replace("/api", "");
-                const fullUrl = url.startsWith("http") ? url : `${baseUrl}${url}`;
+                const fullUrl = resolveFileUrl(url);
                 return isPdf ? (
                   <a key={idx} href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-24 h-24 bg-secondary rounded-lg border border-border hover:border-primary transition-colors text-primary flex-col gap-2">
                     <img src="/icons/pdf2.svg" className="w-12 h-12" />
@@ -165,90 +483,210 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               })}
             </div>
           </div>
-        )}
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-            <MessageSquare className="w-3.5 h-3.5" /> Case Notes / Timeline
-            {detailLoading && <span className="text-xs text-muted-foreground italic">(refreshing...)</span>}
-          </p>
-          <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
-            {(grievance.timeline || []).length === 0 && (grievance.comments || []).length === 0 && (
-              <p className="text-xs text-muted-foreground italic">No notes yet. Add one below.</p>
+        ) : null}
+
+        <div className="space-y-3">
+          <CollapsiblePanel
+            title="Timeline"
+            icon={Clock}
+            open={timelineOpen}
+            onToggle={() => setTimelineOpen((v) => !v)}
+            count={sortedTimeline.length}
+          >
+            {detailLoading && (
+              <p className="text-xs text-muted-foreground italic mb-2">Refreshing...</p>
             )}
-            {(grievance.timeline || []).map((t: any, i: number) => (
-              <div key={i} className="bg-secondary/30 rounded-lg p-2.5 border border-border/50">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusBadge[t.status] || "bg-secondary text-foreground"}`}>{t.status}</span>
+            {sortedTimeline.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No activity yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {sortedTimeline.map((t: any, i: number) => (
+                  <div key={i} className="bg-secondary/30 rounded-lg p-2.5 border border-border/50">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${timelineEventBadge(t)}`}>
+                        {timelineEventLabel(t)}
+                      </span>
+                    </div>
+                    {t.documentLabel && !t.concernDocuments?.length && t.concernScope !== "general" && (
+                      <p className="text-[11px] text-primary font-medium mb-1">Document: {t.documentLabel}</p>
+                    )}
+                    {t.concernDocuments?.length > 0 && (
+                      <div className="text-[11px] text-primary font-medium mb-1 space-y-0.5">
+                        {t.concernDocuments.map((d: any, di: number) => (
+                          <p key={di}>Document: {d.documentLabel}</p>
+                        ))}
+                      </div>
+                    )}
+                    {t.note && <p className="text-sm text-foreground whitespace-pre-wrap">{t.note}</p>}
+                    {t.attachments?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {t.attachments.map((url: string, idx: number) => {
+                          const fullUrl = resolveFileUrl(url);
+                          const isPdf = url.toLowerCase().includes(".pdf");
+                          return isPdf ? (
+                            <a key={idx} href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2 py-1.5 bg-secondary rounded-lg border border-border text-xs text-primary">
+                              <FileText className="w-3.5 h-3.5" /> PDF
+                            </a>
+                          ) : (
+                            <img key={idx} src={fullUrl} alt="" onClick={() => setPreviewImage(fullUrl)} className="w-16 h-16 object-cover rounded-lg border border-border cursor-pointer hover:border-primary" />
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">{t.updatedBy} · {t.updatedAt ? new Date(t.updatedAt).toLocaleString("en-IN") : ""}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CollapsiblePanel>
+
+          <CollapsiblePanel
+            title="Raise a Concern"
+            icon={MessageSquare}
+            open={concernOpen}
+            onToggle={() => setConcernOpen((v) => !v)}
+          >
+            {isResolvedCase ? (
+              <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm text-foreground">
+                <p className="font-semibold text-success mb-1">Grievance resolved</p>
+                <p className="text-xs text-muted-foreground">
+                  This case is closed. Officers cannot raise new concerns after resolution.
+                </p>
+              </div>
+            ) : awaitingVeteran ? (
+              <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-sm text-foreground">
+                <p className="font-semibold text-warning mb-1">Waiting for veteran</p>
+                <p className="text-xs text-muted-foreground">
+                  A concern is open and sent to the veteran. You cannot raise another concern or change case status until they respond.
+                </p>
+              </div>
+            ) : (
+            <div className="space-y-3">
+
+            <label className="flex items-start gap-3 rounded-lg border border-border bg-secondary/20 p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeGeneral}
+                onChange={(e) => setIncludeGeneral(e.target.checked)}
+                className="mt-0.5 rounded border-border"
+              />
+              <div>
+                <p className="text-sm font-medium text-foreground">General details need correction</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Veteran will re-enter station, rank, army no., description (Step 1).
+                </p>
+              </div>
+            </label>
+
+            {submittedDocs.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Documents with issues {selectedUploadIds.length > 0 && `(${selectedUploadIds.length} selected)`}
+                </p>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-lg border border-border p-2 bg-secondary/10">
+                  {submittedDocs.map((doc: any) => {
+                    const checked = selectedUploadIds.includes(doc.uploadId);
+                    return (
+                      <label
+                        key={doc.uploadId}
+                        className={`flex items-start gap-2.5 rounded-lg p-2.5 cursor-pointer transition-colors ${
+                          checked ? "bg-warning/10 border border-warning/30" : "hover:bg-secondary/40 border border-transparent"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleDocSelection(doc.uploadId)}
+                          className="mt-0.5 rounded border-border shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-foreground">{doc.documentLabel}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{doc.originalFileName}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
-                <p className="text-sm text-foreground">{t.note}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t.updatedBy} · {t.updatedAt ? new Date(t.updatedAt).toLocaleString("en-IN") : ""}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Select all documents the veteran must re-upload. You can combine with general details above.
+                </p>
               </div>
-            ))}
-            {(grievance.comments || []).map((c: any, i: number) => (
-              <div key={`c-${i}`} className="bg-primary/5 rounded-lg p-2.5 border border-primary/10">
-                <p className="text-sm text-foreground">{c.message}</p>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">{c.authorName} · {c.createdAt ? new Date(c.createdAt).toLocaleString("en-IN") : ""}</p>
+            )}
+
+            {selectedDocs.length > 0 && (
+              <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs text-foreground">
+                <p className="font-semibold text-warning mb-1">
+                  {selectedDocs.length} document{selectedDocs.length > 1 ? "s" : ""} flagged
+                </p>
+                <p className="text-muted-foreground">
+                  {selectedDocs.map((d: any) => d.documentLabel).join(" · ")}
+                </p>
               </div>
-            ))}
-          </div>
-          {/* <div className="flex gap-2">
-            <input value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="Add a note..." className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />
-            <button onClick={addNote} disabled={addComment.isPending || !note.trim()} className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-1.5">
-              {addComment.isPending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
-          </div> */}
-          {/* Note attachment files preview */}
-{noteFiles.length > 0 && (
-  <div className="flex flex-wrap gap-1.5 mb-2">
-    {noteFiles.map((file, i) => (
-      <div key={i} className="flex items-center gap-1.5 bg-secondary/50 rounded px-2 py-1">
-        {file.type === "application/pdf"
-          ? <FileText className="w-3 h-3 text-primary" />
-          : <ImageIcon className="w-3 h-3 text-primary" />
-        }
-        <span className="text-xs text-foreground truncate max-w-[100px]">{file.name}</span>
-        <button onClick={() => setNoteFiles((f) => f.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-foreground">
-          <X className="w-2.5 h-2.5" />
-        </button>
-      </div>
-    ))}
-  </div>
-)}
+            )}
 
-<div className="flex gap-2">
-  {/* Attachment button */}
-  <label className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors text-muted-foreground cursor-pointer shrink-0" title="Attach file">
-    <Paperclip className="w-4 h-4" />
-    <input
-      type="file" multiple accept=".jpg,.jpeg,.png,.pdf"
-      className="hidden"
-      onChange={(e) => {
-        const files = Array.from(e.target.files || []).slice(0, 3);
-        setNoteFiles((prev) => [...prev, ...files].slice(0, 3));
-        e.target.value = "";
-      }}
-    />
-  </label>
+            <FormField label="Concern note">
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                placeholder="Explain what is wrong — e.g. wrong DOB on certificate, incorrect army number, multiple documents unclear..."
+                className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground resize-none"
+              />
+            </FormField>
 
-  <input
-    value={note}
-    onChange={(e) => setNote(e.target.value)}
-    onKeyDown={(e) => e.key === "Enter" && addNote()}
-    placeholder="Add a note..."
-    className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground"
-  />
-
-  <button
-    onClick={addNote}
-    disabled={addComment.isPending || (!note.trim() && noteFiles.length === 0)}
-    className="px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-1.5"
-  >
-    {addComment.isPending
-      ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-      : <Send className="w-4 h-4" />
-    }
-  </button>
-</div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Reference attachment (optional)</p>
+              {noteFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {noteFiles.map((file, i) => (
+                    <div key={i} className="flex items-center gap-1.5 bg-secondary/50 rounded px-2 py-1">
+                      {file.type === "application/pdf"
+                        ? <FileText className="w-3 h-3 text-primary" />
+                        : <ImageIcon className="w-3 h-3 text-primary" />
+                      }
+                      <span className="text-xs text-foreground truncate max-w-[120px]">{file.name}</span>
+                      <button onClick={() => setNoteFiles((f) => f.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-foreground">
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <label className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors text-muted-foreground cursor-pointer shrink-0" title="Attach reference file">
+                  <Paperclip className="w-4 h-4" />
+                  <input
+                    type="file"
+                    multiple
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []).slice(0, 3);
+                      setNoteFiles((prev) => [...prev, ...files].slice(0, 3));
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={addNote}
+                  disabled={
+                    addComment.isPending ||
+                    !note.trim() ||
+                    (!includeGeneral && selectedUploadIds.length === 0)
+                  }
+                  className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 text-sm font-medium"
+                >
+                  {addComment.isPending
+                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : <><Send className="w-4 h-4" /> Send Concern</>
+                  }
+                </button>
+              </div>
+            </div>
+            </div>
+            )}
+          </CollapsiblePanel>
         </div>
       </div>
       {previewImage && (
@@ -263,6 +701,17 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         </div>
       )}
     </Modal>
+    {statusConfirm && (
+      <StatusConfirmModal
+        grievanceId={grievance.grievanceId || grievance.id}
+        grievanceType={grievance.type}
+        nextStatus={statusConfirm.status}
+        onClose={() => setStatusConfirm(null)}
+        onConfirm={confirmStatusUpdate}
+        isPending={updateStatus.isPending}
+      />
+    )}
+    </>
   );
 }
 
@@ -486,6 +935,7 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
   const [openUpward, setOpenUpward] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const perms = usePermissions();
+  const openConcern = isConcernBlocking(getEffectiveConcernStatus(grievance));
   // const deleteGrievance = useDeleteGrievance();
 
   const handleToggle = () => {
@@ -516,9 +966,9 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
 
   const actions = [
     { label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
-    ...(perms.updateGrievanceStatus && grievance.status==="pending"? [{label:"Start Processing", icon:ArrowUpRight, onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]: []),
-    ...(perms.escalateGrievance && grievance.status!=="resolved" && grievance.status!=="escalated"? [{label:"Escalate", icon:AlertTriangle, onClick:()=>{onEscalate();setOpen(false);}}]: []),
-    ...(perms.updateGrievanceStatus && (grievance.status==="in-progress" || grievance.status==="escalated")? [{label:"Mark Resolved", icon:CheckCircle2, onClick:()=>{onStatusChange("resolved");setOpen(false);} }]: []),
+    ...(perms.updateGrievanceStatus && !openConcern && grievance.status==="pending"? [{label:"Start Processing", icon:ArrowUpRight, onClick:()=>{onStatusChange("in-progress");setOpen(false);}}]: []),
+    ...(perms.escalateGrievance && !openConcern && grievance.status!=="resolved" && grievance.status!=="escalated"? [{label:"Escalate", icon:AlertTriangle, onClick:()=>{onEscalate();setOpen(false);}}]: []),
+    ...(perms.updateGrievanceStatus && !openConcern && (grievance.status==="in-progress" || grievance.status==="escalated")? [{label:"Mark Resolved", icon:CheckCircle2, onClick:()=>{onStatusChange("resolved");setOpen(false);} }]: []),
     ...(perms.reassignOfficer && grievance.status !== "resolved"? [{
       label: grievance.officerName === "Unassigned" || !grievance.officerName ? "Assign Officer" : "Reassign Officer",
       icon: UserCheck,
@@ -584,6 +1034,7 @@ export default memo(function Grievances() {
   const [showFilter, setShowFilter] = useState(false);
   const [escalateGrievance, setEscalateGrievance] = useState<any>(null);
   const [reassignGrievance, setReassignGrievance] = useState<any>(null);
+  const [statusConfirm, setStatusConfirm] = useState<{ grievance: any; status: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
   const { data: caseTypesList = [] } = useCaseTypes();
@@ -615,8 +1066,20 @@ export default memo(function Grievances() {
 
   const handleStatusChange = useCallback((g: any, status: string) => {
     if (!g._id) return;
-    updateStatus.mutate({ id: g._id, status, officerName: user?.name });
-  }, [updateStatus, user]);
+    setStatusConfirm({ grievance: g, status });
+  }, []);
+
+  const confirmListStatusChange = useCallback(() => {
+    if (!statusConfirm?.grievance._id) return;
+    updateStatus.mutate(
+      {
+        id: statusConfirm.grievance._id,
+        status: statusConfirm.status,
+        officerName: user?.name,
+      },
+      { onSuccess: () => setStatusConfirm(null) }
+    );
+  }, [statusConfirm, updateStatus, user]);
 
   const handleReassign = useCallback((g: any, officerName: string) => {
     if (!g._id) return;
@@ -768,6 +1231,16 @@ export default memo(function Grievances() {
       </div>
 
       {viewGrievance && <ViewDetailsModal grievance={viewGrievance} onClose={()=>setViewGrievance(null)}/>}
+      {statusConfirm && (
+        <StatusConfirmModal
+          grievanceId={statusConfirm.grievance.grievanceId || statusConfirm.grievance.id}
+          grievanceType={statusConfirm.grievance.type}
+          nextStatus={statusConfirm.status}
+          onClose={() => setStatusConfirm(null)}
+          onConfirm={confirmListStatusChange}
+          isPending={updateStatus.isPending}
+        />
+      )}
       {showNewGrievance && <NewGrievanceModal onClose={()=>setShowNewGrievance(false)}/>}
       {showFilter && <FilterModal/>}
       {escalateGrievance && (

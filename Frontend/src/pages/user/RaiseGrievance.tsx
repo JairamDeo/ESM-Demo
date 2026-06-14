@@ -74,6 +74,12 @@ export default memo(function RaiseGrievance() {
   const urlParams = new URLSearchParams(window.location.search);
   const routeState = (location.state as any) || {};
   const savedForm = routeState.form || {};
+  const generalConcernMode = routeState.generalConcernMode === true;
+  const hasDocumentFixes = routeState.hasDocumentFixes === true;
+  const flaggedDocumentLabels: string[] = routeState.flaggedDocumentLabels || [];
+  const concernComplaint = routeState.complaint || {};
+  const concernMessage = routeState.concernMessage || "";
+  const concernGrievanceId = routeState.grievanceId || concernComplaint._id || concernComplaint.id;
   const stationFromQR = urlParams.get("station") || routeState.station || savedForm.stationHQ || "";
   const preselectedType = savedForm.caseType || routeState.caseType || "";
   const preselectedCaseTypeId = savedForm.caseTypeId || routeState.caseTypeId || "";
@@ -93,6 +99,20 @@ export default memo(function RaiseGrievance() {
   const [servicesOpen, setServicesOpen] = useState(true);
 
   // ── Sync openCategory + caseTypeId when case types load ─────────────────
+  useEffect(() => {
+    if (!generalConcernMode || !concernComplaint) return;
+    setForm((prev) => ({
+      ...prev,
+      concernType: prev.concernType || "Self",
+      caseType: prev.caseType || concernComplaint.type || "",
+      caseTypeId: prev.caseTypeId || concernComplaint.caseTypeId || "",
+      stationHQ: prev.stationHQ || concernComplaint.stationName || "",
+      description: prev.description || concernComplaint.description || "",
+      armyNumber: prev.armyNumber || concernComplaint.veteranArmyNo || "",
+      rank: prev.rank || concernComplaint.veteranRank || "",
+    }));
+  }, [generalConcernMode, concernComplaint]);
+
   useEffect(() => {
     if (!(caseTypesList as any[]).length) return;
 
@@ -136,8 +156,22 @@ export default memo(function RaiseGrievance() {
       toast.error("Please fill all required fields");
       return;
     }
+    if (generalConcernMode) {
+      navigate("/user/document-checklist", {
+        state: {
+          form,
+          generalConcernMode: true,
+          hasDocumentFixes,
+          flaggedDocumentLabels,
+          grievanceId: concernGrievanceId,
+          concernMessage,
+          complaint: concernComplaint,
+        },
+      });
+      return;
+    }
     navigate("/user/document-checklist", { state: { form, isFromQR } });
-  }, [form, navigate, isFromQR]);
+  }, [form, navigate, isFromQR, generalConcernMode, hasDocumentFixes, flaggedDocumentLabels, concernGrievanceId, concernMessage, concernComplaint]);
 
   return (
     <div className="bg-background min-h-full">
@@ -145,13 +179,34 @@ export default memo(function RaiseGrievance() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link to="/user/services" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
-            <ChevronLeft className="w-5 h-5 text-foreground" />
-          </Link>
-          <h1 className="text-lg font-semibold text-foreground">Raise Grievance</h1>
+          {generalConcernMode ? (
+            <button
+              type="button"
+              onClick={() => navigate("/user/track-case", { state: { complaint: concernComplaint } })}
+              className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"
+            >
+              <ChevronLeft className="w-5 h-5 text-foreground" />
+            </button>
+          ) : (
+            <Link to="/user/services" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
+              <ChevronLeft className="w-5 h-5 text-foreground" />
+            </Link>
+          )}
+          <h1 className="text-lg font-semibold text-foreground">
+            {generalConcernMode ? "Correct Details" : "Raise Grievance"}
+          </h1>
         </div>
-        <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">Step 1 / 3</span>
+        <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">
+          {generalConcernMode ? (hasDocumentFixes ? "Step 1 / 3" : "Step 1 / 3") : "Step 1 / 3"}
+        </span>
       </div>
+
+      {generalConcernMode && concernMessage && (
+        <div className="mx-4 mb-3 flex items-start gap-2 bg-destructive/10 border border-destructive/25 rounded-xl px-3 py-2.5">
+          <span className="text-destructive text-xs mt-0.5">!</span>
+          <p className="text-xs text-foreground whitespace-pre-wrap">{concernMessage}</p>
+        </div>
+      )}
 
       {/* QR Banner */}
       {isFromQR && (
@@ -174,7 +229,8 @@ export default memo(function RaiseGrievance() {
           {/* Toggle button showing selected value */}
           <button
             onClick={() => setServicesOpen((p) => !p)}
-            className="w-full flex items-center justify-between bg-secondary border border-border rounded-xl px-4 py-3 text-sm transition-colors"
+            disabled={generalConcernMode}
+            className={`w-full flex items-center justify-between bg-secondary border border-border rounded-xl px-4 py-3 text-sm transition-colors ${generalConcernMode ? "opacity-70 cursor-not-allowed" : ""}`}
           >
             <span className={form.caseType ? "text-foreground font-normal" : "text-muted-foreground"}>
               {form.caseType || "Select Services"}
@@ -186,7 +242,7 @@ export default memo(function RaiseGrievance() {
           </button>
 
           {/* Accordion list */}
-          {servicesOpen && (
+          {servicesOpen && !generalConcernMode && (
             <div className="border border-border rounded-xl overflow-hidden bg-card">
               {groupedCategories.map((cat) => {
                 const isOpen = openCategory === cat.key;

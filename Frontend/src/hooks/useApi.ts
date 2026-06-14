@@ -173,9 +173,31 @@ export const useAddComment = () => {
       const id = vars instanceof FormData ? vars.get("id") : vars.id;
       qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id as string) });
       qc.invalidateQueries({ queryKey: queryKeys.grievances.track(id as string) });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.my });
+      qc.invalidateQueries({ queryKey: ["grievances"] });
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to add comment");
+      toast.error(err?.response?.data?.message || "Failed to add concern");
+    },
+  });
+};
+
+export const useResolveConcern = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, note, officerName }: { id: string; note?: string; officerName?: string }) => {
+      const { data } = await api.patch(`/grievances/${id}/concern/resolve`, { note, officerName });
+      return data.data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(vars.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.track(vars.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.my });
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      toast.success("Concern resolved");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to resolve concern");
     },
   });
 };
@@ -516,20 +538,35 @@ export const useVeteranDocumentChecklist = (caseTypeId: string) =>
 export const useUploadVeteranRequiredDocument = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ caseTypeId, documentLabel, itemIndex, file }: { caseTypeId: string; documentLabel: string; itemIndex?: number; file: File }) => {
+    mutationFn: async ({
+      caseTypeId,
+      documentLabel,
+      itemIndex,
+      file,
+      grievanceId,
+    }: {
+      caseTypeId: string;
+      documentLabel: string;
+      itemIndex?: number;
+      file: File;
+      grievanceId?: string;
+    }) => {
       const formData = new FormData();
       formData.append("caseTypeId", caseTypeId);
       formData.append("documentLabel", documentLabel);
       if (itemIndex !== undefined) formData.append("itemIndex", String(itemIndex));
+      if (grievanceId) formData.append("grievanceId", grievanceId);
       formData.append("file", file);
 
-      const { data } = await api.post("/veteran/required-documents/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const { data } = await api.post("/veteran/required-documents/upload", formData);
       return data.data;
     },
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["veteran-document-checklist", variables.caseTypeId] });
+      if (variables.grievanceId) {
+        qc.invalidateQueries({ queryKey: ["grievances", "track", variables.grievanceId] });
+        qc.invalidateQueries({ queryKey: ["grievances", "single", variables.grievanceId] });
+      }
       qc.invalidateQueries({ queryKey: ["veteran-document-uploads", variables.caseTypeId] });
     },
   });

@@ -1,6 +1,6 @@
 import { useState, useCallback, memo, Fragment } from "react";
-import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronUp, RotateCcw, Check, X } from "lucide-react";
-import { useTheme } from "@/hooks/useTheme";
+import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronUp, RotateCcw, Check, X, Sun, Moon, Monitor } from "lucide-react";
+import { useTheme, type ThemePreference } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRBACStore, usePermissions, type UserRole, type Permission, DEFAULT_PERMISSIONS } from "@/stores/rbac";
 import { toast } from "sonner";
@@ -293,7 +293,7 @@ const EscalationRule = memo(({ label, defaultDays }: { label: string; defaultDay
 
 // ─── Main settings page ───────────────────────────────────────────────────────
 export default function SettingsPage() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const { user } = useAuth();
   const { resetAll } = useRBACStore();
 
@@ -344,12 +344,43 @@ export default function SettingsPage() {
           <Settings className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-foreground">Appearance</h3>
         </div>
-        <div className="flex items-center justify-between py-3">
+        <div className="py-3 space-y-3">
           <div>
             <p className="text-sm font-medium text-foreground">Theme</p>
-            <p className="text-xs text-muted-foreground">Toggle between dark and light mode</p>
+            <p className="text-xs text-muted-foreground">
+              {theme === "system"
+                ? `System default (${resolvedTheme === "dark" ? "Dark" : "Light"})`
+                : theme === "dark"
+                  ? "Dark mode"
+                  : "Light mode"}
+            </p>
           </div>
-          <Toggle value={theme === "dark"} onChange={toggleTheme} />
+          <div className="grid grid-cols-3 gap-2 max-w-md">
+            {(
+              [
+                { id: "light" as ThemePreference, label: "Light", icon: Sun },
+                { id: "dark" as ThemePreference, label: "Dark", icon: Moon },
+                { id: "system" as ThemePreference, label: "System", icon: Monitor },
+              ] as const
+            ).map(({ id, label, icon: Icon }) => {
+              const selected = theme === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTheme(id)}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 transition-colors ${
+                    selected
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/30"
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${selected ? "text-primary" : ""}`} />
+                  <span className="text-[11px] font-semibold">{label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

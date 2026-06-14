@@ -96,6 +96,15 @@
   }
 }
 
+/* Hide scrollbar while keeping scroll (veteran portal mockup + mobile) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Custom scrollbar for dark theme */
 .dark ::-webkit-scrollbar {
   width: 6px;
@@ -190,4 +199,39 @@
 /* Safe area for mobile bottom nav (iPhone notch / home indicator) */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Veteran tab transitions (mobile swipe / bottom nav) */
+@keyframes tab-enter-from-right {
+  from {
+    opacity: 0.88;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tab-enter-from-left {
+  from {
+    opacity: 0.88;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.tab-enter-left {
+  animation: tab-enter-from-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.tab-enter-right {
+  animation: tab-enter-from-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.user-tab-indicator {
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }

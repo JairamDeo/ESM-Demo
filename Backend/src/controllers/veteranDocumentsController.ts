@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import CaseType from "../models/CaseType";
+import Grievance from "../models/Grievance";
 import CaseTypeRequiredDocuments from "../models/CaseTypeRequiredDocuments";
 import VeteranRequiredDocumentUpload from "../models/VeteranRequiredDocumentUpload";
 import User from "../models/User";
 import { deleteStoredAsset, serveStoredFile } from "../services/storageResolver";
 import { storeUploadedBuffer } from "../services/storageService";
+import { reuploadGrievanceDocument } from "../services/grievanceDocuments";
 import {
   buildRequiredDocFolder,
   slugifySegment,
@@ -138,6 +140,7 @@ export const uploadVeteranRequiredDocument = async (req: Request, res: Response)
   try {
     const user = (req as any).user;
     const caseTypeId = paramString(req.body.caseTypeId);
+    const grievanceIdRaw = paramString(req.body.grievanceId);
 
     const documentLabel = paramString(req.body.documentLabel);
     const itemIndexRaw = req.body.itemIndex;
@@ -173,6 +176,42 @@ export const uploadVeteranRequiredDocument = async (req: Request, res: Response)
     }
     if (!docItem) {
       res.status(400).json({ success: false, message: "Invalid documentLabel or itemIndex" });
+      return;
+    }
+
+    if (grievanceIdRaw && mongoose.Types.ObjectId.isValid(grievanceIdRaw)) {
+      const grievance = await Grievance.findOne({
+        _id: grievanceIdRaw,
+        userId: user.id,
+        isDeleted: false,
+      });
+      if (!grievance) {
+        res.status(404).json({ success: false, message: "Grievance not found" });
+        return;
+      }
+
+      const reupload = await reuploadGrievanceDocument({
+        grievance,
+        userId: user.id,
+        documentLabel: docItem.label,
+        file,
+      });
+      await grievance.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Document updated",
+        data: {
+          uploadId: reupload.upload._id,
+          caseTypeId: caseType._id,
+          documentLabel: docItem.label,
+          originalFileName: reupload.upload.originalFileName,
+          fileUrl: reupload.storedUrl,
+          mimeType: reupload.upload.mimeType,
+          fileSize: reupload.upload.fileSize,
+          previewUrl: `/api/veteran/required-documents/uploads/${reupload.upload._id}/preview`,
+        },
+      });
       return;
     }
 

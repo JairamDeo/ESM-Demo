@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   getGrievances, getGrievanceById, createGrievance,
-  updateGrievanceStatus, assignOfficer, addComment,
+  updateGrievanceStatus, assignOfficer, addComment, resolveConcern,
   deleteGrievance, getMyGrievances, trackGrievance,
   getDashboardStats,deleteAllGrievances,
 } from "../controllers/grievanceController";
@@ -37,8 +37,19 @@ router.patch("/:id/status", protect, adminOnly, updateGrievanceStatus);
 // ─── Admin: assign officer ────────────────────────────────────────────────────
 router.patch("/:id/assign", protect, adminOnly, assignOfficer);
 
+// ─── Resolve concern (officer accepted veteran fix) ───────────────────────────
+router.patch("/:id/concern/resolve", protect, adminOnly, resolveConcern);
+
 // ─── Comments (admin + user) ──────────────────────────────────────────────────
-router.post("/:id/comments", protect, upload.array("attachments", 3), addComment);
+router.post(
+  "/:id/comments",
+  protect,
+  upload.fields([
+    { name: "attachments", maxCount: 3 },
+    { name: "documentFile", maxCount: 1 },
+  ]),
+  addComment
+);
 
 // ─── Admin: delete ────────────────────────────────────────────────────────────
 router.delete("/:id", protect, restrictTo("super_admin", "esm_officer"), deleteGrievance);

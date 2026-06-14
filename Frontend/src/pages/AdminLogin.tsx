@@ -11,7 +11,7 @@ const AdminLogin = memo(() => {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const { adminLogin } = useAuth();
 
   const handleLogin = useCallback(async () => {
@@ -41,7 +41,7 @@ const AdminLogin = memo(() => {
         onClick={toggleTheme}
         className="fixed top-4 right-4 p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
       >
-        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {resolvedTheme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </button>
 
       <div className="w-full max-w-sm">
