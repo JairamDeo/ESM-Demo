@@ -1,7 +1,12 @@
-import { memo, useState } from "react";
-import { Megaphone, Send, Clock, Check, Building2, Bell, Smartphone, ShieldAlert } from "lucide-react";
+import { memo, useState, useCallback } from "react";
+import { Megaphone, Send, Clock, Check, Building2, Bell, Smartphone } from "lucide-react";
 import { useAnnouncements, useCreateAnnouncement, useStations } from "@/hooks/useApi";
 import { usePermission } from "@/stores/rbac";
+import ConfirmDialog from "@/components/ConfirmDialog";
+
+type DialogState =
+  | { mode: "alert"; title: string; message: string }
+  | { mode: "confirm"; title: string; message: string };
 
 export default memo(function Announcements() {
   const { data: announcements = [], isLoading: loadingAnnouncements } = useAnnouncements();
@@ -9,8 +14,9 @@ export default memo(function Announcements() {
   const createAnnouncement = useCreateAnnouncement();
   const canManage = usePermission("manageAnnouncements");
 
-  const [form, setForm] = useState({
-    title:            "",
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+
+  const [form, setForm] = useState({    title:            "",
     message:          "",
     sendToAll:        true,
     selectedStations: [] as string[],
@@ -29,23 +35,52 @@ export default memo(function Announcements() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const sendAnnouncement = useCallback(async () => {
+    await createAnnouncement.mutateAsync({
+      title: form.title.trim(),
+      message: form.message.trim(),
+      targetStations: form.sendToAll ? [] : form.selectedStations,
+      sentViaSMS: form.sms,
+      sentViaPush: form.push,
+    });
+    setForm({ title: "", message: "", sendToAll: true, selectedStations: [], sms: false, push: false });
+  }, [createAnnouncement, form]);
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.message.trim()) return;
-    const confirmed = window.confirm(`Send announcement "${form.title}" to ${form.sendToAll ? "all stations" : `${form.selectedStations.length} station(s)`}?`);
-    if (!confirmed) return;
-
-    await createAnnouncement.mutateAsync({
-      title:          form.title.trim(),
-      message:        form.message.trim(),
-      targetStations: form.sendToAll ? [] : form.selectedStations,
-      sentViaSMS:     form.sms,
-      sentViaPush:    form.push,
+    if (!form.sms && !form.push) {
+      setDialog({
+        mode: "alert",
+        title: "Delivery method required",
+        message: "Select at least one delivery method: SMS or Push Notification.",
+      });
+      return;
+    }
+    if (!form.sendToAll && form.selectedStations.length === 0) {
+      setDialog({
+        mode: "alert",
+        title: "Target stations required",
+        message: "Select at least one station or choose All Stations.",
+      });
+      return;
+    }
+    setDialog({
+      mode: "confirm",
+      title: "Send announcement",
+      message: `Send announcement "${form.title}" to ${form.sendToAll ? "all stations" : `${form.selectedStations.length} station(s)`}?`,
     });
-
-    setForm({ title: "", message: "", sendToAll: true, selectedStations: [], sms: false, push: false });
   };
 
+  const handleDialogConfirm = useCallback(async () => {
+    if (!dialog) return;
+    if (dialog.mode === "alert") {
+      setDialog(null);
+      return;
+    }
+    await sendAnnouncement();
+    setDialog(null);
+  }, [dialog, sendAnnouncement]);
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -222,6 +257,7 @@ export default memo(function Announcements() {
                 createAnnouncement.isPending ||
                 !form.title.trim() ||
                 !form.message.trim() ||
+                (!form.sms && !form.push) ||
                 (!form.sendToAll && form.selectedStations.length === 0)
               }
               className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
@@ -309,6 +345,17 @@ export default memo(function Announcements() {
         </div>
 
       </div>
+
+      <ConfirmDialog
+        open={!!dialog}
+        title={dialog?.title ?? ""}
+        message={dialog?.message ?? ""}
+        confirmLabel={dialog?.mode === "alert" ? "OK" : "Send Announcement"}
+        showCancel={dialog?.mode === "confirm"}
+        loading={createAnnouncement.isPending}
+        onClose={() => setDialog(null)}
+        onConfirm={handleDialogConfirm}
+      />
     </div>
   );
 });

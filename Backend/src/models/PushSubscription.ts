@@ -8,6 +8,7 @@ export interface IPushSubscription extends Document {
   };
   userId: mongoose.Types.ObjectId;
   userType: "user" | "admin";
+  userAgent?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ const PushSubscriptionSchema = new Schema<IPushSubscription>(
     },
     userId: { type: Schema.Types.ObjectId, required: true },
     userType: { type: String, enum: ["user", "admin"], required: true },
+    userAgent: { type: String },
   },
   { timestamps: true }
 );

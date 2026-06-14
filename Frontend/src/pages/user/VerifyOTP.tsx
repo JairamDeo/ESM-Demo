@@ -18,7 +18,7 @@ export default memo(function VerifyOTP() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const { sendOtp, verifyOtp } = useAuth();
   const phone = (location.state as any)?.phone || "";
 
@@ -41,17 +41,23 @@ export default memo(function VerifyOTP() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleChange = useCallback((index: number, value: string) => {
-    if (value.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    if (value && index < 3) inputRefs.current[index + 1]?.focus();
-  }, [otp]);
+  const handleChange = useCallback(
+    (index: number, value: string) => {
+      if (value.length > 1) return;
+      const newOtp = [...otp];
+      newOtp[index] = value;
+      setOtp(newOtp);
+      if (value && index < 3) inputRefs.current[index + 1]?.focus();
+    },
+    [otp]
+  );
 
-  const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) inputRefs.current[index - 1]?.focus();
-  }, [otp]);
+  const handleKeyDown = useCallback(
+    (index: number, e: React.KeyboardEvent) => {
+      if (e.key === "Backspace" && !otp[index] && index > 0) inputRefs.current[index - 1]?.focus();
+    },
+    [otp]
+  );
 
   const handleVerify = useCallback(async () => {
     const otpValue = otp.join("");
@@ -106,10 +112,10 @@ export default memo(function VerifyOTP() {
   const expirySeconds = expiryTimer % 60;
 
   return (
-    <div className="h-screen overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
-      <div className="flex flex-col w-full bg-background h-screen overflow-hidden sm:h-auto sm:max-w-sm sm:rounded-3xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-10 pb-8 sm:pt-12 sm:pb-8">
-
-        <div className="flex items-center justify-between mb-4">
+    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-stretch justify-center sm:items-center sm:p-6">
+      <div className="flex flex-col w-full h-full max-h-[100dvh] bg-background overflow-hidden sm:h-auto sm:max-h-[90dvh] sm:max-w-sm sm:rounded-3xl sm:shadow-xl sm:dark:border sm:dark:border-border px-5 sm:px-6 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pt-10 sm:pb-8">
+        {/* Header */}
+        <div className="shrink-0 flex items-center justify-between mb-3 sm:mb-4">
           <button
             onClick={() => navigate(-1)}
             className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground border border-border"
@@ -120,41 +126,51 @@ export default memo(function VerifyOTP() {
             onClick={toggleTheme}
             className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground border border-border"
           >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
 
-        <div className="flex-1 flex flex-col justify-start pt-2">
-          <h1 className="text-2xl font-semibold text-foreground mb-3 text-center">Verify OTP</h1>
-          <p className="text-xs text-foreground/80 text-center mb-1">
-            We've sent a 4-digit verification code to your
-          </p>
-          <p className="text-xs text-foreground/80 text-center mb-10">
-            registered mobile number ending in{" "}
+        {/* Scroll only if keyboard / very small screen needs it */}
+        <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto overscroll-contain scrollbar-none py-1">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground mb-2 sm:mb-3 text-center">
+            Verify OTP
+          </h1>
+          <p className="text-xs text-foreground/80 text-center leading-relaxed mb-4 sm:mb-6 px-1">
+            We&apos;ve sent a 4-digit verification code to your registered mobile number ending in{" "}
             <span className="font-semibold text-foreground">{maskedPhone}</span>
           </p>
 
-          <div className="flex gap-3 justify-center mb-8">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-[17rem] sm:max-w-xs w-full mx-auto mb-4 sm:mb-6">
             {otp.map((digit, i) => (
               <input
                 key={i}
-                ref={(el) => { inputRefs.current[i] = el; }}
+                ref={(el) => {
+                  inputRefs.current[i] = el;
+                }}
                 type="tel"
+                inputMode="numeric"
+                autoComplete={i === 0 ? "one-time-code" : "off"}
                 maxLength={1}
                 value={digit}
                 onChange={(e) => handleChange(i, e.target.value.replace(/\D/g, ""))}
                 onKeyDown={(e) => handleKeyDown(i, e)}
-                className="w-16 h-20 rounded-xl bg-[#FFFFFF] dark:bg-[#2B2B2B] border border-border text-center text-2xl font-bold text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                className="aspect-[4/5] max-h-[4.5rem] sm:max-h-20 w-full rounded-xl bg-[#FFFFFF] dark:bg-[#2B2B2B] border border-border text-center text-xl sm:text-2xl font-bold text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
               />
             ))}
           </div>
 
-          <div className="flex justify-center mb-3">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-              expiryTimer > 0 ? "bg-[#1754CF] dark:bg-black/20" : "bg-destructive/15"
-            }`}>
-              <Clock className={`w-3.5 h-3.5 ${expiryTimer > 0 ? "text-[#FFFFFF] dark:text-[#73A2FF]" : "text-destructive"}`} />
-              <span className={`text-sm font-normal ${expiryTimer > 0 ? "text-[#FFFFFF] dark:text-[#73A2FF]" : "text-destructive"}`}>
+          <div className="flex justify-center mb-2 sm:mb-3">
+            <div
+              className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full ${
+                expiryTimer > 0 ? "bg-[#1754CF] dark:bg-black/20" : "bg-destructive/15"
+              }`}
+            >
+              <Clock
+                className={`w-3.5 h-3.5 ${expiryTimer > 0 ? "text-[#FFFFFF] dark:text-[#73A2FF]" : "text-destructive"}`}
+              />
+              <span
+                className={`text-xs sm:text-sm font-normal ${expiryTimer > 0 ? "text-[#FFFFFF] dark:text-[#73A2FF]" : "text-destructive"}`}
+              >
                 {expiryTimer > 0
                   ? `${String(expiryMinutes).padStart(2, "0")}:${String(expirySeconds).padStart(2, "0")}`
                   : "Expired"}
@@ -162,12 +178,12 @@ export default memo(function VerifyOTP() {
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <p className="text-sm text-muted-foreground">Didn't receive the code?</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 mb-2 sm:mb-4 px-1">
+            <p className="text-xs sm:text-sm text-muted-foreground">Didn&apos;t receive the code?</p>
             <button
               onClick={handleResend}
               disabled={resendTimer > 0 || resending}
-              className="text-sm font-medium text-[#1754CF] dark:text-[#9CF3D2] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-xs sm:text-sm font-medium text-[#1754CF] dark:text-[#9CF3D2] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {resending
                 ? "Sending..."
@@ -178,28 +194,31 @@ export default memo(function VerifyOTP() {
           </div>
 
           {devOtp && (
-            <div className="bg-info/10 border border-info/20 rounded-xl px-4 py-2 mx-auto">
-              <p className="text-xs text-info text-center">
+            <div className="bg-info/10 border border-info/20 rounded-xl px-3 py-2 mx-auto max-w-full">
+              <p className="text-[11px] sm:text-xs text-info text-center">
                 Dev / SMS off: use OTP <span className="font-mono font-bold">{devOtp}</span>
               </p>
             </div>
           )}
         </div>
 
-        <button
-          onClick={handleVerify}
-          disabled={!otp.every((d) => d !== "") || loading || expiryTimer <= 0}
-          className="w-full mt-4 bg-[#826CF3] text-white font-bold py-4 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)]"
-        >
-          {loading ? (
-            <>
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Verifying...
-            </>
-          ) : (
-            "Verify OTP"
-          )}
-        </button>
+        {/* Pinned footer button */}
+        <div className="shrink-0 pt-2 sm:pt-3">
+          <button
+            onClick={handleVerify}
+            disabled={!otp.every((d) => d !== "") || loading || expiryTimer <= 0}
+            className="w-full bg-[#826CF3] text-white font-bold py-3.5 sm:py-4 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)]"
+          >
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              "Verify OTP"
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

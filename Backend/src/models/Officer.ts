@@ -4,6 +4,7 @@ import { OFFICER_LEVELS, OfficerLevel } from "../constants/officerLevels";
 import { OfficerJobRole } from "../constants/officerRoles";
 import { RbacRole } from "../constants/permissions";
 import { auditEntrySchema, IAuditEntry } from "./AuditLog";
+import { pushDeviceSchema, IPushDevice } from "./PushDevice";
 
 export { OFFICER_LEVELS, OfficerLevel };
 
@@ -35,6 +36,7 @@ export interface IOfficer extends Document {
   totalCasesHandled: number;
   status: "active" | "inactive";
   lastLogin?: Date;
+  pushDevices?: IPushDevice[];
   auditHistory: IAuditEntry[];
   createdAt: Date;
   updatedAt: Date;
@@ -82,6 +84,7 @@ const OfficerSchema = new Schema<IOfficer>(
     totalCasesHandled: { type: Number, default: 0, min: 0 },
     status:   { type: String, enum: ["active", "inactive"], default: "active" },
     lastLogin: { type: Date },
+    pushDevices: { type: [pushDeviceSchema], default: [] },
     auditHistory: { type: [auditEntrySchema], default: [] },
   },
   { timestamps: true }

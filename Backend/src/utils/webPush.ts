@@ -18,7 +18,11 @@ export const sendPushNotification = async (subscription: any, payload: any) => {
     const stringifiedPayload = typeof payload === "string" ? payload : JSON.stringify(payload);
     await webpush.sendNotification(subscription, stringifiedPayload);
     return true;
-  } catch (error) {
+  } catch (error: any) {
+    const status = error?.statusCode || error?.status;
+    if (status === 404 || status === 410) {
+      return false;
+    }
     console.error("Error sending push notification:", error);
     return false;
   }

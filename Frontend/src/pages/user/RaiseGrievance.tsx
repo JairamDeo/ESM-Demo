@@ -72,33 +72,56 @@ export default memo(function RaiseGrievance() {
   const stationHQsList = stationsData?.data || [];
 
   const urlParams = new URLSearchParams(window.location.search);
-  const savedForm = (location.state as any)?.form || {};
-  const stationFromQR = urlParams.get("station") || (location.state as any)?.station || savedForm.stationHQ || "";
-  const preselectedType = (location.state as any)?.caseType || savedForm.caseType || "";
+  const routeState = (location.state as any) || {};
+  const savedForm = routeState.form || {};
+  const generalConcernMode = routeState.generalConcernMode === true;
+  const hasDocumentFixes = routeState.hasDocumentFixes === true;
+  const flaggedDocumentLabels: string[] = routeState.flaggedDocumentLabels || [];
+  const concernComplaint = routeState.complaint || {};
+  const concernMessage = routeState.concernMessage || "";
+  const concernGrievanceId = routeState.grievanceId || concernComplaint._id || concernComplaint.id;
+  const stationFromQR = urlParams.get("station") || routeState.station || savedForm.stationHQ || "";
+  const preselectedType = savedForm.caseType || routeState.caseType || "";
+  const preselectedCaseTypeId = savedForm.caseTypeId || routeState.caseTypeId || "";
   const isFromQR = !!stationFromQR;
+  const freshGrievanceFlow = routeState.freshGrievanceFlow === true;
 
   const [form, setForm] = useState({
     concernType: savedForm.concernType || "",
-    caseType:    preselectedType || "",
-    caseTypeId:  savedForm.caseTypeId || "",
-    stationHQ:   stationFromQR || savedForm.stationHQ || "",
+    caseType: preselectedType,
+    caseTypeId: preselectedCaseTypeId,
+    stationHQ: stationFromQR || savedForm.stationHQ || "",
     description: savedForm.description || "",
-    armyNumber:  savedForm.armyNumber || "",
-    rank:        savedForm.rank || "",
+    armyNumber: savedForm.armyNumber || "",
+    rank: savedForm.rank || "",
   });
 
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [servicesOpen, setServicesOpen] = useState(true);
 
-  // ── Sync openCategory when caseTypesList loads ────────────────────────────
+  // ── Sync openCategory + caseTypeId when case types load ─────────────────
+  useEffect(() => {
+    if (!generalConcernMode || !concernComplaint) return;
+    setForm((prev) => ({
+      ...prev,
+      concernType: prev.concernType || "Self",
+      caseType: prev.caseType || concernComplaint.type || "",
+      caseTypeId: prev.caseTypeId || concernComplaint.caseTypeId || "",
+      stationHQ: prev.stationHQ || concernComplaint.stationName || "",
+      description: prev.description || concernComplaint.description || "",
+      armyNumber: prev.armyNumber || concernComplaint.veteranArmyNo || "",
+      rank: prev.rank || concernComplaint.veteranRank || "",
+    }));
+  }, [generalConcernMode, concernComplaint]);
+
   useEffect(() => {
     if (!(caseTypesList as any[]).length) return;
 
-    if (preselectedType) {
-      // open the category that contains the preselected case type
-      const ct = (caseTypesList as any[]).find((c: any) => c.name === preselectedType);
-      if (ct && !form.caseTypeId) {
-        setForm(prev => ({ ...prev, caseTypeId: ct._id }));
+    const activeName = form.caseType;
+    if (activeName) {
+      const ct = (caseTypesList as any[]).find((c: any) => c.name === activeName);
+      if (ct && String(form.caseTypeId) !== String(ct._id)) {
+        setForm((prev) => ({ ...prev, caseTypeId: ct._id }));
       }
       const category = ct ? getCaseTypeCategoryLabel(ct) : null;
       const matched = CATEGORY_CONFIG.find(
@@ -106,10 +129,9 @@ export default memo(function RaiseGrievance() {
       );
       setOpenCategory(matched?.key ?? CATEGORY_CONFIG[0].key);
     } else {
-      // default open first category
       setOpenCategory(CATEGORY_CONFIG[0].key);
     }
-  }, [caseTypesList, preselectedType]);
+  }, [caseTypesList, form.caseType, form.caseTypeId]);
 
   // ── Group case types by category ─────────────────────────────────────────
   const groupedCategories = useMemo(() => {
@@ -135,8 +157,24 @@ export default memo(function RaiseGrievance() {
       toast.error("Please fill all required fields");
       return;
     }
-    navigate("/user/document-checklist", { state: { form, isFromQR } });
-  }, [form, navigate, isFromQR]);
+    if (generalConcernMode) {
+      navigate("/user/document-checklist", {
+        state: {
+          form,
+          generalConcernMode: true,
+          hasDocumentFixes,
+          flaggedDocumentLabels,
+          grievanceId: concernGrievanceId,
+          concernMessage,
+          complaint: concernComplaint,
+        },
+      });
+      return;
+    }
+    navigate("/user/document-checklist", {
+      state: { form, isFromQR, freshGrievanceFlow },
+    });
+  }, [form, navigate, isFromQR, freshGrievanceFlow, generalConcernMode, hasDocumentFixes, flaggedDocumentLabels, concernGrievanceId, concernMessage, concernComplaint]);
 
   return (
     <div className="bg-background min-h-full">
@@ -144,13 +182,34 @@ export default memo(function RaiseGrievance() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link to="/user/services" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
-            <ChevronLeft className="w-5 h-5 text-foreground" />
-          </Link>
-          <h1 className="text-lg font-semibold text-foreground">Raise Grievance</h1>
+          {generalConcernMode ? (
+            <button
+              type="button"
+              onClick={() => navigate("/user/track-case", { state: { complaint: concernComplaint } })}
+              className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground"
+            >
+              <ChevronLeft className="w-5 h-5 text-foreground" />
+            </button>
+          ) : (
+            <Link to="/user/services" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground">
+              <ChevronLeft className="w-5 h-5 text-foreground" />
+            </Link>
+          )}
+          <h1 className="text-lg font-semibold text-foreground">
+            {generalConcernMode ? "Correct Details" : "Raise Grievance"}
+          </h1>
         </div>
-        <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">Step 1 / 3</span>
+        <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">
+          {generalConcernMode ? (hasDocumentFixes ? "Step 1 / 3" : "Step 1 / 3") : "Step 1 / 3"}
+        </span>
       </div>
+
+      {generalConcernMode && concernMessage && (
+        <div className="mx-4 mb-3 flex items-start gap-2 bg-destructive/10 border border-destructive/25 rounded-xl px-3 py-2.5">
+          <span className="text-destructive text-xs mt-0.5">!</span>
+          <p className="text-xs text-foreground whitespace-pre-wrap">{concernMessage}</p>
+        </div>
+      )}
 
       {/* QR Banner */}
       {isFromQR && (
@@ -173,7 +232,8 @@ export default memo(function RaiseGrievance() {
           {/* Toggle button showing selected value */}
           <button
             onClick={() => setServicesOpen((p) => !p)}
-            className="w-full flex items-center justify-between bg-secondary border border-border rounded-xl px-4 py-3 text-sm transition-colors"
+            disabled={generalConcernMode}
+            className={`w-full flex items-center justify-between bg-secondary border border-border rounded-xl px-4 py-3 text-sm transition-colors ${generalConcernMode ? "opacity-70 cursor-not-allowed" : ""}`}
           >
             <span className={form.caseType ? "text-foreground font-normal" : "text-muted-foreground"}>
               {form.caseType || "Select Services"}
@@ -185,7 +245,7 @@ export default memo(function RaiseGrievance() {
           </button>
 
           {/* Accordion list */}
-          {servicesOpen && (
+          {servicesOpen && !generalConcernMode && (
             <div className="border border-border rounded-xl overflow-hidden bg-card">
               {groupedCategories.map((cat) => {
                 const isOpen = openCategory === cat.key;

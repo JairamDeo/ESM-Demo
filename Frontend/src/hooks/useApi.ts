@@ -173,9 +173,31 @@ export const useAddComment = () => {
       const id = vars instanceof FormData ? vars.get("id") : vars.id;
       qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id as string) });
       qc.invalidateQueries({ queryKey: queryKeys.grievances.track(id as string) });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.my });
+      qc.invalidateQueries({ queryKey: ["grievances"] });
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || "Failed to add comment");
+      toast.error(err?.response?.data?.message || "Failed to add concern");
+    },
+  });
+};
+
+export const useResolveConcern = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, note, officerName }: { id: string; note?: string; officerName?: string }) => {
+      const { data } = await api.patch(`/grievances/${id}/concern/resolve`, { note, officerName });
+      return data.data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(vars.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.track(vars.id) });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.my });
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      toast.success("Concern resolved");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to resolve concern");
     },
   });
 };
@@ -516,20 +538,35 @@ export const useVeteranDocumentChecklist = (caseTypeId: string) =>
 export const useUploadVeteranRequiredDocument = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ caseTypeId, documentLabel, itemIndex, file }: { caseTypeId: string; documentLabel: string; itemIndex?: number; file: File }) => {
+    mutationFn: async ({
+      caseTypeId,
+      documentLabel,
+      itemIndex,
+      file,
+      grievanceId,
+    }: {
+      caseTypeId: string;
+      documentLabel: string;
+      itemIndex?: number;
+      file: File;
+      grievanceId?: string;
+    }) => {
       const formData = new FormData();
       formData.append("caseTypeId", caseTypeId);
       formData.append("documentLabel", documentLabel);
       if (itemIndex !== undefined) formData.append("itemIndex", String(itemIndex));
+      if (grievanceId) formData.append("grievanceId", grievanceId);
       formData.append("file", file);
 
-      const { data } = await api.post("/veteran/required-documents/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const { data } = await api.post("/veteran/required-documents/upload", formData);
       return data.data;
     },
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["veteran-document-checklist", variables.caseTypeId] });
+      if (variables.grievanceId) {
+        qc.invalidateQueries({ queryKey: ["grievances", "track", variables.grievanceId] });
+        qc.invalidateQueries({ queryKey: ["grievances", "single", variables.grievanceId] });
+      }
       qc.invalidateQueries({ queryKey: ["veteran-document-uploads", variables.caseTypeId] });
     },
   });
@@ -545,6 +582,13 @@ export const useListVeteranUploads = (caseTypeId: string) =>
     enabled: !!caseTypeId,
     staleTime: 0,
   });
+
+export const clearVeteranDraftUploads = async (caseTypeId: string) => {
+  const { data } = await api.delete("/veteran/required-documents/drafts", {
+    params: { caseTypeId },
+  });
+  return data;
+};
 
 export const useDeleteVeteranUpload = () => {
   const qc = useQueryClient();
@@ -683,6 +727,203 @@ export const useResolveEscalation = () => {
   });
 };
 
+// ─── SLA settings (Grievances page) ───────────────────────────────────────────
+export interface SlaConfig {
+  mode: "common" | "separate";
+  hours?: number | null;
+  minutes?: number | null;
+  l1Hours?: number | null;
+  l1Minutes?: number | null;
+  l2Hours?: number | null;
+  l2Minutes?: number | null;
+  l3Hours?: number | null;
+  l3Minutes?: number | null;
+}
+
+export interface SlaChangeEntry {
+  action: "create" | "update";
+  note: string;
+  at: string;
+  changedBy: {
+    name: string;
+    email?: string;
+    role: string;
+    rbacRole: string;
+  };
+}
+
+export interface SlaSettingsResponse {
+  config: SlaConfig;
+  lastEditedBy: {
+    name: string;
+    email?: string;
+    role: string;
+    rbacRole: string;
+    at: string;
+  } | null;
+  changeHistory: SlaChangeEntry[];
+}
+
+export const useSlaSettings = (enabled = true) =>
+  useQuery({
+    queryKey: ["sla-config"],
+    queryFn: async () => {
+      const { data } = await api.get("/grievances/sla-config");
+      return data.data as SlaSettingsResponse;
+    },
+    enabled,
+    staleTime: 60_000,
+  });
+
+export const useUpdateSlaSettings = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: SlaConfig) => {
+      const { data } = await api.put("/grievances/sla-config", payload);
+      return data.data as SlaSettingsResponse;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sla-config"] });
+      toast.success("SLA settings saved");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to save SLA settings");
+    },
+  });
+};
+
+export const useRequestEscalationTakeover = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+      const { data } = await api.post(`/grievances/${id}/escalation-request`, { reason });
+      return data.data;
+    },
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id) });
+      toast.success("Escalation request sent to L1");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to request escalation");
+    },
+  });
+};
+
+export const useApproveEscalationRequest = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/grievances/${id}/escalation-request/approve`);
+      return data.data;
+    },
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id) });
+      qc.invalidateQueries({ queryKey: ["escalation-preview", id] });
+      qc.invalidateQueries({ queryKey: ["escalations"] });
+      toast.success("Escalation approved — case assigned to requester");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to approve escalation");
+    },
+  });
+};
+
+export const useRejectEscalationRequest = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post(`/grievances/${id}/escalation-request/reject`);
+      return data.data;
+    },
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id) });
+      toast.success("Escalation request rejected");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to reject escalation");
+    },
+  });
+};
+
+export interface EscalationPreview {
+  canEscalate: boolean;
+  fromOrgTier?: string;
+  toOrgTier?: string | null;
+  fromLevel: string;
+  fromOfficerId?: string;
+  fromOfficerName: string;
+  toLevel: string | null;
+  toOfficerId?: string;
+  toOfficerName: string | null;
+  escalationTypes: Array<{ value: string; label: string }>;
+}
+
+export const useEscalationPreview = (grievanceId: string, enabled = true) =>
+  useQuery({
+    queryKey: ["escalation-preview", grievanceId],
+    queryFn: async () => {
+      const { data } = await api.get(`/grievances/${grievanceId}/escalation-preview`);
+      return data.data as EscalationPreview;
+    },
+    enabled: enabled && Boolean(grievanceId),
+    staleTime: 10_000,
+  });
+
+export const useRequestEscalateToUpperTier = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+      const { data } = await api.post(`/grievances/${id}/escalate-to-upper-tier`, { reason });
+      return data.data;
+    },
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id) });
+      qc.invalidateQueries({ queryKey: ["escalation-preview", id] });
+      qc.invalidateQueries({ queryKey: ["escalations"] });
+      toast.success("Case escalated to upper tier");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to escalate to upper tier");
+    },
+  });
+};
+
+export const useManualEscalateGrievance = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      escalationReasonType,
+      note,
+    }: {
+      id: string;
+      escalationReasonType: "no_response" | "concern_pending";
+      note?: string;
+    }) => {
+      const { data } = await api.post(`/grievances/${id}/escalate`, {
+        escalationReasonType,
+        note,
+      });
+      return data.data;
+    },
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["grievances"] });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id) });
+      qc.invalidateQueries({ queryKey: ["escalation-preview", id] });
+      qc.invalidateQueries({ queryKey: ["escalations"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Grievance escalated successfully");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to escalate grievance");
+    },
+  });
+};
+
 // ─── Reports ──────────────────────────────────────────────────────────────────
 export const useReports = (months = 6, period = "all") =>
   useQuery({
@@ -698,17 +939,18 @@ export const useReports = (months = 6, period = "all") =>
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const useNotifications = (unreadOnly = false) => {
   const path = window.location.pathname;
-  const isUserPortal = path.startsWith("/user/") || path === "/user";
+  const isUserPortal = path.startsWith("/user");
+  const isAdminPortal = !isUserPortal && !path.startsWith("/admin/login");
   return useQuery({
-    queryKey: [...queryKeys.notifications,unreadOnly,],
+    queryKey: [...queryKeys.notifications, unreadOnly, isAdminPortal ? "admin" : "user"],
     queryFn: async () => {
       const { data } = await api.get("/notifications", { params: { unreadOnly } });
       return data;
     },
     staleTime: 60_000,
     gcTime: 300_000,
-    refetchInterval: isUserPortal ? 60_000 : false,
-    enabled: isUserPortal,
+    refetchInterval: isUserPortal || isAdminPortal ? 60_000 : false,
+    enabled: isUserPortal || isAdminPortal,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,
@@ -831,7 +1073,7 @@ export const useCreateHQ = () => {
     queryKey: ["categories", params],
     queryFn: async () => {
       const { data } = await api.get("/categories", { params });
-      return data.data as { _id: string; name: string; isActive?: boolean }[];
+      return data.data as { _id: string; name: string; iconUrl?: string | null; isActive?: boolean }[];
     },
     staleTime: 600_000,
   });
@@ -839,12 +1081,13 @@ export const useCreateHQ = () => {
   export const useCreateCategory = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { name: string; isActive?: boolean }) => {
+    mutationFn: async (body: FormData | { name: string; isActive?: boolean }) => {
       const { data } = await api.post("/categories", body);
       return data.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
       toast.success("Category added successfully!");
     },
     onError: (err: any) => {
@@ -856,16 +1099,53 @@ export const useCreateHQ = () => {
 export const useUpdateCategory = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...body }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...body }: { id: string; name?: string; isActive?: boolean }) => {
       const { data } = await api.put(`/categories/${id}`, body);
       return data.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
       toast.success("Category updated");
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Failed to update category");
+    },
+  });
+};
+
+export const useUploadCategoryIcon = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("icon", file);
+      const { data } = await api.put(`/categories/${id}/icon`, fd);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to upload category icon");
+    },
+  });
+};
+
+export const useRemoveCategoryIcon = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/categories/${id}/icon`);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to remove category icon");
     },
   });
 };

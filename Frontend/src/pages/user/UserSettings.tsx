@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
@@ -12,8 +12,9 @@ import {
   FileText,
   HelpCircle,
   Smartphone,
+  Monitor,
 } from "lucide-react";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme, type ThemePreference } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useApi";
 import { toast } from "sonner";
@@ -77,39 +78,61 @@ function SettingRow({
   return <div className={className}>{inner}</div>;
 }
 
-function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
+function AppearanceSelector({
+  value,
+  onChange,
+}: {
+  value: ThemePreference;
+  onChange: (value: ThemePreference) => void;
+}) {
+  const options: {
+    id: ThemePreference;
+    label: string;
+    icon: typeof Sun;
+  }[] = [
+    { id: "light", label: "Light", icon: Sun },
+    { id: "dark", label: "Dark", icon: Moon },
+    { id: "system", label: "System", icon: Monitor },
+  ];
+
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={dark}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-      className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${
-        dark ? "bg-[#826CF3]" : "bg-secondary border border-border"
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center transition-transform ${
-          dark ? "translate-x-5" : "translate-x-0.5"
-        }`}
-      >
-        {dark ? <Moon className="w-3.5 h-3.5 text-[#826CF3]" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
-      </span>
-    </button>
+    <div className="grid grid-cols-3 gap-2 w-full">
+      {options.map(({ id, label, icon: Icon }) => {
+        const selected = value === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 transition-colors ${
+              selected
+                ? "border-[#826CF3] bg-[#826CF3]/10 text-foreground"
+                : "border-border bg-secondary/40 text-muted-foreground hover:border-[#826CF3]/30"
+            }`}
+          >
+            <Icon className={`w-4 h-4 ${selected ? "text-[#826CF3]" : ""}`} />
+            <span className="text-[11px] font-semibold">{label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
 export default memo(function UserSettings() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { data: notifData } = useNotifications(false);
   const unreadCount = notifData?.unreadCount || 0;
-  const isDark = theme === "dark";
+  const isDark = resolvedTheme === "dark";
+
+  const appearanceDescription =
+    theme === "system"
+      ? `System default (${isDark ? "Dark" : "Light"})`
+      : theme === "dark"
+        ? "Dark mode"
+        : "Light mode";
 
   const handleLogout = () => {
     logout();
@@ -161,14 +184,26 @@ export default memo(function UserSettings() {
             Preferences
           </p>
           <div className="space-y-2">
-            <SettingRow
-              icon={isDark ? Moon : Sun}
-              iconBg={isDark ? "bg-[#826CF3]/15" : "bg-amber-500/15"}
-              iconColor={isDark ? "text-[#826CF3]" : "text-amber-500"}
-              label="Appearance"
-              description={isDark ? "Dark mode on" : "Light mode on"}
-              trailing={<ThemeToggle dark={isDark} onToggle={toggleTheme} />}
-            />
+            <div className="w-full bg-card border border-border rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    isDark ? "bg-[#826CF3]/15" : "bg-amber-500/15"
+                  }`}
+                >
+                  {isDark ? (
+                    <Moon className="w-5 h-5 text-[#826CF3]" />
+                  ) : (
+                    <Sun className="w-5 h-5 text-amber-500" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-semibold text-foreground">Appearance</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{appearanceDescription}</p>
+                </div>
+              </div>
+              <AppearanceSelector value={theme} onChange={setTheme} />
+            </div>
             <SettingRow
               icon={Bell}
               iconBg="bg-[#4F81FF]/15"

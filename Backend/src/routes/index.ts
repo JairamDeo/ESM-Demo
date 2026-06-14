@@ -21,8 +21,10 @@ import {
   getCaseTypes, getCaseTypeById, createCaseType, updateCaseType, deleteCaseType,
   getReports,
   getNotifications, markNotificationRead,
+  getPushConfig, getPushStatus,
   subscribeToPushNotifications, sendTestPushNotification,
-  updateUserProfile, getCategories, createCategory, updateCategory
+  updateUserProfile, getCategories, createCategory, updateCategory,
+  uploadCategoryIcon, removeCategoryIconHandler
 } from "../controllers/miscControllers";
 import {
   getAnnouncements, createAnnouncement
@@ -158,6 +160,8 @@ reportsRouter.get("/", protect, adminOnly, getReports);
 // ═══════════════════════════════════════════════════════════════════════════════
 export const notificationRouter = Router();
 
+notificationRouter.get("/push-config", getPushConfig);
+notificationRouter.get("/push-status", protect, getPushStatus);
 notificationRouter.get("/",          protect, getNotifications);
 notificationRouter.patch("/:id/read", protect, markNotificationRead);
 notificationRouter.post("/subscribe", protect, subscribeToPushNotifications);
@@ -176,8 +180,10 @@ userRouter.put("/profile", protect, restrictTo("user"), updateUserProfile);
 export const categoryRouter = Router();
 
 categoryRouter.get("/", protect, getCategories);
-categoryRouter.post("/", protect, restrictTo("super_admin", "area"), createCategory);
+categoryRouter.post("/", protect, restrictTo("super_admin", "area"), upload.single("icon"), createCategory);
 categoryRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCategory);
+categoryRouter.put("/:id/icon", protect, restrictTo("super_admin", "area"), upload.single("icon"), uploadCategoryIcon);
+categoryRouter.delete("/:id/icon", protect, restrictTo("super_admin", "area"), removeCategoryIconHandler);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ANNOUNCEMENTS

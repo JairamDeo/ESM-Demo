@@ -98,6 +98,9 @@ export const createEscalation = async (req: Request, res: Response): Promise<voi
       reason, escalatedTo,
       escalatedBy: (req as any).user?.name || "Admin",
       daysOpen,
+      escalationReasonType: "manual_request",
+      fromLevel: (grievance.assignedLevel || "L1") as any,
+      approvalStatus: "n/a",
     });
 
     grievance.status = "escalated";
