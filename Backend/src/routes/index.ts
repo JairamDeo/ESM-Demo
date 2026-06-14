@@ -22,7 +22,8 @@ import {
   getReports,
   getNotifications, markNotificationRead,
   subscribeToPushNotifications, sendTestPushNotification,
-  updateUserProfile, getCategories, createCategory, updateCategory
+  updateUserProfile, getCategories, createCategory, updateCategory,
+  uploadCategoryIcon, removeCategoryIconHandler
 } from "../controllers/miscControllers";
 import {
   getAnnouncements, createAnnouncement
@@ -176,8 +177,10 @@ userRouter.put("/profile", protect, restrictTo("user"), updateUserProfile);
 export const categoryRouter = Router();
 
 categoryRouter.get("/", protect, getCategories);
-categoryRouter.post("/", protect, restrictTo("super_admin", "area"), createCategory);
+categoryRouter.post("/", protect, restrictTo("super_admin", "area"), upload.single("icon"), createCategory);
 categoryRouter.put("/:id", protect, restrictTo("super_admin", "area"), updateCategory);
+categoryRouter.put("/:id/icon", protect, restrictTo("super_admin", "area"), upload.single("icon"), uploadCategoryIcon);
+categoryRouter.delete("/:id/icon", protect, restrictTo("super_admin", "area"), removeCategoryIconHandler);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ANNOUNCEMENTS

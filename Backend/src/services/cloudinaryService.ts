@@ -35,6 +35,26 @@ export interface PreparedUpload {
   resourceType: "image" | "raw";
 }
 
+/** Category icons → lossless WebP (no compression). */
+export async function prepareCategoryIconForUpload(buffer: Buffer, mimetype: string): Promise<PreparedUpload> {
+  if (mimetype === "image/webp") {
+    return {
+      buffer,
+      mimeType: "image/webp",
+      extension: "webp",
+      resourceType: "image",
+    };
+  }
+
+  const webpBuffer = await sharp(buffer).webp({ lossless: true }).toBuffer();
+  return {
+    buffer: webpBuffer,
+    mimeType: "image/webp",
+    extension: "webp",
+    resourceType: "image",
+  };
+}
+
 /** Images → WebP; PDFs unchanged. */
 export async function prepareFileForUpload(buffer: Buffer, mimetype: string): Promise<PreparedUpload> {
   if (mimetype === "application/pdf") {

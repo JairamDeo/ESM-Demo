@@ -2,9 +2,13 @@ import fs from "fs";
 import path from "path";
 import { v2 as cloudinary } from "cloudinary";
 import {
+  prepareCategoryIconForUpload,
   prepareFileForUpload,
   uploadBufferToCloudinary,
+  deleteCloudinaryAsset,
 } from "./cloudinaryService";
+
+const CATEGORY_ICON_FOLDER = "category-master";
 
 export interface StoredFileResult {
   url: string;
@@ -39,6 +43,50 @@ function isCloudinaryAuthError(message: string): boolean {
     lower.includes("invalid api key") ||
     lower.includes("cloudinary is not configured")
   );
+}
+
+/** Upload category icon to esm/category-master as lossless WebP. */
+export async function storeCategoryIcon(
+  buffer: Buffer,
+  fileName: string,
+  mimetype: string
+): Promise<StoredFileResult> {
+  const prepared = await prepareCategoryIconForUpload(buffer, mimetype);
+  const baseName = fileName.replace(/\.[^.]+$/, "");
+  const finalFileName = `${baseName}.${prepared.extension}`;
+
+  const cloudinaryEnabled = process.env.USE_CLOUDINARY !== "false";
+  const allowLocalFallback = process.env.CLOUDINARY_FALLBACK_LOCAL !== "false";
+
+  if (!cloudinaryEnabled) {
+    return saveLocalFile(prepared.buffer, CATEGORY_ICON_FOLDER, finalFileName, prepared.mimeType);
+  }
+
+  try {
+    const uploaded = await uploadBufferToCloudinary(prepared.buffer, {
+      folder: CATEGORY_ICON_FOLDER,
+      fileName: finalFileName,
+      resourceType: prepared.resourceType,
+    });
+    return {
+      url: uploaded.url,
+      mimeType: prepared.mimeType,
+      bytes: uploaded.bytes,
+      storage: "cloudinary",
+    };
+  } catch (err: any) {
+    const message = err?.message || "Cloudinary upload failed";
+    if (allowLocalFallback) {
+      console.warn(`⚠️ Category icon upload failed — saving locally: ${message}`);
+      return saveLocalFile(prepared.buffer, CATEGORY_ICON_FOLDER, finalFileName, prepared.mimeType);
+    }
+    throw new Error(message);
+  }
+}
+
+export async function removeCategoryIcon(iconUrl?: string | null): Promise<void> {
+  if (!iconUrl) return;
+  await deleteCloudinaryAsset(iconUrl, "image");
 }
 
 /** Upload to Cloudinary; optional local fallback when credentials fail. */

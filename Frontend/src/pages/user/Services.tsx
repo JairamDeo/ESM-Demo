@@ -1,41 +1,28 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, ChevronRight, Plus, Minus } from "lucide-react";
-import { useCaseTypes } from "@/hooks/useApi";
+import { Search, ChevronRight, Plus, Minus, FileEdit, ArrowRight } from "lucide-react";
+import { useCaseTypes, useCategories } from "@/hooks/useApi";
+import { useAuth } from "@/contexts/AuthContext";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import {
+  buildCategoryIconMap,
+  getCategoryFallbackMeta,
+  lookupCategoryIcon,
+  normalizeCategoryName,
+} from "@/lib/categoryIcons";
+import { useGrievanceDraft } from "@/hooks/useGrievanceDraft";
+import { getDraftContinueRoute, getDraftStepLabel, beginDraftResume } from "@/lib/grievanceDraft";
 
-const CATEGORY_CONFIG = [
-  {
-    key: "Identity & Personal",
-    title: "Identity & Personal",
-    icon: <img src="/icons/profile-filled.svg" alt="" className="w-7 h-7" />,
-    bg: "bg-[#D2E5FC]",
-  },
-  {
-    key: "Pension & Financial",
-    title: "Pension & Financial",
-    icon: <img src="/icons/money-rupee.svg" alt="" className="w-7 h-7" />,
-    bg: "bg-[#FDE7E7]",
-  },
-  {
-    key: "Family Details",
-    title: "Family Details",
-    icon: <img src="/icons/family.svg" alt="" className="w-7 h-7" />,
-    bg: "bg-[#E8FDE7]",
-  },
-  {
-    key: "Requests & Tracking",
-    title: "Requests & Tracking",
-    icon: <img src="/icons/seal-check.svg" alt="" className="w-7 h-7" />,
-    bg: "bg-[#FFFFE4]",
-  },
+const CATEGORY_ORDER = [
+  "Identity & Personal",
+  "Pension & Financial",
+  "Family Details",
+  "Requests & Tracking",
 ] as const;
 
-const normalizeCategory = (value: string) =>
-  String(value || "").trim().toLowerCase().replace("idenity", "identity");
-
 const categorySortIndex = (name: string) => {
-  const norm = normalizeCategory(name);
-  const idx = CATEGORY_CONFIG.findIndex((c) => normalizeCategory(c.key) === norm);
+  const norm = normalizeCategoryName(name);
+  const idx = CATEGORY_ORDER.findIndex((c) => normalizeCategoryName(c) === norm);
   return idx === -1 ? 999 : idx;
 };
 
@@ -44,17 +31,17 @@ const getCaseTypeCategoryLabel = (ct: any) =>
   (typeof ct?.category === "object" && ct?.category?.name ? ct.category.name : null) ??
   (typeof ct?.category === "string" ? ct.category : "Other");
 
-const getCategoryMeta = (categoryName: string) => {
-  const meta = CATEGORY_CONFIG.find(
-    (c) => normalizeCategory(c.key) === normalizeCategory(categoryName)
-  );
-  return meta ?? { key: categoryName, title: categoryName, icon: null, bg: "bg-secondary" };
-};
-
 export default function Services() {
+  const { user } = useAuth();
   const { data: caseTypes = [], isLoading, isError, error } = useCaseTypes({ status: "active" });
+  const { data: categories = [] } = useCategories({ status: "active" });
   const [searchQuery, setSearchQuery] = useState("");
   const [openCategory, setOpenCategory] = useState<string | null>("Identity & Personal");
+
+  const draft = useGrievanceDraft(user?.id);
+  const draftRoute = draft ? getDraftContinueRoute(draft) : null;
+
+  const categoryIconMap = useMemo(() => buildCategoryIconMap(categories), [categories]);
 
   const groupedCategories = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -69,32 +56,39 @@ export default function Services() {
         })
       : list;
 
-    const byCategory = new Map<string, any[]>();
+    const byCategory = new Map<string, { items: any[]; categoryId?: string; iconUrl?: string | null }>();
     for (const ct of filtered) {
       const category = getCaseTypeCategoryLabel(ct).trim() || "Other";
-      if (!byCategory.has(category)) byCategory.set(category, []);
-      byCategory.get(category)!.push(ct);
+      if (!byCategory.has(category)) {
+        byCategory.set(category, {
+          items: [],
+          categoryId: ct.categoryId,
+          iconUrl: ct.categoryIconUrl ?? lookupCategoryIcon(categoryIconMap, category, ct.categoryId),
+        });
+      }
+      byCategory.get(category)!.items.push(ct);
     }
 
     return Array.from(byCategory.entries())
       .sort(([a], [b]) => categorySortIndex(a) - categorySortIndex(b))
-      .map(([categoryName, items]) => {
-        const meta = getCategoryMeta(categoryName);
+      .map(([categoryName, group]) => {
+        const fallback = getCategoryFallbackMeta(categoryName);
+        const iconUrl =
+          group.iconUrl ?? lookupCategoryIcon(categoryIconMap, categoryName, group.categoryId);
         return {
           key: categoryName,
-          title: meta.title,
-          icon: meta.icon,
-          bg: meta.bg,
-          items: items.map((ct: any) => ({
+          title: categoryName,
+          iconUrl,
+          bg: fallback.bg,
+          items: group.items.map((ct: any) => ({
             id: String(ct._id ?? ct.id ?? ct.name),
             label: ct.name,
             description: ct.description || "",
           })),
         };
       });
-  }, [caseTypes, searchQuery]);
+  }, [caseTypes, searchQuery, categoryIconMap]);
 
-  // open all categories when searching
   const effectiveOpen = searchQuery.trim()
     ? groupedCategories.map((c) => c.key)
     : openCategory
@@ -118,6 +112,26 @@ export default function Services() {
         </Link>
         <h1 className="text-xl font-semibold text-foreground">Services</h1>
       </div>
+
+      {draft && draftRoute && (
+        <Link
+          to={draftRoute.pathname}
+          state={draftRoute.state}
+          onClick={beginDraftResume}
+          className="flex items-center gap-3 bg-[#826CF3]/10 border border-[#826CF3]/30 rounded-xl px-4 py-3 hover:bg-[#826CF3]/15 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#826CF3]/20 flex items-center justify-center shrink-0">
+            <FileEdit className="w-5 h-5 text-[#826CF3]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Continue your draft</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {draft.form.caseType || "Grievance"} · {getDraftStepLabel(draft.step)}
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-[#826CF3] shrink-0" />
+        </Link>
+      )}
 
       {/* Search */}
       <div className="flex items-center gap-3 bg-secondary rounded-xl px-4 py-3 border border-border">
@@ -164,15 +178,12 @@ export default function Services() {
           key={cat.key}
           className="bg-card border border-border rounded-2xl overflow-hidden"
         >
-          {/* Category Header — always visible */}
           <button
             onClick={() => toggle(cat.key)}
             className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-secondary/50 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-full ${cat.bg} flex items-center justify-center flex-shrink-0`}>
-                {cat.icon}
-              </div>
+              <CategoryIcon name={cat.title} iconUrl={cat.iconUrl} />
               <span className="text-sm font-semibold text-foreground">{cat.title}</span>
             </div>
             <div className="w-6 h-6 rounded-full bg-[#D6D6D6] dark:bg-secondary flex items-center justify-center flex-shrink-0">
@@ -183,14 +194,17 @@ export default function Services() {
             </div>
           </button>
 
-          {/* Expanded items */}
           {isOpen(cat.key) && (
             <div className="px-3 pb-3 space-y-2 pt-2">
               {cat.items.map((item) => (
                 <Link
                   key={item.id}
                   to="/user/document-required"
-                  state={{ caseType: item.label, description: item.description }}
+                  state={{
+                    caseTypeId: item.id,
+                    caseType: item.label,
+                    description: item.description,
+                  }}
                   className="flex items-center justify-between bg-[#F1F1F1] dark:bg-secondary/40 border border-border rounded-xl px-4 py-3 hover:border-primary/40 transition-all group"
                 >
                   <div className="flex-1 min-w-0 pr-3">

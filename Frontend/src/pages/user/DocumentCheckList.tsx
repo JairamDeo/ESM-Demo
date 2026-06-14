@@ -83,7 +83,9 @@ export default function DocumentCheckList() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() =>
+              navigate("/user/raise-grievance", { state: { form: formState, isFromQR } })
+            }
             className="p-1.5 rounded-full hover:bg-secondary transition-colors"
           >
             <ChevronLeft className="w-5 h-5 text-foreground" />

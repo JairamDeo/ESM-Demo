@@ -1,8 +1,10 @@
-import { memo, useState, useCallback } from "react";
-import { ListTree, Plus, X, ToggleLeft, ToggleRight, Pencil, Eye, Trash2 } from "lucide-react";
-import { useCategories, useCreateCategory, useUpdateCategory, useCaseTypes, useDeleteCaseType } from "@/hooks/useApi";
+import { memo, useState, useCallback, useEffect, useRef } from "react";
+import { Plus, X, ToggleLeft, ToggleRight, Pencil, Eye, Trash2, Upload, ImageIcon } from "lucide-react";
+import { useCategories, useCreateCategory, useUpdateCategory, useUploadCategoryIcon, useRemoveCategoryIcon, useCaseTypes, useDeleteCaseType } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/stores/rbac";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { getCategoryDisplayIcon } from "@/lib/categoryIcons";
 
 export default memo(function Categories() {
   const { data: categories = [], isLoading } = useCategories({ status: "all" });
@@ -10,6 +12,8 @@ export default memo(function Categories() {
 
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
+  const uploadCategoryIcon = useUploadCategoryIcon();
+  const removeCategoryIcon = useRemoveCategoryIcon();
   const permissions = usePermissions();
   const canManageCategories = permissions.manageCategories;
   const deleteCaseType = useDeleteCaseType();
@@ -18,10 +22,46 @@ export default memo(function Categories() {
   const isSuperAdmin = user?.role === "super_admin";
 
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ name: "" });
+  const [form, setForm] = useState({ name: "", icon: null as File | null });
+  const [addIconPreview, setAddIconPreview] = useState<string | null>(null);
+  const addIconInputRef = useRef<HTMLInputElement>(null);
 
   const [editOpen, setEditOpen] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ name: "" });
+  const [editForm, setEditForm] = useState({ name: "", icon: null as File | null, removeIcon: false });
+  const [editIconPreview, setEditIconPreview] = useState<string | null>(null);
+  const editIconInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!form.icon) {
+      setAddIconPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(form.icon);
+    setAddIconPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [form.icon]);
+
+  useEffect(() => {
+    if (!editForm.icon) {
+      setEditIconPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(editForm.icon);
+    setEditIconPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [editForm.icon]);
+
+  const resetAddForm = useCallback(() => {
+    setForm({ name: "", icon: null });
+    setAddIconPreview(null);
+    if (addIconInputRef.current) addIconInputRef.current.value = "";
+  }, []);
+
+  const resetEditForm = useCallback(() => {
+    setEditForm({ name: "", icon: null, removeIcon: false });
+    setEditIconPreview(null);
+    if (editIconInputRef.current) editIconInputRef.current.value = "";
+  }, []);
 
   const [confirmState, setConfirmState] = useState<null | { id: string; name: string; nextIsActive: boolean }>(null);
 
@@ -30,19 +70,33 @@ export default memo(function Categories() {
 
   const handleAdd = useCallback(async () => {
     if (!form.name.trim()) return;
-    await createCategory.mutateAsync({
-      name: form.name.trim(),
-    });
-    setForm({ name: "" });
+    const fd = new FormData();
+    fd.append("name", form.name.trim());
+    if (form.icon) fd.append("icon", form.icon);
+    await createCategory.mutateAsync(fd);
+    resetAddForm();
     setAddOpen(false);
-  }, [form, createCategory]);
+  }, [form, createCategory, resetAddForm]);
 
   const handleEdit = useCallback(async () => {
     if (!editForm.name.trim() || !editOpen) return;
-    await updateCategory.mutateAsync({ id: editOpen._id, name: editForm.name.trim() });
-    setEditForm({ name: "" });
+    const categoryId = editOpen._id;
+
+    await updateCategory.mutateAsync({ id: categoryId, name: editForm.name.trim() });
+
+    if (editForm.removeIcon) {
+      await removeCategoryIcon.mutateAsync(categoryId);
+    } else if (editForm.icon) {
+      await uploadCategoryIcon.mutateAsync({ id: categoryId, file: editForm.icon });
+    }
+
+    resetEditForm();
     setEditOpen(null);
-  }, [editForm, editOpen, updateCategory]);
+  }, [editForm, editOpen, updateCategory, removeCategoryIcon, uploadCategoryIcon, resetEditForm]);
+
+  const editingCategory = editOpen
+    ? categories.find((c: any) => c._id === editOpen._id) ?? editOpen
+    : null;
 
   const handleToggleActive = useCallback((cat: any) => {
     setConfirmState({
@@ -91,7 +145,7 @@ export default memo(function Categories() {
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-foreground">Add Category</h2>
-              <button onClick={() => setAddOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+              <button onClick={() => { resetAddForm(); setAddOpen(false); }} className="text-muted-foreground hover:text-foreground cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -100,14 +154,45 @@ export default memo(function Categories() {
                 <label className="text-xs font-medium text-muted-foreground">Name *</label>
                 <input
                   value={form.name}
-                  onChange={(e) => setForm({ name: e.target.value })}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="e.g. Welfare"
                   className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
                 />
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Category Icon (optional)</label>
+                <p className="text-[10px] text-muted-foreground mt-0.5 mb-2">
+                  PNG or JPG. Stored as WebP in Cloudinary (category-master folder).
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden shrink-0">
+                    {addIconPreview ? (
+                      <img src={addIconPreview} alt="" className="w-10 h-10 object-contain" />
+                    ) : form.name ? (
+                      <CategoryIcon name={form.name} size="lg" />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <label className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-secondary border border-dashed border-border rounded-lg text-xs font-medium text-foreground cursor-pointer hover:border-primary/50 transition-colors">
+                    <Upload className="w-3.5 h-3.5" />
+                    Choose icon
+                    <input
+                      ref={addIconInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setForm((prev) => ({ ...prev, icon: file }));
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
               <div className="flex gap-2 pt-1">
                 <button
-                  onClick={() => setAddOpen(false)}
+                  onClick={() => { resetAddForm(); setAddOpen(false); }}
                   className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm cursor-pointer"
                 >
                   Cancel
@@ -144,24 +229,77 @@ export default memo(function Categories() {
                 <label className="text-xs font-medium text-muted-foreground">Name *</label>
                 <input
                   value={editForm.name}
-                  onChange={(e) => setEditForm({ name: e.target.value })}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   placeholder="e.g. Welfare"
                   className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
                 />
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Category Icon (optional)</label>
+                <p className="text-[10px] text-muted-foreground mt-0.5 mb-2">
+                  Upload a new icon or remove the current one. Saved as lossless WebP.
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-secondary border border-border flex items-center justify-center overflow-hidden shrink-0">
+                    {editIconPreview ? (
+                      <img src={editIconPreview} alt="" className="w-10 h-10 object-contain" />
+                    ) : editForm.removeIcon ? (
+                      <CategoryIcon name={editForm.name} size="lg" />
+                    ) : editingCategory?.iconUrl ? (
+                      <img
+                        src={getCategoryDisplayIcon(editingCategory.iconUrl) || undefined}
+                        alt=""
+                        className="w-10 h-10 object-contain"
+                      />
+                    ) : (
+                      <CategoryIcon name={editForm.name} size="lg" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <label className="flex items-center justify-center gap-2 px-3 py-2.5 bg-secondary border border-dashed border-border rounded-lg text-xs font-medium text-foreground cursor-pointer hover:border-primary/50 transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      Replace icon
+                      <input
+                        ref={editIconInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setEditForm((prev) => ({ ...prev, icon: file, removeIcon: false }));
+                        }}
+                      />
+                    </label>
+                    {editingCategory?.iconUrl && !editForm.removeIcon && (
+                      <button
+                        type="button"
+                        onClick={() => setEditForm((prev) => ({ ...prev, icon: null, removeIcon: true }))}
+                        className="w-full py-2 text-xs text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                      >
+                        Remove icon
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div className="flex gap-2 pt-1">
                 <button
-                  onClick={() => setEditOpen(null)}
+                  onClick={() => { resetEditForm(); setEditOpen(null); }}
                   className="flex-1 py-2.5 bg-secondary text-foreground rounded-lg text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleEdit}
-                  disabled={updateCategory.isPending || !editForm.name.trim()}
+                  disabled={
+                    updateCategory.isPending ||
+                    uploadCategoryIcon.isPending ||
+                    removeCategoryIcon.isPending ||
+                    !editForm.name.trim()
+                  }
                   className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
                 >
-                  {updateCategory.isPending
+                  {updateCategory.isPending || uploadCategoryIcon.isPending || removeCategoryIcon.isPending
                     ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     : "Save"
                   }
@@ -314,11 +452,7 @@ export default memo(function Categories() {
               {/* Top row — icon, id, active badge, toggle */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors
-                    ${isActive ? "bg-primary/15 group-hover:bg-primary/25" : "bg-secondary"}`}
-                  >
-                    <ListTree className={`w-5 h-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                  </div>
+                  <CategoryIcon name={cat.name} iconUrl={cat.iconUrl} size="lg" />
                 </div>
 
                 {/* Active/Inactive badge + toggle */}
@@ -354,7 +488,7 @@ export default memo(function Categories() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setEditForm({ name: cat.name });
+                      setEditForm({ name: cat.name, icon: null, removeIcon: false });
                       setEditOpen(cat);
                     }}
                     className="text-muted-foreground hover:text-primary transition-colors cursor-pointer opacity-0 group-hover:opacity-100"

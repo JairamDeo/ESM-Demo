@@ -62,8 +62,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         - Mobile: full screen, flex col, fixed height
         - Desktop: fixed phone-sized card, rounded, shadow
       */}
-      <div className="
-        flex flex-col
+      <div
+        id="user-app-shell"
+        className="
+        relative flex flex-col
         w-full h-screen
         sm:h-[90vh] sm:max-w-sm
         sm:rounded-3xl sm:shadow-2xl

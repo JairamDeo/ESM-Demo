@@ -1,10 +1,12 @@
 import { memo, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, FileEdit } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { useMyGrievances } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
+import { useGrievanceDraft } from "@/hooks/useGrievanceDraft";
+import { getDraftContinueRoute, beginDraftResume } from "@/lib/grievanceDraft";
 
 const statusStyles: Record<string, string> = {
   resolved:      "bg-[#22C55E] text-[#FFFFFF]",
@@ -137,6 +139,9 @@ export default memo(function UserHome() {
     ? (grievanceProgressMap[recentComplaint.status] ?? 10)
     : 80;
 
+  const draft = useGrievanceDraft(user?.id);
+  const draftRoute = draft ? getDraftContinueRoute(draft) : null;
+
   return (
     <div className="w-full max-w-xl mx-auto px-3 lg:max-w-none lg:px-6 space-y-5 pb-6">
 
@@ -172,6 +177,30 @@ export default memo(function UserHome() {
 
   </div>
 </div>
+
+      {draft && draftRoute && (
+        <Link
+          to={draftRoute.pathname}
+          state={draftRoute.state}
+          onClick={beginDraftResume}
+          className="flex items-center gap-3 bg-[#826CF3]/10 border border-[#826CF3]/30 rounded-xl px-4 py-3 hover:bg-[#826CF3]/15 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-full bg-[#826CF3]/20 flex items-center justify-center shrink-0">
+            <FileEdit className="w-5 h-5 text-[#826CF3]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Continue draft grievance</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {draft.form.caseType || "In progress"} · saved{" "}
+              {new Date(draft.savedAt).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+              })}
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-[#826CF3] shrink-0" />
+        </Link>
+      )}
 
       {/* ── Quick Action Cards ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 ">

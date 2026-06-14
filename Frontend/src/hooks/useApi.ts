@@ -831,7 +831,7 @@ export const useCreateHQ = () => {
     queryKey: ["categories", params],
     queryFn: async () => {
       const { data } = await api.get("/categories", { params });
-      return data.data as { _id: string; name: string; isActive?: boolean }[];
+      return data.data as { _id: string; name: string; iconUrl?: string | null; isActive?: boolean }[];
     },
     staleTime: 600_000,
   });
@@ -839,12 +839,13 @@ export const useCreateHQ = () => {
   export const useCreateCategory = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { name: string; isActive?: boolean }) => {
+    mutationFn: async (body: FormData | { name: string; isActive?: boolean }) => {
       const { data } = await api.post("/categories", body);
       return data.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
       toast.success("Category added successfully!");
     },
     onError: (err: any) => {
@@ -856,16 +857,53 @@ export const useCreateHQ = () => {
 export const useUpdateCategory = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...body }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...body }: { id: string; name?: string; isActive?: boolean }) => {
       const { data } = await api.put(`/categories/${id}`, body);
       return data.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
       toast.success("Category updated");
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Failed to update category");
+    },
+  });
+};
+
+export const useUploadCategoryIcon = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("icon", file);
+      const { data } = await api.put(`/categories/${id}/icon`, fd);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to upload category icon");
+    },
+  });
+};
+
+export const useRemoveCategoryIcon = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/categories/${id}/icon`);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["case-types"] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to remove category icon");
     },
   });
 };

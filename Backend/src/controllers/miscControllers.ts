@@ -6,6 +6,7 @@ import Station from "../models/Station";
 import Officer from "../models/Officer";
 import Notification from "../models/Notification";
 import Category from "../models/Category";
+import { storeCategoryIcon, removeCategoryIcon } from "../services/storageService";
 
 
 // ─── Helper: date filter ─────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
     if (status === "active") {
       filter.isActive = { $ne: false }; // Match active case types
     }
-    const caseTypesRaw = await CaseType.find(filter).populate("category", "name isActive").lean();
+    const caseTypesRaw = await CaseType.find(filter).populate("category", "name isActive iconUrl").lean();
     // Sort by casetype<N> numeric suffix if present, else fallback stable.
     const caseTypes = caseTypesRaw
       .sort((a: any, b: any) => {
@@ -70,6 +71,7 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
           ...ct,
           categoryId: populated?._id ?? ct.category,
           categoryName: populated?.name ?? "Other",
+          categoryIconUrl: populated?.iconUrl ?? null,
         };
       });
     res.status(200).json({ success: true, data: caseTypes });
@@ -415,11 +417,22 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
   try {
     const { name, isActive } = req.body;
     if (!name) { res.status(400).json({ success: false, message: "name is required" }); return; }
-    
+
     const existing = await Category.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
     if (existing) { res.status(400).json({ success: false, message: "Category with this name already exists" }); return; }
 
-    const category = await Category.create({ name, isActive: isActive !== undefined ? isActive : true });
+    const category = await Category.create({
+      name: String(name).trim(),
+      isActive: isActive !== undefined ? isActive === true || isActive === "true" : true,
+    });
+
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (file) {
+      const stored = await storeCategoryIcon(file.buffer, `${category._id}-icon`, file.mimetype);
+      category.iconUrl = stored.url;
+      await category.save();
+    }
+
     res.status(201).json({ success: true, data: category });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -431,8 +444,58 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     const existing = await Category.findById(req.params.id);
     if (!existing) { res.status(404).json({ success: false, message: "Category not found" }); return; }
 
-    const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const update: Record<string, unknown> = {};
+    if (req.body.name !== undefined) update.name = String(req.body.name).trim();
+    if (req.body.isActive !== undefined) {
+      update.isActive = req.body.isActive === true || req.body.isActive === "true";
+    }
+
+    if (Object.keys(update).length === 0) {
+      res.status(200).json({ success: true, data: existing });
+      return;
+    }
+
+    const category = await Category.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
     res.status(200).json({ success: true, data: category });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const uploadCategoryIcon = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const existing = await Category.findById(req.params.id);
+    if (!existing) { res.status(404).json({ success: false, message: "Category not found" }); return; }
+
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) {
+      res.status(400).json({ success: false, message: "icon file is required" });
+      return;
+    }
+
+    if (existing.iconUrl) await removeCategoryIcon(existing.iconUrl);
+    const stored = await storeCategoryIcon(file.buffer, `${existing._id}-icon`, file.mimetype);
+    existing.iconUrl = stored.url;
+    await existing.save();
+
+    res.status(200).json({ success: true, data: existing });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const removeCategoryIconHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const existing = await Category.findById(req.params.id);
+    if (!existing) { res.status(404).json({ success: false, message: "Category not found" }); return; }
+
+    if (existing.iconUrl) {
+      await removeCategoryIcon(existing.iconUrl);
+      existing.iconUrl = undefined;
+      await existing.save();
+    }
+
+    res.status(200).json({ success: true, data: existing });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

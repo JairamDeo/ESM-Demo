@@ -72,33 +72,35 @@ export default memo(function RaiseGrievance() {
   const stationHQsList = stationsData?.data || [];
 
   const urlParams = new URLSearchParams(window.location.search);
-  const savedForm = (location.state as any)?.form || {};
-  const stationFromQR = urlParams.get("station") || (location.state as any)?.station || savedForm.stationHQ || "";
-  const preselectedType = (location.state as any)?.caseType || savedForm.caseType || "";
+  const routeState = (location.state as any) || {};
+  const savedForm = routeState.form || {};
+  const stationFromQR = urlParams.get("station") || routeState.station || savedForm.stationHQ || "";
+  const preselectedType = savedForm.caseType || routeState.caseType || "";
+  const preselectedCaseTypeId = savedForm.caseTypeId || routeState.caseTypeId || "";
   const isFromQR = !!stationFromQR;
 
   const [form, setForm] = useState({
     concernType: savedForm.concernType || "",
-    caseType:    preselectedType || "",
-    caseTypeId:  savedForm.caseTypeId || "",
-    stationHQ:   stationFromQR || savedForm.stationHQ || "",
+    caseType: preselectedType,
+    caseTypeId: preselectedCaseTypeId,
+    stationHQ: stationFromQR || savedForm.stationHQ || "",
     description: savedForm.description || "",
-    armyNumber:  savedForm.armyNumber || "",
-    rank:        savedForm.rank || "",
+    armyNumber: savedForm.armyNumber || "",
+    rank: savedForm.rank || "",
   });
 
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [servicesOpen, setServicesOpen] = useState(true);
 
-  // ── Sync openCategory when caseTypesList loads ────────────────────────────
+  // ── Sync openCategory + caseTypeId when case types load ─────────────────
   useEffect(() => {
     if (!(caseTypesList as any[]).length) return;
 
-    if (preselectedType) {
-      // open the category that contains the preselected case type
-      const ct = (caseTypesList as any[]).find((c: any) => c.name === preselectedType);
-      if (ct && !form.caseTypeId) {
-        setForm(prev => ({ ...prev, caseTypeId: ct._id }));
+    const activeName = form.caseType;
+    if (activeName) {
+      const ct = (caseTypesList as any[]).find((c: any) => c.name === activeName);
+      if (ct && String(form.caseTypeId) !== String(ct._id)) {
+        setForm((prev) => ({ ...prev, caseTypeId: ct._id }));
       }
       const category = ct ? getCaseTypeCategoryLabel(ct) : null;
       const matched = CATEGORY_CONFIG.find(
@@ -106,10 +108,9 @@ export default memo(function RaiseGrievance() {
       );
       setOpenCategory(matched?.key ?? CATEGORY_CONFIG[0].key);
     } else {
-      // default open first category
       setOpenCategory(CATEGORY_CONFIG[0].key);
     }
-  }, [caseTypesList, preselectedType]);
+  }, [caseTypesList, form.caseType, form.caseTypeId]);
 
   // ── Group case types by category ─────────────────────────────────────────
   const groupedCategories = useMemo(() => {
