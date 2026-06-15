@@ -341,7 +341,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 >
                   <Icon icon="mi:notification" className="w-6 h-6 text-foreground dark:text-[#E4E4E4]" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[#D81B60]" />
+                    <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-[#D81B60]" />
                   )}
                 </Link>
 

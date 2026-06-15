@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -173,7 +174,7 @@ export const useAddComment = () => {
       const id = vars instanceof FormData ? vars.get("id") : vars.id;
       qc.invalidateQueries({ queryKey: queryKeys.grievances.single(id as string) });
       qc.invalidateQueries({ queryKey: queryKeys.grievances.track(id as string) });
-      qc.invalidateQueries({ queryKey: queryKeys.grievances.my });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.my() });
       qc.invalidateQueries({ queryKey: ["grievances"] });
     },
     onError: (err: any) => {
@@ -192,7 +193,7 @@ export const useResolveConcern = () => {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.grievances.single(vars.id) });
       qc.invalidateQueries({ queryKey: queryKeys.grievances.track(vars.id) });
-      qc.invalidateQueries({ queryKey: queryKeys.grievances.my });
+      qc.invalidateQueries({ queryKey: queryKeys.grievances.my() });
       qc.invalidateQueries({ queryKey: ["grievances"] });
       toast.success("Concern resolved");
     },

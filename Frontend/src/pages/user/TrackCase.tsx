@@ -207,7 +207,7 @@ export default memo(function TrackCase() {
         </div>
       </div>
 
-      {awaitingOfficerReview && submittedResponse && (
+      {/* {awaitingOfficerReview && submittedResponse && (
         <div className="bg-info/10 border border-info/25 rounded-xl p-4 flex gap-3">
           <CheckCircle2 className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
           <div>
@@ -217,7 +217,7 @@ export default memo(function TrackCase() {
             </p>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* ACTIVE QUERY */}
       {activeQuery && (
@@ -365,26 +365,25 @@ export default memo(function TrackCase() {
                 {submittedResponse.attachments?.length > 0 && (
                   <div className="bg-secondary/40 rounded-lg p-3">
                     <p className="text-[12px] font-semibold text-foreground mb-2">· Uploaded Document</p>
-                    <div className="flex items-center justify-between bg-white dark:bg-[#1A1F33] border border-border rounded-xl p-3 shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-md bg-secondary/30">
-                          <img src="/icons/pdf2.svg" alt="PDF" className="w-6 h-6 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                          <span className="text-red-500 font-bold text-[10px] absolute" style={{display: 'none'}}>PDF</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-foreground truncate max-w-[160px]">
-                            {submittedResponse.attachments[0].split("/").pop()}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">Document</p>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between bg-white dark:bg-[#1B1B1B] border border-border rounded-xl p-3 shadow-sm">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {/* <div className="w-10 h-10 flex items-center justify-center rounded-md bg-[#ffff] dark:bg-secondary/90 shrink-0"> */}
+                          <img src="/icons/pdf2.svg" alt="PDF" className="w-8 h-8 object-contain" />
+                        {/* </div> */}
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-foreground truncate">
+                        {submittedResponse.attachments[0].split("/").pop()}
+                        </p>
+                        <p className="text-[10px] text-foreground mt-0.5">Document</p>
+                    </div>
+                    </div>
 
                       <a href={submittedResponse.attachments[0].startsWith("http")
                           ? submittedResponse.attachments[0]
                           : `${apiBase}${submittedResponse.attachments[0]}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-4 py-2 bg-[#0051AE] text-white text-xs font-semibold rounded-lg hover:opacity-90"
+                        className="px-5 py-2 mx-1 bg-[#0051AE] text-white text-xs font-semibold rounded-md hover:opacity-90"
                       >
                         View
                       </a>
@@ -431,8 +430,8 @@ export default memo(function TrackCase() {
                   <div className="flex items-center gap-3 min-w-0">
                     <img src="/icons/pdf2.svg" alt="" className="w-8 h-8" />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-primary truncate">{doc.documentLabel}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{doc.originalFileName}</p>
+                      <p className="text-xs font-medium text-[#000000] dark:text-[#ffff] truncate">{doc.documentLabel}</p>
+                      <p className="text-[10px] text-foreground truncate">{doc.originalFileName}</p>
                     </div>
                   </div>
                   <a href={fullUrl} target="_blank" rel="noreferrer" className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0">
@@ -488,7 +487,7 @@ export default memo(function TrackCase() {
                     {isConcern ? (
                       <AlertTriangle className="w-3.5 h-3.5 text-white" />
                     ) : (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      <img src="/icons/check-fill.svg" className="w-4 h-4 text-white" />
                     )}
                   </div>
                   {!isLast && (
