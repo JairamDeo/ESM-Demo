@@ -2,8 +2,10 @@ import SlaConfig, {
   addMinutesToDate,
   tierToTotalMinutes,
   SlaConfigPayload,
+  SlaCaseTypeOverridePayload,
   SlaMode,
 } from "../models/SlaConfig";
+import mongoose from "mongoose";
 import { OfficerLevel } from "../constants/officerLevels";
 
 const EMPTY: SlaConfigPayload = {
@@ -36,9 +38,34 @@ function normalizeConfig(doc: Record<string, unknown> | null): SlaConfigPayload 
   };
 }
 
+function normalizeCaseTypeOverrides(doc: Record<string, unknown> | null): SlaCaseTypeOverridePayload[] {
+  const rows = (doc?.caseTypeOverrides as Record<string, unknown>[] | undefined) || [];
+  return rows.map((row) => ({
+    caseTypeId: String(row.caseTypeId),
+    caseTypeName: (row.caseTypeName as string) || undefined,
+    enabled: Boolean(row.enabled),
+    ...normalizeConfig(row),
+  }));
+}
+
 export async function getSlaConfig(): Promise<SlaConfigPayload> {
   const doc = await SlaConfig.findOne().sort({ updatedAt: -1 }).lean();
   return normalizeConfig(doc as Record<string, unknown> | null);
+}
+
+/** Resolve SLA config for a grievance — uses case-type override when enabled. */
+export async function getSlaConfigForCaseType(
+  caseTypeId?: mongoose.Types.ObjectId | string | null
+): Promise<SlaConfigPayload> {
+  const doc = await SlaConfig.findOne().sort({ updatedAt: -1 }).lean();
+  const global = normalizeConfig(doc as Record<string, unknown> | null);
+  if (!caseTypeId || !doc) return global;
+
+  const idStr = String(caseTypeId);
+  const overrides = (doc as any).caseTypeOverrides as Record<string, unknown>[] | undefined;
+  const match = overrides?.find((o) => o.enabled && String(o.caseTypeId) === idStr);
+  if (!match) return global;
+  return normalizeConfig(match);
 }
 
 export async function getSlaSettingsForApi() {
@@ -47,6 +74,7 @@ export async function getSlaSettingsForApi() {
 
   return {
     config: normalizeConfig(doc as Record<string, unknown> | null),
+    caseTypeOverrides: normalizeCaseTypeOverrides(doc as Record<string, unknown> | null),
     lastEditedBy: (doc as any)?.lastEditedBy
       ? {
           name: (doc as any).lastEditedBy.name,

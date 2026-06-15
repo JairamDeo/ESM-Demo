@@ -237,19 +237,38 @@ function formatSlaDeadline(date?: string | Date): string {
   return new Date(date).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
+type CaseTypeSlaRow = {
+  caseTypeId: string;
+  caseTypeName: string;
+  customEnabled: boolean;
+  expanded: boolean;
+  mode: "common" | "separate";
+  hours: string;
+  minutes: string;
+  l1Hours: string;
+  l1Minutes: string;
+  l2Hours: string;
+  l2Minutes: string;
+  l3Hours: string;
+  l3Minutes: string;
+};
+
 function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: () => void; canEdit: boolean }) {
   const { data, isLoading } = useSlaSettings(open);
+  const { data: caseTypes = [], isLoading: caseTypesLoading } = useCaseTypes({ status: "active" });
   const updateSla = useUpdateSlaSettings();
-  const [mode, setMode] = useState<"common" | "separate">("common");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [hours, setHours] = useState("");
-  const [minutes, setMinutes] = useState("");
-  const [l1Hours, setL1Hours] = useState("");
-  const [l1Minutes, setL1Minutes] = useState("");
-  const [l2Hours, setL2Hours] = useState("");
-  const [l2Minutes, setL2Minutes] = useState("");
-  const [l3Hours, setL3Hours] = useState("");
-  const [l3Minutes, setL3Minutes] = useState("");
+  const [defaultExpanded, setDefaultExpanded] = useState(true);
+  const [defaultMode, setDefaultMode] = useState<"common" | "separate">("common");
+  const [defaultHours, setDefaultHours] = useState("");
+  const [defaultMinutes, setDefaultMinutes] = useState("");
+  const [defaultL1Hours, setDefaultL1Hours] = useState("");
+  const [defaultL1Minutes, setDefaultL1Minutes] = useState("");
+  const [defaultL2Hours, setDefaultL2Hours] = useState("");
+  const [defaultL2Minutes, setDefaultL2Minutes] = useState("");
+  const [defaultL3Hours, setDefaultL3Hours] = useState("");
+  const [defaultL3Minutes, setDefaultL3Minutes] = useState("");
+  const [caseTypeRows, setCaseTypeRows] = useState<CaseTypeSlaRow[]>([]);
 
   const config = data?.config;
   const lastEditedBy = data?.lastEditedBy;
@@ -258,18 +277,46 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
   const toDisplay = (v?: number | null) => (v != null && v > 0 ? String(v) : "");
 
   useEffect(() => {
-    if (config) {
-      setMode(config.mode === "separate" ? "separate" : "common");
-      setHours(toDisplay(config.hours));
-      setMinutes(toDisplay(config.minutes));
-      setL1Hours(toDisplay(config.l1Hours));
-      setL1Minutes(toDisplay(config.l1Minutes));
-      setL2Hours(toDisplay(config.l2Hours));
-      setL2Minutes(toDisplay(config.l2Minutes));
-      setL3Hours(toDisplay(config.l3Hours));
-      setL3Minutes(toDisplay(config.l3Minutes));
-    }
+    if (!config) return;
+    setDefaultMode(config.mode === "separate" ? "separate" : "common");
+    setDefaultHours(toDisplay(config.hours));
+    setDefaultMinutes(toDisplay(config.minutes));
+    setDefaultL1Hours(toDisplay(config.l1Hours));
+    setDefaultL1Minutes(toDisplay(config.l1Minutes));
+    setDefaultL2Hours(toDisplay(config.l2Hours));
+    setDefaultL2Minutes(toDisplay(config.l2Minutes));
+    setDefaultL3Hours(toDisplay(config.l3Hours));
+    setDefaultL3Minutes(toDisplay(config.l3Minutes));
   }, [config]);
+
+  useEffect(() => {
+    if (!open || !Array.isArray(caseTypes)) return;
+    const overrideMap = new Map(
+      (data?.caseTypeOverrides || []).map((o) => [String(o.caseTypeId), o])
+    );
+    setCaseTypeRows(
+      caseTypes.map((ct: any) => {
+        const id = String(ct._id || ct.id);
+        const ov = overrideMap.get(id);
+        const customEnabled = Boolean(ov?.enabled);
+        return {
+          caseTypeId: id,
+          caseTypeName: ct.name || "Case type",
+          customEnabled,
+          expanded: false,
+          mode: ov?.mode === "separate" ? "separate" : "common",
+          hours: toDisplay(ov?.hours),
+          minutes: toDisplay(ov?.minutes),
+          l1Hours: toDisplay(ov?.l1Hours),
+          l1Minutes: toDisplay(ov?.l1Minutes),
+          l2Hours: toDisplay(ov?.l2Hours),
+          l2Minutes: toDisplay(ov?.l2Minutes),
+          l3Hours: toDisplay(ov?.l3Hours),
+          l3Minutes: toDisplay(ov?.l3Minutes),
+        };
+      })
+    );
+  }, [open, caseTypes, data?.caseTypeOverrides]);
 
   const parseField = (v: string) => (v.trim() === "" ? null : Number(v));
 
@@ -282,41 +329,93 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
     return null;
   };
 
-  const handleSave = () => {
-    if (mode === "common") {
-      const h = parseField(hours);
-      const m = parseField(minutes);
-      const err = validateTier("Common", h, m);
-      if (err) { toast.error(err); return; }
-      updateSla.mutate(
-        { mode: "common", hours: h ?? 0, minutes: m ?? 0 },
-        { onSuccess: onClose }
-      );
-      return;
+  const validateRow = (row: CaseTypeSlaRow): string | null => {
+    if (!row.customEnabled) return null;
+    if (row.mode === "common") {
+      return validateTier(row.caseTypeName, parseField(row.hours), parseField(row.minutes));
     }
-
     const tiers = [
-      { label: "L1", h: parseField(l1Hours), m: parseField(l1Minutes) },
-      { label: "L2", h: parseField(l2Hours), m: parseField(l2Minutes) },
-      { label: "L3", h: parseField(l3Hours), m: parseField(l3Minutes) },
+      { label: `${row.caseTypeName} Station`, h: parseField(row.l1Hours), m: parseField(row.l1Minutes) },
+      { label: `${row.caseTypeName} HQ`, h: parseField(row.l2Hours), m: parseField(row.l2Minutes) },
+      { label: `${row.caseTypeName} Area`, h: parseField(row.l3Hours), m: parseField(row.l3Minutes) },
     ];
     for (const t of tiers) {
       const err = validateTier(t.label, t.h, t.m);
-      if (err) { toast.error(err); return; }
+      if (err) return err;
     }
-    updateSla.mutate(
-      {
-        mode: "separate",
-        l1Hours: parseField(l1Hours) ?? 0,
-        l1Minutes: parseField(l1Minutes) ?? 0,
-        l2Hours: parseField(l2Hours) ?? 0,
-        l2Minutes: parseField(l2Minutes) ?? 0,
-        l3Hours: parseField(l3Hours) ?? 0,
-        l3Minutes: parseField(l3Minutes) ?? 0,
-      },
-      { onSuccess: onClose }
-    );
+    return null;
   };
+
+  const buildCaseTypeOverrides = () =>
+    caseTypeRows.map((row) => ({
+      caseTypeId: row.caseTypeId,
+      caseTypeName: row.caseTypeName,
+      enabled: row.customEnabled,
+      mode: row.mode,
+      hours: parseField(row.hours) ?? 0,
+      minutes: parseField(row.minutes) ?? 0,
+      l1Hours: parseField(row.l1Hours) ?? 0,
+      l1Minutes: parseField(row.l1Minutes) ?? 0,
+      l2Hours: parseField(row.l2Hours) ?? 0,
+      l2Minutes: parseField(row.l2Minutes) ?? 0,
+      l3Hours: parseField(row.l3Hours) ?? 0,
+      l3Minutes: parseField(row.l3Minutes) ?? 0,
+    }));
+
+  const handleSave = () => {
+    if (defaultMode === "common") {
+      const err = validateTier("Default common", parseField(defaultHours), parseField(defaultMinutes));
+      if (err) {
+        toast.error(err);
+        return;
+      }
+    } else {
+      const tiers = [
+        { label: "Default Station", h: parseField(defaultL1Hours), m: parseField(defaultL1Minutes) },
+        { label: "Default HQ", h: parseField(defaultL2Hours), m: parseField(defaultL2Minutes) },
+        { label: "Default Area", h: parseField(defaultL3Hours), m: parseField(defaultL3Minutes) },
+      ];
+      for (const t of tiers) {
+        const err = validateTier(t.label, t.h, t.m);
+        if (err) {
+          toast.error(err);
+          return;
+        }
+      }
+    }
+
+    for (const row of caseTypeRows) {
+      const err = validateRow(row);
+      if (err) {
+        toast.error(err);
+        return;
+      }
+    }
+
+    const payload =
+      defaultMode === "common"
+        ? {
+            mode: "common" as const,
+            hours: parseField(defaultHours) ?? 0,
+            minutes: parseField(defaultMinutes) ?? 0,
+            caseTypeOverrides: buildCaseTypeOverrides(),
+          }
+        : {
+            mode: "separate" as const,
+            l1Hours: parseField(defaultL1Hours) ?? 0,
+            l1Minutes: parseField(defaultL1Minutes) ?? 0,
+            l2Hours: parseField(defaultL2Hours) ?? 0,
+            l2Minutes: parseField(defaultL2Minutes) ?? 0,
+            l3Hours: parseField(defaultL3Hours) ?? 0,
+            l3Minutes: parseField(defaultL3Minutes) ?? 0,
+            caseTypeOverrides: buildCaseTypeOverrides(),
+          };
+
+    updateSla.mutate(payload, { onSuccess: onClose });
+  };
+
+  const numberInputClass =
+    "w-full mt-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary disabled:opacity-60 input-no-spin";
 
   const timeFields = (
     hVal: string,
@@ -332,9 +431,9 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
           min={0}
           disabled={!canEdit}
           value={hVal}
-          placeholder="Enter hours"
+          placeholder="0"
           onChange={(e) => setH(e.target.value)}
-          className="w-full mt-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary disabled:opacity-60 placeholder:text-muted-foreground/60"
+          className={numberInputClass}
         />
       </div>
       <div className="flex-1">
@@ -345,73 +444,206 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
           max={59}
           disabled={!canEdit}
           value={mVal}
-          placeholder="Enter minutes"
+          placeholder="0"
           onChange={(e) => setM(e.target.value)}
-          className="w-full mt-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary disabled:opacity-60 placeholder:text-muted-foreground/60"
+          className={numberInputClass}
         />
       </div>
     </div>
   );
 
+  const modeToggle = (
+    mode: "common" | "separate",
+    onMode: (m: "common" | "separate") => void
+  ) => (
+    <div className="flex flex-col sm:flex-row gap-2">
+      {([
+        { id: "common" as const, label: "Common", desc: "Same at Station, HQ, Area" },
+        { id: "separate" as const, label: "Separate", desc: "Different per tier" },
+      ]).map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          disabled={!canEdit}
+          onClick={() => onMode(opt.id)}
+          className={`flex-1 text-left rounded-lg border px-3 py-2 transition-colors disabled:opacity-60 ${
+            mode === opt.id
+              ? "border-primary bg-primary/10 text-foreground"
+              : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <span className="text-xs font-medium block">{opt.label}</span>
+          <span className="text-[11px] opacity-80">{opt.desc}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const tierTimeFields = (
+    mode: "common" | "separate",
+    row: Pick<
+      CaseTypeSlaRow,
+      "hours" | "minutes" | "l1Hours" | "l1Minutes" | "l2Hours" | "l2Minutes" | "l3Hours" | "l3Minutes"
+    >,
+    onPatch: (patch: Partial<CaseTypeSlaRow>) => void
+  ) =>
+    mode === "common" ? (
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">Station HQ → Headquarter → Area</p>
+        {timeFields(row.hours, (v) => onPatch({ hours: v }), row.minutes, (v) => onPatch({ minutes: v }))}
+      </div>
+    ) : (
+      <div className="space-y-2">
+        {([
+          { label: "Station HQ", hk: "l1Hours" as const, mk: "l1Minutes" as const },
+          { label: "Headquarter", hk: "l2Hours" as const, mk: "l2Minutes" as const },
+          { label: "Area", hk: "l3Hours" as const, mk: "l3Minutes" as const },
+        ]).map((tier) => (
+          <div key={tier.label} className="rounded-lg border border-border/70 p-3 space-y-1">
+            <p className="text-xs font-medium text-foreground">{tier.label}</p>
+            {timeFields(
+              row[tier.hk],
+              (v) => onPatch({ [tier.hk]: v }),
+              row[tier.mk],
+              (v) => onPatch({ [tier.mk]: v })
+            )}
+          </div>
+        ))}
+      </div>
+    );
+
+  const updateCaseTypeRow = (id: string, patch: Partial<CaseTypeSlaRow>) => {
+    setCaseTypeRows((rows) => rows.map((r) => (r.caseTypeId === id ? { ...r, ...patch } : r)));
+  };
+
   if (!open) return null;
 
   return (
-    <Modal open onClose={onClose} title="SLA Time Settings">
+    <Modal open onClose={onClose} title="SLA Time Settings" wide>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          New grievances start at Station HQ L1. If not resolved within the SLA, cases auto-escalate Station HQ → Headquarter → Area (L1 at each tier).
+          Set a default SLA for all case types. Case types with custom SLA use their own times; others use the default.
         </p>
 
-        <div className="rounded-lg border border-border p-4 space-y-3">
-          <p className="text-sm font-medium text-foreground">SLA mode</p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            {([
-              { id: "common" as const, label: "Common", desc: "Same time at every level" },
-              { id: "separate" as const, label: "Separate", desc: "Different time per L1 / L2 / L3" },
-            ]).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                disabled={!canEdit}
-                onClick={() => setMode(opt.id)}
-                className={`flex-1 text-left rounded-lg border px-3 py-2.5 transition-colors disabled:opacity-60 ${
-                  mode === opt.id
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className="text-sm font-medium block">{opt.label}</span>
-                <span className="text-xs opacity-80">{opt.desc}</span>
-              </button>
-            ))}
-          </div>
+        <div className="rounded-lg border border-border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setDefaultExpanded((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary/30 transition-colors"
+          >
+            <span>Default SLA (fallback for all case types)</span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${defaultExpanded ? "rotate-180" : ""}`} />
+          </button>
+          {defaultExpanded && (
+            <div className="border-t border-border p-4 space-y-3">
+              {isLoading ? (
+                <div className="h-20 bg-secondary/50 rounded-lg animate-pulse" />
+              ) : (
+                <>
+                  {modeToggle(defaultMode, setDefaultMode)}
+                  {defaultMode === "common"
+                    ? tierTimeFields(
+                        "common",
+                        { hours: defaultHours, minutes: defaultMinutes, l1Hours: "", l1Minutes: "", l2Hours: "", l2Minutes: "", l3Hours: "", l3Minutes: "" },
+                        (patch) => {
+                          if (patch.hours !== undefined) setDefaultHours(patch.hours);
+                          if (patch.minutes !== undefined) setDefaultMinutes(patch.minutes);
+                        }
+                      )
+                    : tierTimeFields(
+                        "separate",
+                        {
+                          hours: "",
+                          minutes: "",
+                          l1Hours: defaultL1Hours,
+                          l1Minutes: defaultL1Minutes,
+                          l2Hours: defaultL2Hours,
+                          l2Minutes: defaultL2Minutes,
+                          l3Hours: defaultL3Hours,
+                          l3Minutes: defaultL3Minutes,
+                        },
+                        (patch) => {
+                          if (patch.l1Hours !== undefined) setDefaultL1Hours(patch.l1Hours);
+                          if (patch.l1Minutes !== undefined) setDefaultL1Minutes(patch.l1Minutes);
+                          if (patch.l2Hours !== undefined) setDefaultL2Hours(patch.l2Hours);
+                          if (patch.l2Minutes !== undefined) setDefaultL2Minutes(patch.l2Minutes);
+                          if (patch.l3Hours !== undefined) setDefaultL3Hours(patch.l3Hours);
+                          if (patch.l3Minutes !== undefined) setDefaultL3Minutes(patch.l3Minutes);
+                        }
+                      )}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
-        {isLoading ? (
-          <div className="h-24 bg-secondary/50 rounded-lg animate-pulse" />
-        ) : mode === "common" ? (
-          <div className="rounded-lg border border-border p-4 space-y-2">
-            <p className="text-sm font-medium text-foreground">Common escalation SLA</p>
-            <p className="text-xs text-muted-foreground">
-              This duration applies at Station HQ, Headquarter, and Area phases before each escalation step.
-            </p>
-            {timeFields(hours, setHours, minutes, setMinutes)}
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-secondary/20">
+            <p className="text-sm font-medium text-foreground">SLA by case type</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Enable custom SLA per type, or leave off to use default</p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {([
-              { label: "Station HQ SLA", h: l1Hours, setH: setL1Hours, m: l1Minutes, setM: setL1Minutes, note: "Before auto-escalate to Headquarter L1" },
-              { label: "Headquarter SLA", h: l2Hours, setH: setL2Hours, m: l2Minutes, setM: setL2Minutes, note: "Before auto-escalate to Area L1" },
-              { label: "Area SLA", h: l3Hours, setH: setL3Hours, m: l3Minutes, setM: setL3Minutes, note: "Final tier deadline" },
-            ] as const).map((tier) => (
-              <div key={tier.label} className="rounded-lg border border-border p-4 space-y-2">
-                <p className="text-sm font-medium text-foreground">{tier.label}</p>
-                <p className="text-xs text-muted-foreground">{tier.note}</p>
-                {timeFields(tier.h, tier.setH, tier.m, tier.setM)}
-              </div>
-            ))}
-          </div>
-        )}
+          {caseTypesLoading ? (
+            <div className="p-4 space-y-3">
+              {Array(3).fill(0).map((_, i) => (
+                <div key={i} className="h-12 bg-secondary/40 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : caseTypeRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-4">No active case types</p>
+          ) : (
+            <div className="max-h-[45vh] overflow-y-auto divide-y divide-border">
+              {caseTypeRows.map((row) => (
+                <div key={row.caseTypeId}>
+                  <button
+                    type="button"
+                    onClick={() => updateCaseTypeRow(row.caseTypeId, { expanded: !row.expanded })}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-secondary/20 transition-colors"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${
+                        row.expanded ? "rotate-180" : ""
+                      }`}
+                    />
+                    <span className="text-sm font-medium text-foreground flex-1 truncate">{row.caseTypeName}</span>
+                    <span
+                      className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${
+                        row.customEnabled
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : "bg-secondary text-muted-foreground border border-border"
+                      }`}
+                    >
+                      {row.customEnabled ? "Custom SLA" : "Uses default"}
+                    </span>
+                  </button>
+                  {row.expanded && (
+                    <div className="px-4 pb-4 space-y-3 border-t border-border/50">
+                      <label className="flex items-center gap-2 cursor-pointer pt-3">
+                        <input
+                          type="checkbox"
+                          checked={row.customEnabled}
+                          disabled={!canEdit}
+                          onChange={(e) => updateCaseTypeRow(row.caseTypeId, { customEnabled: e.target.checked })}
+                          className="rounded border-border"
+                        />
+                        <span className="text-sm text-foreground">Use custom SLA for this case type</span>
+                      </label>
+                      {row.customEnabled ? (
+                        <div className="space-y-3">
+                          {modeToggle(row.mode, (m) => updateCaseTypeRow(row.caseTypeId, { mode: m }))}
+                          {tierTimeFields(row.mode, row, (patch) => updateCaseTypeRow(row.caseTypeId, patch))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground pl-6">
+                          This case type will use the default SLA configured above.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {lastEditedBy && (
           <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2.5 text-xs text-muted-foreground">
@@ -434,7 +666,7 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
               <ChevronDown className={`w-4 h-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
             </button>
             {historyOpen && (
-              <div className="border-t border-border max-h-48 overflow-y-auto divide-y divide-border">
+              <div className="border-t border-border max-h-40 overflow-y-auto divide-y divide-border">
                 {changeHistory.map((entry, i) => (
                   <div key={`${entry.at}-${i}`} className="px-4 py-3 text-xs space-y-1">
                     <div className="flex items-center justify-between gap-2">
@@ -444,10 +676,6 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
                       </span>
                     </div>
                     <p className="text-muted-foreground">{entry.note}</p>
-                    <p className="text-muted-foreground/80">
-                      {entry.changedBy.role}
-                      {entry.changedBy.rbacRole ? ` · ${entry.changedBy.rbacRole.replace("_", " ")}` : ""}
-                    </p>
                   </div>
                 ))}
               </div>

@@ -14,6 +14,12 @@ export type SlaConfigSnapshot = {
   l3Minutes?: number;
 };
 
+export type SlaCaseTypeOverride = SlaConfigSnapshot & {
+  caseTypeId: mongoose.Types.ObjectId;
+  caseTypeName?: string;
+  enabled: boolean;
+};
+
 export interface ISlaEditor {
   officerId: mongoose.Types.ObjectId;
   name: string;
@@ -42,6 +48,7 @@ export interface ISlaConfig extends Document {
   l2Minutes?: number;
   l3Hours?: number;
   l3Minutes?: number;
+  caseTypeOverrides?: SlaCaseTypeOverride[];
   /** @deprecated use lastEditedBy */
   updatedBy?: string;
   lastEditedBy?: ISlaEditor;
@@ -54,6 +61,24 @@ export interface ISlaConfig extends Document {
 const slaSnapshotSchema = new Schema<SlaConfigSnapshot>(
   {
     mode: { type: String, enum: ["common", "separate"], required: true },
+    hours: { type: Number, min: 0 },
+    minutes: { type: Number, min: 0, max: 59 },
+    l1Hours: { type: Number, min: 0 },
+    l1Minutes: { type: Number, min: 0, max: 59 },
+    l2Hours: { type: Number, min: 0 },
+    l2Minutes: { type: Number, min: 0, max: 59 },
+    l3Hours: { type: Number, min: 0 },
+    l3Minutes: { type: Number, min: 0, max: 59 },
+  },
+  { _id: false }
+);
+
+const caseTypeOverrideSchema = new Schema<SlaCaseTypeOverride>(
+  {
+    caseTypeId: { type: Schema.Types.ObjectId, ref: "CaseType", required: true },
+    caseTypeName: { type: String, trim: true },
+    enabled: { type: Boolean, default: false },
+    mode: { type: String, enum: ["common", "separate"], default: "common" },
     hours: { type: Number, min: 0 },
     minutes: { type: Number, min: 0, max: 59 },
     l1Hours: { type: Number, min: 0 },
@@ -100,6 +125,7 @@ const SlaConfigSchema = new Schema<ISlaConfig>(
     l2Minutes: { type: Number, min: 0, max: 59 },
     l3Hours: { type: Number, min: 0 },
     l3Minutes: { type: Number, min: 0, max: 59 },
+    caseTypeOverrides: { type: [caseTypeOverrideSchema], default: [] },
     updatedBy: { type: String },
     lastEditedBy: { type: slaEditorSchema },
     lastEditedAt: { type: Date },
@@ -128,4 +154,10 @@ export type SlaConfigPayload = {
   l2Minutes?: number | null;
   l3Hours?: number | null;
   l3Minutes?: number | null;
+};
+
+export type SlaCaseTypeOverridePayload = SlaConfigPayload & {
+  caseTypeId: string;
+  caseTypeName?: string;
+  enabled: boolean;
 };

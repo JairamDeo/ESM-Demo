@@ -30,7 +30,7 @@ import {
   type ConcernDocumentItem,
 } from "../services/concernHelpers";
 import { assignStationL1ForGrievance, findOfficerAtOrgTier, resolveStationOrg } from "../services/grievanceOfficerResolver";
-import { computeTierDeadline, getSlaConfig } from "../services/slaConfigService";
+import { computeDeadlineForOrgTier, getSlaConfigForCaseType } from "../services/slaConfigService";
 import {
   escalateGrievanceToLevel,
   escalateGrievanceToOrgTier,
@@ -186,9 +186,11 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const slaConfig = await getSlaConfig();
+    const slaConfig = await getSlaConfigForCaseType(
+      caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined
+    );
     const now = new Date();
-    const slaTierDeadline = computeTierDeadline(slaConfig, "L1", now);
+    const slaTierDeadline = computeDeadlineForOrgTier(slaConfig, "station", now);
     const { org, officer: l1Officer } = await assignStationL1ForGrievance(resolvedStation);
 
     const userId = isVeteran ? currentUser.id : undefined;

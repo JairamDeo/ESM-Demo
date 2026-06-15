@@ -12,7 +12,7 @@ import {
   resolveStationOrg,
   StationOrgContext,
 } from "./grievanceOfficerResolver";
-import { computeDeadlineForOrgTier, getSlaConfig } from "./slaConfigService";
+import { computeDeadlineForOrgTier, getSlaConfigForCaseType } from "./slaConfigService";
 import { notifyOfficer } from "./notificationService";
 
 export type EscalationReasonType =
@@ -103,7 +103,7 @@ export async function assignGrievanceOfficer(
     (Date.now() - grievance.createdAt.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  const config = await getSlaConfig();
+  const config = await getSlaConfigForCaseType(grievance.caseTypeId);
   const tierDeadline = computeDeadlineForOrgTier(config, opts.orgTier, new Date());
   const toOfficerName =
     officer?.name || `${ORG_TIER_LABELS[opts.orgTier]} ${opts.level} (Unassigned)`;
