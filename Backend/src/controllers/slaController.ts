@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import SlaConfig from "../models/SlaConfig";
 import { getSlaSettingsForApi, tierMinutesFromFields } from "../services/slaConfigService";
-import { SlaMode } from "../models/SlaConfig";
+import { SlaMode, SlaCaseTypeOverridePayload } from "../models/SlaConfig";
+import mongoose from "mongoose";
 import {
   buildSlaChangeEntry,
   buildSlaEditor,
@@ -25,6 +26,76 @@ function validateTier(label: string, hours: number | null, minutes: number | nul
     return `${label} SLA must be greater than zero.`;
   }
   return null;
+}
+
+function validateOverridePayload(row: Record<string, unknown>): string | null {
+  const enabled = Boolean(row.enabled);
+  if (!enabled) return null;
+
+  const slaMode: SlaMode = row.mode === "separate" ? "separate" : "common";
+  const name = String(row.caseTypeName || row.caseTypeId || "case type");
+
+  if (slaMode === "common") {
+    return validateTier(`${name} (common)`, parseOptional(row.hours), parseOptional(row.minutes));
+  }
+  const tiers = [
+    { label: `${name} Station`, h: parseOptional(row.l1Hours), m: parseOptional(row.l1Minutes) },
+    { label: `${name} HQ`, h: parseOptional(row.l2Hours), m: parseOptional(row.l2Minutes) },
+    { label: `${name} Area`, h: parseOptional(row.l3Hours), m: parseOptional(row.l3Minutes) },
+  ];
+  for (const tier of tiers) {
+    const err = validateTier(tier.label, tier.h, tier.m);
+    if (err) return err;
+  }
+  return null;
+}
+
+function normalizeOverridesInput(raw: unknown): SlaCaseTypeOverridePayload[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: SlaCaseTypeOverridePayload[] = [];
+
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const caseTypeId = String(row.caseTypeId || "").trim();
+    if (!caseTypeId || !mongoose.isValidObjectId(caseTypeId) || seen.has(caseTypeId)) continue;
+    seen.add(caseTypeId);
+
+    const mode: SlaMode = row.mode === "separate" ? "separate" : "common";
+    out.push({
+      caseTypeId,
+      caseTypeName: row.caseTypeName ? String(row.caseTypeName) : undefined,
+      enabled: Boolean(row.enabled),
+      mode,
+      hours: parseOptional(row.hours),
+      minutes: parseOptional(row.minutes),
+      l1Hours: parseOptional(row.l1Hours),
+      l1Minutes: parseOptional(row.l1Minutes),
+      l2Hours: parseOptional(row.l2Hours),
+      l2Minutes: parseOptional(row.l2Minutes),
+      l3Hours: parseOptional(row.l3Hours),
+      l3Minutes: parseOptional(row.l3Minutes),
+    });
+  }
+  return out;
+}
+
+function overridesForDb(rows: SlaCaseTypeOverridePayload[]) {
+  return rows.map((row) => ({
+    caseTypeId: new mongoose.Types.ObjectId(row.caseTypeId),
+    caseTypeName: row.caseTypeName,
+    enabled: row.enabled,
+    mode: row.mode,
+    hours: row.hours ?? 0,
+    minutes: row.minutes ?? 0,
+    l1Hours: row.l1Hours ?? 0,
+    l1Minutes: row.l1Minutes ?? 0,
+    l2Hours: row.l2Hours ?? 0,
+    l2Minutes: row.l2Minutes ?? 0,
+    l3Hours: row.l3Hours ?? 0,
+    l3Minutes: row.l3Minutes ?? 0,
+  }));
 }
 
 function buildNextPayload(
@@ -81,22 +152,47 @@ export const updateSlaSettings = async (req: Request, res: Response): Promise<vo
       l2Minutes,
       l3Hours,
       l3Minutes,
+      caseTypeOverrides,
     } = req.body;
 
-    const slaMode: SlaMode = mode === "separate" ? "separate" : "common";
+    const overrides = normalizeOverridesInput(caseTypeOverrides);
+    const hasCaseTypeSla = overrides.some((o) => o.enabled);
+    const globalModeProvided = mode !== undefined && mode !== null;
+
+    const actor = actorFromRequest(req);
+    if (!actor.id) {
+      res.status(401).json({ success: false, message: "Not authenticated" });
+      return;
+    }
+
+    const existing = await SlaConfig.findOne().sort({ updatedAt: -1 }).lean();
+    const slaMode: SlaMode =
+      globalModeProvided && mode === "separate"
+        ? "separate"
+        : globalModeProvided
+          ? "common"
+          : (existing as any)?.mode === "separate"
+            ? "separate"
+            : "common";
     const body = { hours, minutes, l1Hours, l1Minutes, l2Hours, l2Minutes, l3Hours, l3Minutes };
+    const updateGlobal = globalModeProvided;
+
+    if (!globalModeProvided) {
+      res.status(400).json({ success: false, message: "Configure default SLA for all case types." });
+      return;
+    }
 
     if (slaMode === "common") {
-      const err = validateTier("Common", parseOptional(hours), parseOptional(minutes));
+      const err = validateTier("Default common", parseOptional(hours), parseOptional(minutes));
       if (err) {
         res.status(400).json({ success: false, message: err });
         return;
       }
     } else {
       const tiers = [
-        { label: "L1", h: parseOptional(l1Hours), m: parseOptional(l1Minutes) },
-        { label: "L2", h: parseOptional(l2Hours), m: parseOptional(l2Minutes) },
-        { label: "L3", h: parseOptional(l3Hours), m: parseOptional(l3Minutes) },
+        { label: "Default Station", h: parseOptional(l1Hours), m: parseOptional(l1Minutes) },
+        { label: "Default HQ", h: parseOptional(l2Hours), m: parseOptional(l2Minutes) },
+        { label: "Default Area", h: parseOptional(l3Hours), m: parseOptional(l3Minutes) },
       ];
       for (const tier of tiers) {
         const err = validateTier(tier.label, tier.h, tier.m);
@@ -107,44 +203,53 @@ export const updateSlaSettings = async (req: Request, res: Response): Promise<vo
       }
     }
 
-    const actor = actorFromRequest(req);
-    if (!actor.id) {
-      res.status(401).json({ success: false, message: "Not authenticated" });
-      return;
+    for (const row of overrides) {
+      if (!row.enabled) continue;
+      const err = validateOverridePayload(row as unknown as Record<string, unknown>);
+      if (err) {
+        res.status(400).json({ success: false, message: err });
+        return;
+      }
     }
 
-    const existing = await SlaConfig.findOne().sort({ updatedAt: -1 }).lean();
     const previousSnapshot = snapshotFromDoc(existing as Record<string, unknown> | null);
     const nextSnapshot = buildNextPayload(slaMode, body);
     const changeEntry = buildSlaChangeEntry(actor, previousSnapshot, nextSnapshot);
+    if (hasCaseTypeSla) {
+      const customCount = overrides.filter((o) => o.enabled).length;
+      changeEntry.note = `SLA saved: default + ${customCount} custom case type(s)`;
+    }
     const editor = buildSlaEditor(actor);
     const now = new Date();
 
     const setFields: Record<string, unknown> = {
-      mode: slaMode,
       lastEditedBy: editor,
       lastEditedAt: now,
       updatedBy: editor.name,
+      caseTypeOverrides: overridesForDb(overrides),
     };
 
-    if (slaMode === "common") {
-      Object.assign(setFields, {
-        hours: parseOptional(hours) ?? 0,
-        minutes: parseOptional(minutes) ?? 0,
-      });
-    } else {
-      Object.assign(setFields, {
-        l1Hours: parseOptional(l1Hours) ?? 0,
-        l1Minutes: parseOptional(l1Minutes) ?? 0,
-        l2Hours: parseOptional(l2Hours) ?? 0,
-        l2Minutes: parseOptional(l2Minutes) ?? 0,
-        l3Hours: parseOptional(l3Hours) ?? 0,
-        l3Minutes: parseOptional(l3Minutes) ?? 0,
-      });
+    if (updateGlobal) {
+      setFields.mode = slaMode;
+      if (slaMode === "common") {
+        Object.assign(setFields, {
+          hours: parseOptional(hours) ?? 0,
+          minutes: parseOptional(minutes) ?? 0,
+        });
+      } else {
+        Object.assign(setFields, {
+          l1Hours: parseOptional(l1Hours) ?? 0,
+          l1Minutes: parseOptional(l1Minutes) ?? 0,
+          l2Hours: parseOptional(l2Hours) ?? 0,
+          l2Minutes: parseOptional(l2Minutes) ?? 0,
+          l3Hours: parseOptional(l3Hours) ?? 0,
+          l3Minutes: parseOptional(l3Minutes) ?? 0,
+        });
+      }
     }
 
-    const unsetFields =
-      slaMode === "common"
+    const unsetFields = updateGlobal
+      ? slaMode === "common"
         ? {
             l1Hours: "",
             l1Minutes: "",
@@ -153,16 +258,21 @@ export const updateSlaSettings = async (req: Request, res: Response): Promise<vo
             l3Hours: "",
             l3Minutes: "",
           }
-        : { hours: "", minutes: "" };
+        : { hours: "", minutes: "" }
+      : null;
 
     if (existing) {
-      await SlaConfig.findByIdAndUpdate(existing._id, {
+      const update: Record<string, unknown> = {
         $set: setFields,
-        $unset: unsetFields,
         $push: { changeHistory: changeEntry },
-      });
+      };
+      if (unsetFields) update.$unset = unsetFields;
+      await SlaConfig.findByIdAndUpdate(existing._id, update);
     } else {
       await SlaConfig.create({
+        mode: "common",
+        hours: 0,
+        minutes: 0,
         ...setFields,
         changeHistory: [changeEntry],
       });

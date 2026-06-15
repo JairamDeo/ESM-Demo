@@ -740,6 +740,16 @@ export interface SlaConfig {
   l3Minutes?: number | null;
 }
 
+export interface SlaCaseTypeOverride extends SlaConfig {
+  caseTypeId: string;
+  caseTypeName?: string;
+  enabled: boolean;
+}
+
+export type SlaConfigSavePayload = Partial<SlaConfig> & {
+  caseTypeOverrides?: SlaCaseTypeOverride[];
+};
+
 export interface SlaChangeEntry {
   action: "create" | "update";
   note: string;
@@ -754,6 +764,7 @@ export interface SlaChangeEntry {
 
 export interface SlaSettingsResponse {
   config: SlaConfig;
+  caseTypeOverrides?: SlaCaseTypeOverride[];
   lastEditedBy: {
     name: string;
     email?: string;
@@ -778,7 +789,7 @@ export const useSlaSettings = (enabled = true) =>
 export const useUpdateSlaSettings = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: SlaConfig) => {
+    mutationFn: async (payload: SlaConfigSavePayload) => {
       const { data } = await api.put("/grievances/sla-config", payload);
       return data.data as SlaSettingsResponse;
     },

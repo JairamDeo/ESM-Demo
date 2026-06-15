@@ -235,3 +235,16 @@
 .user-tab-indicator {
   transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
+
+@layer utilities {
+  .input-no-spin::-webkit-outer-spin-button,
+  .input-no-spin::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .input-no-spin[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
