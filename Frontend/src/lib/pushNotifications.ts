@@ -80,7 +80,11 @@ export async function registerPushDeviceOnLogin(): Promise<PushSyncResult> {
     await saveSubscriptionToBackend(subscription.toJSON());
     return { ok: true, synced: true };
   } catch (error: any) {
-    console.error("Push registration error:", error);
+    const msg = error?.response?.data?.message || error?.message || "Push registration failed.";
+    const isTimeout = error?.code === "ECONNABORTED" || /timeout/i.test(String(msg));
+    if (!isTimeout) {
+      console.warn("Push registration skipped:", msg);
+    }
     return {
       ok: true,
       synced: false,

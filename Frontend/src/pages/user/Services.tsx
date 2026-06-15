@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Search, ChevronRight, Plus, Minus, FileEdit, ArrowRight } from "lucide-react";
 import { useCaseTypes, useCategories } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,10 +33,16 @@ const getCaseTypeCategoryLabel = (ct: any) =>
 
 export default function Services() {
   const { user } = useAuth();
+  const location = useLocation();
   const { data: caseTypes = [], isLoading, isError, error } = useCaseTypes({ status: "active" });
   const { data: categories = [] } = useCategories({ status: "active" });
   const [searchQuery, setSearchQuery] = useState("");
   const [openCategory, setOpenCategory] = useState<string | null>("Identity & Personal");
+
+  useEffect(() => {
+    const fromMenu = (location.state as { openCategory?: string } | null)?.openCategory;
+    if (fromMenu) setOpenCategory(fromMenu);
+  }, [location.state]);
 
   const draft = useGrievanceDraft(user?.id);
   const draftRoute = draft ? getDraftContinueRoute(draft) : null;

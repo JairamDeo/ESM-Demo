@@ -28,6 +28,11 @@ export default defineConfig({
     host: true, // listen on 0.0.0.0 so other devices on LAN can open http://<your-ip>:5174
     port: 5174,
     strictPort: true,
+    hmr: {
+      host: "localhost",
+      port: 5174,
+      clientPort: 5174,
+    },
     proxy: {
       "/api": {
         target: process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:5050",
