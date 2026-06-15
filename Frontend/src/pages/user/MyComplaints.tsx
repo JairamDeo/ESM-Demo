@@ -182,7 +182,7 @@ export default memo(function MyComplaints() {
                 {/* Date + Station */}
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-3">
                   <span className="flex items-center gap-1">
-                    <img src="/icons/datecalender.svg" className="w-4 h-4 invert dark:invert-0" />
+                    <img src="/icons/datecalender.svg" className="w-5 h-5 invert dark:invert-0" />
                     <span className="text-foreground font-normal">
                       Submitted on<br />
                       <span className="text-foreground font-medium">
@@ -193,7 +193,7 @@ export default memo(function MyComplaints() {
                     </span>
                   </span>
                   <span className="flex items-center gap-1 ">
-                    <img src="/icons/location1.svg" className="w-4 h-4 invert dark:invert-0" />
+                    <img src="/icons/location1.svg" className="w-5 h-5 invert dark:invert-0" />
                     <span className="text-foreground font-normal">
                       Station HQ<br />
                       <span className="text-foreground font-medium">

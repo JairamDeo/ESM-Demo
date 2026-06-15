@@ -1,7 +1,7 @@
-const DEFAULT_API_BASE = "http://localhost:5050/api";
+const DEFAULT_API_BASE = "http://localhost:5000/api";
 
 /**
- * Uses VITE_API_URL from .env (e.g. http://localhost:5050/api).
+ * Uses VITE_API_URL from .env (e.g. http://localhost:5000/api).
  * If the app is opened via LAN IP (http://192.168.x.x:5173), rewrites localhost in the
  * API URL to that same IP so requests hit the machine running the backend.
  */
@@ -34,7 +34,8 @@ export function getUploadBaseUrl(): string {
 }
 
 export function resolveUploadUrl(path?: string | null): string | null {
-  if (!path) return null;
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${getUploadBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+  const p = path?.trim();
+  if (!p || p === "null" || p === "undefined") return null;
+  if (p.startsWith("http://") || p.startsWith("https://")) return p;
+  return `${getUploadBaseUrl()}${p.startsWith("/") ? p : `/${p}`}`;
 }

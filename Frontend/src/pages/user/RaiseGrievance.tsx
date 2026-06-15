@@ -6,10 +6,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const CATEGORY_CONFIG = [
-  { key: "Identity & Personal", icon: <img src="/icons/profile-filled.svg" className="w-5 h-5" />, bg: "bg-[#D2E5FC]" },
-  { key: "Pension & Financial", icon: <img src="/icons/money-rupee.svg" className="w-5 h-5" />,   bg: "bg-[#FDE7E7]" },
-  { key: "Family Details",      icon: <img src="/icons/family.svg" className="w-5 h-5" />,        bg: "bg-[#E8FDE7]" },
-  { key: "Requests & Tracking", icon: <img src="/icons/seal-check.svg" className="w-5 h-5" />,   bg: "bg-[#FFFFE4]" },
+  { key: "Identity & Personal", icon: <img src="/icons/profile-filled.svg" className="w-6 h-6" />, bg: "bg-[#D2E5FC]" },
+  { key: "Pension & Financial", icon: <img src="/icons/money-rupee.svg" className="w-6 h-6" />,   bg: "bg-[#FDE7E7]" },
+  { key: "Family Details",      icon: <img src="/icons/family.svg" className="w-6 h-6" />,        bg: "bg-[#E8FDE7]" },
+  { key: "Requests & Tracking", icon: <img src="/icons/seal-check.svg" className="w-6 h-6" />,   bg: "bg-[#FFFFE4]" },
 ];
 
 const normalizeCategory = (v: string) =>

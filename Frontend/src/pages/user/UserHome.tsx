@@ -57,12 +57,12 @@ const ViewPill = ({
   textColor: string;
   arrowBg: string;
 }) => (
-  <span className={`relative inline-flex items-center justify-center w-[142px] h-9 rounded-lg ${bg}`}>
-    <span className={`text-[15px] font-semibold leading-5 ${textColor}`}>{label}</span>
+  <span className={`relative inline-flex items-center justify-evenly w-[142px] h-9 rounded-sm ${bg}`}>
+    <span className={`text-[15px] font-semibold leading-5 pr-4 ${textColor}`}>{label}</span>
     <span
-      className={`absolute right-2 top-1/2 -translate-y-1/2 w-[25px] h-[25px] rounded-full flex items-center justify-center ${arrowBg}`}
+      className={`absolute right-4 top-1/2 -translate-y-1/2 w-[25px] h-[25px] rounded-full flex items-center justify-center ${arrowBg}`}
     >
-      <ArrowRight className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
+      <ArrowRight className="w-4 h-4 text-white" strokeWidth={2.5} />
     </span>
   </span>
 );
@@ -119,23 +119,23 @@ const RecentComplaintCard = ({
               <img
                 src="/icons/datecalender.svg"
                 alt=""
-                className="w-6 h-6 shrink-0 opacity-90 invert dark:invert"
+                className="w-6 h-6 shrink-0 invert dark:invert-0"
               />
               <div>
-                <p className="text-muted-foreground text-xs font-medium leading-5">Submitted on</p>
+                <p className="text-foreground/60 text-xs font-medium leading-5">Submitted on</p>
                 <p className="text-foreground text-xs font-medium leading-5">
                   {complaint.createdAt ? formatComplaintDate(complaint.createdAt) : "—"}
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 min-w-0 text-right">
+            <div className="flex gap-2 min-w-0 ">
               <img
                 src="/icons/location1.svg"
                 alt=""
-                className="w-5 h-5 shrink-0 invert dark:invert mt-0.5"
+                className="w-5 h-5 shrink-0 invert dark:invert-0  mt-0.5"
               />
               <div>
-                <p className="text-muted-foreground text-xs font-medium leading-5">Station HQ</p>
+                <p className="text-foreground/60 text-xs font-medium leading-5">Station HQ</p>
                 <p className="text-foreground text-xs font-medium leading-5 text-left">
                   {complaint.stationName || complaint.station || "—"}
                 </p>
@@ -203,7 +203,7 @@ export default memo(function UserHome() {
   const draftRoute = draft ? getDraftContinueRoute(draft) : null;
 
   return (
-    <div className="font-['Montserrat',sans-serif] min-h-full px-3 pb-8 space-y-5">
+    <div className="font-['Montserrat',sans-serif] min-h-full px-3 pb-8 space-y-5 mt-2">
 
       {/* Hero — brand banner stays dark in both themes */}
       <div className="relative w-full min-h-[208px] rounded-xl bg-[#0C2440] overflow-hidden">
