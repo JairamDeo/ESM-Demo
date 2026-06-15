@@ -35,7 +35,7 @@ export default memo(function CompleteProfile() {
       toast.success("Profile saved! Welcome aboard.");
       navigate("/user");
     } catch {
-      // error toast is handled in the hook
+      // error handled by hook
     }
   }, [form, updateProfile, updateUser, navigate]);
 
@@ -49,62 +49,20 @@ export default memo(function CompleteProfile() {
     required: boolean;
     type: string;
   }[] = [
-    {
-      icon: User,
-      label: "Full Name",
-      key: "name",
-      placeholder: "Enter your full name",
-      required: true,
-      type: "text",
-    },
-    {
-      icon: Phone,
-      label: "Phone Number",
-      key: null,
-      placeholder: phone ? `+91 ${phone}` : "—",
-      required: false,
-      type: "text",
-    },
-    {
-      icon: Star,
-      label: "Rank",
-      key: "rank",
-      placeholder: "e.g. Colonel, Major",
-      required: false,
-      type: "text",
-    },
-    {
-      icon: Shield,
-      label: "Service / Army Number",
-      key: "serviceNumber",
-      placeholder: "e.g. IC-12345",
-      required: false,
-      type: "text",
-    },
-    {
-      icon: Mail,
-      label: "Email Address",
-      key: "email",
-      placeholder: "your@email.com",
-      required: false,
-      type: "email",
-    },
-    {
-      icon: MapPin,
-      label: "Address",
-      key: "address",
-      placeholder: "Your current address",
-      required: false,
-      type: "text",
-    },
+    { icon: User,   label: "Full Name",             key: "name",          placeholder: "Enter your full name",   required: true,  type: "text"  },
+    { icon: Phone,  label: "Phone Number",           key: null,            placeholder: phone ? `+91 ${phone}` : "—", required: false, type: "text" },
+    { icon: Star,   label: "Rank",                   key: "rank",          placeholder: "e.g. Colonel, Major",    required: false, type: "text"  },
+    { icon: Shield, label: "Service / Army Number",  key: "serviceNumber", placeholder: "e.g. IC-12345",          required: false, type: "text"  },
+    { icon: Mail,   label: "Email Address",          key: "email",         placeholder: "your@email.com",         required: false, type: "email" },
+    { icon: MapPin, label: "Address",                key: "address",       placeholder: "Your current address",   required: false, type: "text"  },
   ];
 
   return (
-    <div className="min-h-screen bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
-      <div className="flex flex-col w-full bg-background min-h-screen sm:min-h-0 sm:max-w-sm sm:rounded-3xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-10 pb-8">
+    <div className="h-screen overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
+      <div className="flex flex-col w-full bg-background h-screen overflow-y-auto sm:h-[90vh] sm:max-w-sm sm:rounded-3xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-10 pb-8">
 
         {/* Top controls */}
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4 flex-shrink-0">
           <button
             onClick={toggleTheme}
             className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground border border-border"
@@ -114,7 +72,7 @@ export default memo(function CompleteProfile() {
         </div>
 
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 flex-shrink-0">
           <div className="w-14 h-14 rounded-2xl bg-[#826CF3]/15 flex items-center justify-center mb-4">
             <User className="w-7 h-7 text-[#826CF3]" />
           </div>
@@ -128,17 +86,15 @@ export default memo(function CompleteProfile() {
         <div className="space-y-3 flex-1">
           {fields.map(({ icon: Icon, label, key, placeholder, required, type }) => (
             <div key={label}>
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <label className="text-xs font-medium text-foreground mb-1.5 flex items-center gap-1">
                 {label}
                 {required && <span className="text-red-500 ml-0.5">*</span>}
               </label>
-              <div
-                className={`flex items-center gap-3 bg-card border rounded-xl px-4 py-3.5 transition-colors ${
-                  key
-                    ? "border-border focus-within:border-[#826CF3] focus-within:ring-1 focus-within:ring-[#826CF3]/20"
-                    : "border-border/40 opacity-60"
-                }`}
-              >
+              <div className={`flex items-center gap-3 bg-[#EFEFEF] dark:bg-secondary border rounded-xl px-4 py-3.5 transition-colors ${
+                key
+                  ? "border-border focus-within:border-[#826CF3] focus-within:ring-1 focus-within:ring-[#826CF3]/20"
+                  : "border-border/40 opacity-60"
+              }`}>
                 <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
                 {key ? (
                   <input
@@ -160,7 +116,7 @@ export default memo(function CompleteProfile() {
         <button
           onClick={handleSubmit}
           disabled={!form.name.trim() || updateProfile.isPending}
-          className="w-full mt-7 bg-[#826CF3] text-white font-bold py-4 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)]"
+          className="w-full mt-7 bg-[#826CF3] text-white font-bold py-4 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)] flex-shrink-0"
         >
           {updateProfile.isPending ? (
             <>
@@ -178,7 +134,7 @@ export default memo(function CompleteProfile() {
         {/* Skip */}
         <button
           onClick={() => navigate("/user")}
-          className="mt-3 text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="mt-3 text-center text-sm text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
         >
           Skip for now
         </button>
