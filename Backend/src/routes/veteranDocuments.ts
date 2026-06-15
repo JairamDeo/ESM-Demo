@@ -2,6 +2,7 @@ import { Router } from "express";
 import { protect, restrictTo } from "../middleware/auth";
 import upload from "../middleware/upload";
 import {
+  clearVeteranDraftUploads,
   deleteVeteranUpload,
   downloadChecklistTemplate,
   getVeteranDocumentChecklist,
@@ -22,6 +23,9 @@ veteranDocumentsRouter.post("/upload", upload.single("file"), uploadVeteranRequi
 
 /** List current uploads for case type */
 veteranDocumentsRouter.get("/uploads", listVeteranUploads);
+
+/** Clear draft uploads before a new grievance filing */
+veteranDocumentsRouter.delete("/drafts", clearVeteranDraftUploads);
 
 /** Preview / inline view uploaded file — uploadId from upload response */
 veteranDocumentsRouter.get("/uploads/:uploadId/preview", previewVeteranUpload);

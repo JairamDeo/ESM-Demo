@@ -3,7 +3,7 @@ const MSG91_FLOW_URL = "https://control.msg91.com/api/v5/flow/";
 export const OTP_EXPIRY_SECONDS = 120;
 export const OTP_RESEND_COOLDOWN_SECONDS = 30;
 
-function normalizeIndianMobile(phone: string): string {
+export function normalizeIndianMobile(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 10) return `91${digits}`;
   if (digits.length === 12 && digits.startsWith("91")) return digits;
@@ -35,6 +35,74 @@ export async function sendLoginOtpSms(phone: string, otp: string): Promise<void>
 
   const mobiles = normalizeIndianMobile(phone);
   const recipient: Record<string, string> = { mobiles, [otpVar]: otp };
+
+  const payload: Record<string, unknown> = {
+    flow_id: flowId,
+    recipients: [recipient],
+  };
+  if (senderId) payload.sender = senderId;
+
+  const response = await fetch(MSG91_FLOW_URL, {
+    method: "POST",
+    headers: {
+      authkey: authKey,
+      "Content-Type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const bodyText = await response.text();
+  let body: any = {};
+  try {
+    body = bodyText ? JSON.parse(bodyText) : {};
+  } catch {
+    body = { raw: bodyText };
+  }
+
+  if (!response.ok) {
+    throw new Error(body?.message || body?.error || `MSG91 request failed (${response.status})`);
+  }
+
+  const type = String(body?.type || "").toLowerCase();
+  if (type && type !== "success" && body?.message && !body?.request_id) {
+    throw new Error(body.message);
+  }
+}
+
+export function isAnnouncementSmsEnabled(): boolean {
+  return Boolean(
+    process.env.MSG91_AUTH_KEY?.trim() && process.env.MSG91_FLOW_ANNOUNCEMENT?.trim()
+  );
+}
+
+/**
+ * Send announcement SMS via MSG91 Flow (per officer, personalized name).
+ * Env: MSG91_FLOW_ANNOUNCEMENT, MSG91_ANNOUNCE_NAME_VAR (default NAME),
+ *      MSG91_ANNOUNCE_TITLE_VAR (default TITLE), MSG91_ANNOUNCE_MSG_VAR (default MESSAGE)
+ */
+export async function sendAnnouncementSms(
+  phone: string,
+  vars: { name: string; title: string; message: string }
+): Promise<void> {
+  const authKey = process.env.MSG91_AUTH_KEY?.trim();
+  const flowId = process.env.MSG91_FLOW_ANNOUNCEMENT?.trim();
+  const senderId = process.env.MSG91_SENDER_ID?.trim();
+  const nameVar = (process.env.MSG91_ANNOUNCE_NAME_VAR || "NAME").trim();
+  const titleVar = (process.env.MSG91_ANNOUNCE_TITLE_VAR || "TITLE").trim();
+  const msgVar = (process.env.MSG91_ANNOUNCE_MSG_VAR || "MESSAGE").trim();
+
+  if (!authKey || !flowId) {
+    throw new Error("MSG91 announcement flow is not configured (MSG91_FLOW_ANNOUNCEMENT)");
+  }
+
+  const mobiles = normalizeIndianMobile(phone);
+  const recipient: Record<string, string> = {
+    mobiles,
+    [nameVar]: vars.name,
+    [titleVar]: vars.title,
+    [msgVar]: vars.message,
+  };
 
   const payload: Record<string, unknown> = {
     flow_id: flowId,

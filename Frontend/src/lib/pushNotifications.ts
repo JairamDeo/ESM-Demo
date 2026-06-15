@@ -1,79 +1,90 @@
 import api from "./api";
 
-// Utility to convert Base64 string to Uint8Array
-const urlBase64ToUint8Array = (base64String: string) => {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
+export type PushSyncResult =
+  | { ok: true; synced: boolean; reason?: string }
+  | { ok: false; reason: string };
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
-};
+}
 
-export const subscribeToPushNotifications = async (): Promise<boolean> => {
+async function fetchVapidPublicKey(): Promise<string | null> {
+  const fromEnv = import.meta.env.VITE_VAPID_PUBLIC_KEY?.trim();
+  if (fromEnv) return fromEnv;
+
   try {
-    if (!("serviceWorker" in navigator)) {
-      console.warn("Service workers are not supported in this browser.");
-      return false;
+    const { data } = await api.get("/notifications/push-config");
+    const key = data?.data?.publicKey?.trim();
+    return key || null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveSubscriptionToBackend(subscription: PushSubscriptionJSON): Promise<void> {
+  await api.post("/notifications/subscribe", {
+    subscription,
+    userAgent: navigator.userAgent,
+  });
+}
+
+/**
+ * Register this browser as a push device for the logged-in user.
+ * Called automatically on login — prompts for permission on new devices.
+ */
+export async function registerPushDeviceOnLogin(): Promise<PushSyncResult> {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      return { ok: true, synced: false, reason: "Push not supported in this browser." };
     }
 
-    if (!("PushManager" in window)) {
-      console.warn("Push notifications are not supported in this browser.");
-      return false;
+    const publicKey = await fetchVapidPublicKey();
+    if (!publicKey) {
+      return { ok: true, synced: false, reason: "Push not configured on server." };
     }
 
-    // Register service worker if not already registered
     const registration = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
 
-    // Check current permission
     let permission = Notification.permission;
     if (permission === "default") {
       permission = await Notification.requestPermission();
     }
 
     if (permission !== "granted") {
-      console.warn("Push notification permission denied.");
-      return false;
+      return {
+        ok: true,
+        synced: false,
+        reason:
+          permission === "denied"
+            ? "Notification permission blocked."
+            : "Notification permission not granted.",
+      };
     }
 
-    // Get public key from env
-    const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-    if (!publicKey) {
-      console.error("VITE_VAPID_PUBLIC_KEY is not set in environment variables.");
-      return false;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
     }
 
-    // Subscribe to push
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
-
-    // Send subscription to backend
-    await api.post("/notifications/subscribe", {
-      subscription: subscription.toJSON(),
-    });
-
-    console.log("Successfully subscribed to push notifications");
-    return true;
-  } catch (error) {
-    console.error("Error subscribing to push notifications:", error);
-    return false;
+    await saveSubscriptionToBackend(subscription.toJSON());
+    return { ok: true, synced: true };
+  } catch (error: any) {
+    console.error("Push registration error:", error);
+    return {
+      ok: true,
+      synced: false,
+      reason: error?.response?.data?.message || error?.message || "Push registration failed.",
+    };
   }
-};
-
-export const testPushNotification = async (): Promise<boolean> => {
-  try {
-    await api.post("/notifications/test-push");
-    return true;
-  } catch (error) {
-    console.error("Error testing push notification:", error);
-    return false;
-  }
-};
+}

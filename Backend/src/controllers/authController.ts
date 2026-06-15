@@ -44,10 +44,12 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const loginId = String(username).toLowerCase().trim();
+
     const officer = await Officer.findOne({
-      username: username.toLowerCase(),
       canLogin: true,
       status: "active",
+      $or: [{ username: loginId }, { email: loginId }],
     }).select("+password");
 
     if (!officer) {

@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from "mongoose";
+import { pushDeviceSchema, IPushDevice } from "./PushDevice";
 
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
@@ -16,6 +17,7 @@ export interface IUser extends Document {
   isVerified: boolean;
   isActive: boolean;
   lastLogin?: Date;
+  pushDevices?: IPushDevice[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +38,7 @@ const UserSchema = new Schema<IUser>(
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     lastLogin: { type: Date },
+    pushDevices: { type: [pushDeviceSchema], default: [] },
   },
   { timestamps: true }
 );

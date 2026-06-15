@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 export default memo(function CompleteProfile() {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const { user, updateUser } = useAuth();
   const updateProfile = useUpdateProfile();
 
@@ -67,7 +67,7 @@ export default memo(function CompleteProfile() {
             onClick={toggleTheme}
             className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground border border-border"
           >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
 

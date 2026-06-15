@@ -2,13 +2,14 @@ import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo } from "react";
 import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Plus, ChevronDown, Trash2 } from "lucide-react";
 import { useStations, useCreateStation, useDeleteStation, useHQs, useStates } from "@/hooks/useApi";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default memo(function Stations() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterState, setFilterState] = useState("");
   const [form, setForm] = useState({ name: "", city: "", state: "Maharashtra", officers: "4", address: "", hqId: "", hqName: ""   });
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   const { data, isLoading } = useStations({ search, state: filterState || undefined });
   const createStation = useCreateStation();
@@ -36,13 +37,14 @@ export default memo(function Stations() {
   }, [form, createStation]);
 
   const handleDelete = useCallback((station: any) => {
-    const confirmed = window.confirm(
-      `⚠️ Are you sure you want to delete "${station.name}"?\n\nThis action cannot be undone. All associated data will be removed.`
-    );
-    if (confirmed) {
-      deleteStation.mutate(station._id);
-    }
-  }, [deleteStation]);
+    setDeleteTarget(station);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    await deleteStation.mutateAsync(deleteTarget._id);
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteStation]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -227,7 +229,7 @@ export default memo(function Stations() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {stations.map((s: any) => {
             const resRate = s.totalCases > 0 ? Math.round((s.resolvedCases / s.totalCases) * 100) : 0;
-            const isDeleting = deletingId === s._id && deleteStation.isPending;
+            const isDeleting = deleteTarget?._id === s._id && deleteStation.isPending;
             return (
               <div key={s._id || s.name} className="bg-card rounded-xl border border-border p-5 hover:border-primary/30 transition-all">
 
@@ -255,7 +257,7 @@ export default memo(function Stations() {
 
                     {canManageStations && (
                       <button
-                        onClick={() => { setDeletingId(s._id); handleDelete(s); }}
+                        onClick={() => handleDelete(s)}
                         disabled={isDeleting}
                         className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                         title="Delete Station"
@@ -293,6 +295,16 @@ export default memo(function Stations() {
           )}
         </div>
       )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Station HQ"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"?\n\nThis action cannot be undone. All associated data will be removed.`}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteStation.isPending}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 });

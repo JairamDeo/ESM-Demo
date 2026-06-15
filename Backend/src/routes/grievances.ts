@@ -1,17 +1,25 @@
 import { Router } from "express";
 import {
   getGrievances, getGrievanceById, createGrievance,
-  updateGrievanceStatus, assignOfficer, addComment,
+  updateGrievanceStatus, assignOfficer, addComment, resolveConcern,
   deleteGrievance, getMyGrievances, trackGrievance,
-  getDashboardStats,deleteAllGrievances,
+  getDashboardStats, deleteAllGrievances,
+  requestEscalationTakeover, approveEscalationRequest, rejectEscalationRequest,
+  getEscalationPreview, manualEscalateGrievance, requestEscalateToUpperTier,
 } from "../controllers/grievanceController";
+import { getSlaSettings, updateSlaSettings } from "../controllers/slaController";
 import { protect, restrictTo, adminOnly } from "../middleware/auth";
+import { requirePermission } from "../middleware/requirePermission";
 import upload from "../middleware/upload";
 
 const router = Router();
 
 // ─── Dashboard stats (admin) ──────────────────────────────────────────────────
 router.get("/dashboard", protect, adminOnly, getDashboardStats);
+
+// ─── SLA settings (on grievances page) ───────────────────────────────────────
+router.get("/sla-config", protect, requirePermission("viewSlaSettings"), getSlaSettings);
+router.put("/sla-config", protect, requirePermission("manageSlaSettings"), updateSlaSettings);
 
 // ─── Public: track by ID ──────────────────────────────────────────────────────
 router.get("/track/:id", trackGrievance);
@@ -37,8 +45,29 @@ router.patch("/:id/status", protect, adminOnly, updateGrievanceStatus);
 // ─── Admin: assign officer ────────────────────────────────────────────────────
 router.patch("/:id/assign", protect, adminOnly, assignOfficer);
 
+// ─── Escalation preview + manual escalate ────────────────────────────────────
+router.get("/:id/escalation-preview", protect, adminOnly, getEscalationPreview);
+router.post("/:id/escalate", protect, adminOnly, manualEscalateGrievance);
+
+// ─── Escalation request workflow (L2/L3 → L1 approval) ───────────────────────
+router.post("/:id/escalation-request", protect, adminOnly, requestEscalationTakeover);
+router.post("/:id/escalate-to-upper-tier", protect, adminOnly, requestEscalateToUpperTier);
+router.post("/:id/escalation-request/approve", protect, adminOnly, approveEscalationRequest);
+router.post("/:id/escalation-request/reject", protect, adminOnly, rejectEscalationRequest);
+
+// ─── Resolve concern (officer accepted veteran fix) ───────────────────────────
+router.patch("/:id/concern/resolve", protect, adminOnly, resolveConcern);
+
 // ─── Comments (admin + user) ──────────────────────────────────────────────────
-router.post("/:id/comments", protect, upload.array("attachments", 3), addComment);
+router.post(
+  "/:id/comments",
+  protect,
+  upload.fields([
+    { name: "attachments", maxCount: 3 },
+    { name: "documentFile", maxCount: 1 },
+  ]),
+  addComment
+);
 
 // ─── Admin: delete ────────────────────────────────────────────────────────────
 router.delete("/:id", protect, restrictTo("super_admin", "esm_officer"), deleteGrievance);

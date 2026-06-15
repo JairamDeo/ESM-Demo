@@ -22,6 +22,8 @@ export interface Permission {
   deleteGrievance: boolean;
   escalateGrievance: boolean;
   reassignOfficer: boolean;
+  viewSlaSettings: boolean;
+  manageSlaSettings: boolean;
   viewCaseTypes: boolean;
   manageCaseTypes: boolean;
   viewRequiredDocuments: boolean;
@@ -52,7 +54,8 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
   super_admin: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: true, escalateGrievance: true,
-    reassignOfficer: true, viewCaseTypes: true, manageCaseTypes: true,
+    reassignOfficer: true, viewSlaSettings: true, manageSlaSettings: true,
+    viewCaseTypes: true, manageCaseTypes: true,
     viewRequiredDocuments: true, manageRequiredDocuments: true,
     viewCategories: true, manageCategories: true,
     viewStations: true, manageStations: true, viewQRCodes: true, manageQRCodes: true,
@@ -64,7 +67,8 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
   area: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
-    reassignOfficer: true, viewCaseTypes: true, manageCaseTypes: false,
+    reassignOfficer: true, viewSlaSettings: true, manageSlaSettings: true,
+    viewCaseTypes: true, manageCaseTypes: false,
     viewRequiredDocuments: true, manageRequiredDocuments: true,
     viewCategories: true, manageCategories: false,
     viewStations: true, manageStations: true, viewQRCodes: true, manageQRCodes: false,
@@ -76,7 +80,8 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
   headquarter: {
     viewDashboard: true, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
-    reassignOfficer: false, viewCaseTypes: true, manageCaseTypes: false,
+    reassignOfficer: false, viewSlaSettings: true, manageSlaSettings: false,
+    viewCaseTypes: true, manageCaseTypes: false,
     viewRequiredDocuments: true, manageRequiredDocuments: true,
     viewCategories: true, manageCategories: false,
     viewStations: true, manageStations: true, viewQRCodes: true, manageQRCodes: false,
@@ -87,8 +92,9 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
   },
   station_hq: {
     viewDashboard: true, viewGrievances: true, createGrievance: false,
-    updateGrievanceStatus: false, deleteGrievance: false, escalateGrievance: false,
-    reassignOfficer: false, viewCaseTypes: true, manageCaseTypes: false,
+    updateGrievanceStatus: true, deleteGrievance: false, escalateGrievance: true,
+    reassignOfficer: false, viewSlaSettings: false, manageSlaSettings: false,
+    viewCaseTypes: true, manageCaseTypes: false,
     viewRequiredDocuments: true, manageRequiredDocuments: false,
     viewCategories: true, manageCategories: false,
     viewStations: false, manageStations: false, viewQRCodes: false, manageQRCodes: false,
@@ -100,7 +106,8 @@ const DEFAULT_PERMISSIONS: RolePermissions = {
   user: {
     viewDashboard: false, viewGrievances: true, createGrievance: true,
     updateGrievanceStatus: false, deleteGrievance: false, escalateGrievance: false,
-    reassignOfficer: false, viewCaseTypes: false, manageCaseTypes: false,
+    reassignOfficer: false, viewSlaSettings: false, manageSlaSettings: false,
+    viewCaseTypes: false, manageCaseTypes: false,
     viewRequiredDocuments: false, manageRequiredDocuments: false,
     viewCategories: false, manageCategories: false,
     viewStations: false, manageStations: false, viewQRCodes: false, manageQRCodes: false,

@@ -11,7 +11,7 @@ const AdminLogin = memo(() => {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const { adminLogin } = useAuth();
 
   const handleLogin = useCallback(async () => {
@@ -21,7 +21,7 @@ const AdminLogin = memo(() => {
     }
     setLoading(true);
     try {
-      await adminLogin(username.trim(), password);
+      await adminLogin(username.trim(), password.trim());
       toast.success("Login successful");
       navigate("/");
     } catch (err: any) {
@@ -41,7 +41,7 @@ const AdminLogin = memo(() => {
         onClick={toggleTheme}
         className="fixed top-4 right-4 p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground"
       >
-        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {resolvedTheme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </button>
 
       <div className="w-full max-w-sm">
@@ -68,7 +68,7 @@ const AdminLogin = memo(() => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 onKeyDown={onKey}
-                placeholder="Enter username"
+                placeholder="Username or email (e.g. test-st1-l1@esm.in)"
                 className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground flex-1"
               />
             </div>
@@ -103,7 +103,7 @@ const AdminLogin = memo(() => {
           </button>
 
           <p className="text-xs text-center text-muted-foreground">
-            Demo: <span className="font-mono text-foreground">admin</span> / <span className="font-mono text-foreground">admin123</span>
+            Test: <span className="font-mono text-foreground">test-st1-l1@esm.in</span> / <span className="font-mono text-foreground">Jairam@123</span>
           </p>
         </div>
 
