@@ -5,12 +5,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpdateProfile } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 export default memo(function CompleteProfile() {
   const navigate = useNavigate();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { user, updateUser } = useAuth();
   const updateProfile = useUpdateProfile();
+  const { t } = useTranslation();
 
   const [form, setForm] = useState({
     name: "",
@@ -49,12 +51,12 @@ export default memo(function CompleteProfile() {
     required: boolean;
     type: string;
   }[] = [
-    { icon: User,   label: "Full Name",             key: "name",          placeholder: "Enter your full name",   required: true,  type: "text"  },
-    { icon: Phone,  label: "Phone Number",           key: null,            placeholder: phone ? `+91 ${phone}` : "—", required: false, type: "text" },
-    { icon: Star,   label: "Rank",                   key: "rank",          placeholder: "e.g. Colonel, Major",    required: false, type: "text"  },
-    { icon: Shield, label: "Service / Army Number",  key: "serviceNumber", placeholder: "e.g. IC-12345",          required: false, type: "text"  },
-    { icon: Mail,   label: "Email Address",          key: "email",         placeholder: "your@email.com",         required: false, type: "email" },
-    { icon: MapPin, label: "Address",                key: "address",       placeholder: "Your current address",   required: false, type: "text"  },
+    { icon: User,   label: t("fullName"),          key: "name",          placeholder: t("enterFullName"),   required: true,  type: "text"  },
+    { icon: Phone,  label: t("phoneNumberLabel"),   key: null,            placeholder: phone ? `+91 ${phone}` : "—", required: false, type: "text" },
+    { icon: Star,   label: t("rank"),               key: "rank",          placeholder: t("rankPlaceholder"), required: false, type: "text"  },
+    { icon: Shield, label: t("serviceNumber"),      key: "serviceNumber", placeholder: t("serviceNumberPlaceholder"), required: false, type: "text"  },
+    { icon: Mail,   label: t("emailAddress"),       key: "email",         placeholder: t("emailPlaceholder"), required: false, type: "email" },
+    { icon: MapPin, label: t("address"),            key: "address",       placeholder: t("addressPlaceholder"), required: false, type: "text"  },
   ];
 
   return (
@@ -76,9 +78,9 @@ export default memo(function CompleteProfile() {
           <div className="w-14 h-14 rounded-2xl bg-[#826CF3]/15 flex items-center justify-center mb-4">
             <User className="w-7 h-7 text-[#826CF3]" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Complete Your Profile</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("completeProfile")}</h1>
           <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-            Fill in your details to get started. Only your name is required — all other fields are optional.
+            {t("completeProfileDesc")}
           </p>
         </div>
 
@@ -121,11 +123,11 @@ export default memo(function CompleteProfile() {
           {updateProfile.isPending ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Saving...
+              {t("saving")}
             </>
           ) : (
             <>
-              Continue to App
+              {t("continueToApp")}
               <ArrowRight className="w-4 h-4" />
             </>
           )}
@@ -136,7 +138,7 @@ export default memo(function CompleteProfile() {
           onClick={() => navigate("/user")}
           className="mt-3 text-center text-sm text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
         >
-          Skip for now
+          {t("skipForNow")}
         </button>
 
       </div>

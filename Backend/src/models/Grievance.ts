@@ -27,6 +27,11 @@ export interface IComment {
   concernDocuments?: IConcernDocument[];
   /** Set when veteran re-uploads a corrected document */
   replacedDocumentUrl?: string;
+  /** Translation fields (same pattern as top-level grievance) */
+  originalText?: string;
+  translatedText?: string;
+  language?: string;
+  translationFailed?: boolean;
   createdAt: Date;
 }
 
@@ -44,6 +49,10 @@ export interface ITimeline {
   documentUploadId?: mongoose.Types.ObjectId;
   concernDocuments?: IConcernDocument[];
   replacedDocumentUrl?: string;
+  originalText?: string;
+  translatedText?: string;
+  language?: string;
+  translationFailed?: boolean;
 }
 
 export type ConcernStatus = "none" | "awaiting_veteran" | "awaiting_officer";
@@ -99,6 +108,15 @@ export interface IGrievance extends Document {
   isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // ── Translation fields ──────────────────────────────────────────────────────
+  /** Raw text as submitted by the veteran (may be Hindi) */
+  originalText?: string;
+  /** Auto-translated English version of originalText */
+  translatedText?: string;
+  /** Detected source language code e.g. "hi", "en" */
+  language?: string;
+  /** true if translation API failed (rate limit / timeout) */
+  translationFailed?: boolean;
 }
 
 const ConcernDocumentSchema = new Schema({
@@ -120,6 +138,11 @@ const CommentSchema = new Schema<IComment>({
   documentUploadId: { type: Schema.Types.ObjectId },
   concernDocuments: { type: [ConcernDocumentSchema], default: undefined },
   replacedDocumentUrl: { type: String },
+  // Translation fields on comments
+  originalText:      { type: String },
+  translatedText:    { type: String },
+  language:          { type: String },
+  translationFailed: { type: Boolean, default: false },
   createdAt:   { type: Date, default: Date.now },
 });
 
@@ -136,6 +159,10 @@ const TimelineSchema = new Schema<ITimeline>({
   documentUploadId: { type: Schema.Types.ObjectId },
   concernDocuments: { type: [ConcernDocumentSchema], default: undefined },
   replacedDocumentUrl: { type: String },
+  originalText:      { type: String },
+  translatedText:    { type: String },
+  language:          { type: String },
+  translationFailed: { type: Boolean, default: false },
 });
 
 const GrievanceSchema = new Schema<IGrievance>(
@@ -169,6 +196,11 @@ const GrievanceSchema = new Schema<IGrievance>(
     description:      { type: String },
     attachments:      { type: [String], default: [] },  // ← attachment URLs
     createdBy:        { type: String, default: "" },     // ← who created this grievance
+    // ── Translation fields ──────────────────────────────────────────────────
+    originalText:     { type: String },
+    translatedText:   { type: String },
+    language:         { type: String, default: "en" },
+    translationFailed:{ type: Boolean, default: false },
     submissionSource: {
       type: String,
       enum: ["qr_code", "portal", "manual", "walk_in"],

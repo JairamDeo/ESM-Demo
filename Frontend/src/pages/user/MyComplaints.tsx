@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FileText, Clock, CheckCircle2, AlertTriangle, Search, ChevronLeft, MapPin, Calendar, AlertCircle, ArrowRight } from "lucide-react";
 import { useMyGrievances } from "@/hooks/useApi";
 import { Icon } from "@iconify/react";
+import { useTranslation } from "react-i18next";
 
 interface Complaint {
   _id: string;
@@ -35,6 +36,7 @@ const tabDot: Record<string, string> = {
 };
 
 export default memo(function MyComplaints() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("All");
   const { data: complaints = [] as Complaint[], isLoading } = useMyGrievances();
@@ -66,7 +68,7 @@ export default memo(function MyComplaints() {
         <Link to="/user" className="p-1.5 mt-1 rounded-full hover:bg-secondary">
           <ChevronLeft className="w-5 h-5 text-foreground" />
         </Link>
-        <h1 className="text-xl font-semibold text-foreground">My Complaint</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("myComplaintPage")}</h1>
       </div>
 
       {/* Search */}
@@ -76,7 +78,7 @@ export default memo(function MyComplaints() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by ID or Service type"
+          placeholder={t("searchIdService")}
           className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full"
         />
       </div>
@@ -92,7 +94,7 @@ export default memo(function MyComplaints() {
             {tabDot[tab] && (
               <span className={`w-2 h-2 rounded-full ${tabDot[tab]} flex-shrink-0`} />
             )}
-            {tab}
+            {t(`filter${tab}`)}
             {stats[tab] > 0 && tab !== "All" && (
               <span className="text-[10px]">({stats[tab]})</span>
             )}
@@ -134,19 +136,19 @@ export default memo(function MyComplaints() {
               />
             </div>
             <p className="text-base font-semibold text-foreground">
-              {complaints.length === 0 ? "No complaints yet" : "No results found"}
+              {complaints.length === 0 ? t("noComplaintsYet") : t("noResultsFound")}
             </p>
             <p className="text-sm text-muted-foreground mt-1.5 max-w-[260px]">
               {complaints.length === 0
-                ? "Raise a grievance to track its status here."
-                : "Try a different search term or filter."}
+                ? t("raiseToTrack")
+                : t("tryDifferentSearch")}
             </p>
             {complaints.length === 0 && (
               <Link
                 to="/user/services"
                 className="mt-5 inline-flex items-center gap-2 bg-[#826CF3] hover:bg-[#7260e0] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
               >
-                Raise Grievance
+                {t("raiseGrievance")}
               </Link>
             )}
           </div>
@@ -184,7 +186,7 @@ export default memo(function MyComplaints() {
                   <span className="flex items-center gap-1">
                     <img src="/icons/datecalender.svg" className="w-5 h-5 invert dark:invert-0" />
                     <span className="text-foreground font-normal">
-                      Submitted on<br />
+                      {t("submittedOn")}<br />
                       <span className="text-foreground font-medium">
                        {c.createdAt
                        ? `${new Date(c.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}  ${new Date(c.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`
@@ -195,7 +197,7 @@ export default memo(function MyComplaints() {
                   <span className="flex items-center gap-1 ">
                     <img src="/icons/location1.svg" className="w-5 h-5 invert dark:invert-0" />
                     <span className="text-foreground font-normal">
-                      Station HQ<br />
+                      {t("stationHQ")}<br />
                       <span className="text-foreground font-medium">
                        {c.stationName || c.station || "—"}
                     </span>
@@ -208,8 +210,8 @@ export default memo(function MyComplaints() {
                   <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2.5 mb-3">
                     <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs font-semibold text-red-500">Additional Document Required</p>
-                      <p className="text-[10px] text-red-400">Please attach this required document</p>
+                      <p className="text-xs font-semibold text-red-500">{t("additionalDocRequired")}</p>
+                      <p className="text-[10px] text-red-400">{t("pleaseAttachRequired")}</p>
                     </div>
                   </div>
                 )}
@@ -220,7 +222,7 @@ export default memo(function MyComplaints() {
                   state={{ complaint: c }}
                   className="-mx-4 px-4 pt-3 border-t border-border flex items-center justify-between hover:bg-secondary/40 transition-colors"
                 >
-                  <span className="text-xs font-medium text-foreground">View Details</span>
+                  <span className="text-xs font-medium text-foreground">{t("viewDetails")}</span>
                   <ArrowRight className="w-5 h-5 text-foreground" />
                 </Link>
 

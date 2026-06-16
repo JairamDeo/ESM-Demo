@@ -6,6 +6,8 @@ import { Icon } from "@iconify/react";
 import { useCategories, useNotifications } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePushSync } from "@/hooks/usePushSync";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 const MOCKUP_WIDTH = 390;
 const MOCKUP_HEIGHT = 844;
@@ -111,6 +113,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   usePushSync(!!user, user?.id);
   const unreadCount = data?.unreadCount || 0;
   const { isMockup, scale } = useMockupScale();
+  const { t } = useTranslation();
 
   const mainRef = useRef<HTMLElement>(null);
   const touchStartRef = useRef({ x: 0, y: 0, active: false });
@@ -120,10 +123,10 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const { data: categories = [] } = useCategories({ status: "active" });
 
   const navItems = [
-    { to: "/user", icon: Home, label: "Home" },
-    { to: "/user/complaints", icon: FileText, label: "Complaints" },
-    { to: "/user/services", icon: Layers, label: "Services", hasCategories: true },
-    { to: "/user/profile", icon: User, label: "Profile" },
+    { to: "/user", icon: Home, label: t("home") },
+    { to: "/user/complaints", icon: FileText, label: t("complaints") },
+    { to: "/user/services", icon: Layers, label: t("services"), hasCategories: true },
+    { to: "/user/profile", icon: User, label: t("profile") },
   ];
 
   const menuCategories = useMemo(
@@ -329,7 +332,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 </button>
                 <Link to="/user" className="min-w-0 group">
                   <p className="text-foreground text-sm font-semibold leading-5 tracking-[0.01em] max-w-[140px] group-hover:text-primary transition-colors">
-                    Welcome to Grievance Portal
+                    {t("welcomeTo")}
                   </p>
                 </Link>
               </div>
@@ -352,6 +355,20 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 >
                   <Settings className="w-5 h-5 text-foreground" />
                 </Link>
+
+                {/* Language switcher — EN / हिं */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = i18n.language === "hi" ? "en" : "hi";
+                    i18n.changeLanguage(next);
+                    localStorage.setItem("lang", next);
+                  }}
+                  className="h-10 px-2.5 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors text-xs font-bold text-foreground tracking-wide select-none"
+                  aria-label="Toggle language"
+                >
+                  {i18n.language === "hi" ? "EN" : "हिं"}
+                </button>
 
                 <button
                   onClick={toggleTheme}
@@ -391,8 +408,8 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             >
               <div className="flex items-start justify-between gap-2 px-5 pt-6 pb-4 border-b border-border">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Menu</p>
-                  <p className="text-sm font-semibold text-foreground mt-1">Grievance Portal</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("menu")}</p>
+                  <p className="text-sm font-semibold text-foreground mt-1">{t("grievancePortal")}</p>
                 </div>
                 <button
                   type="button"
@@ -445,7 +462,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                               }}
                               className="block px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
                             >
-                              All services
+                              {t("allServicesMenu")}
                             </Link>
                             {menuCategories.map((cat: { _id: string; name: string }) => (
                               <button
@@ -458,7 +475,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                               </button>
                             ))}
                             {menuCategories.length === 0 && (
-                              <p className="px-4 py-2 text-xs text-muted-foreground">No categories</p>
+                              <p className="px-4 py-2 text-xs text-muted-foreground">{t("noCategories")}</p>
                             )}
                           </div>
                         </div>

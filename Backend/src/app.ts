@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 
 import authRoutes from "./routes/auth";
 import grievanceRoutes from "./routes/grievances";
+import translateRouter from "./routes/translate";
 import {
   stationRouter, qrRouter, officerRouter,
   caseTypeRouter, caseTypeDocumentsRouter, escalationRouter, reportsRouter,
@@ -102,6 +103,7 @@ app.use("/api/categories",    categoryRouter);
 app.use("/api/announcements", announcementRouter);
 app.use("/api/rbac",          rbacRouter);
 app.use("/api/veteran/required-documents", veteranDocumentsRouter);
+app.use("/api/translate",     translateRouter);
 
 // ─── 404 + Error handler ──────────────────────────────────────────────────────
 app.use(notFound);

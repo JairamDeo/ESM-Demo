@@ -2,12 +2,14 @@ import { useLocation, Link } from "react-router-dom";
 import { ChevronLeft, FileText, Folder, AlertCircle, Download } from "lucide-react";
 import { useRequiredDocumentsForCaseType } from "@/hooks/useApi";
 import { resolveUploadUrl } from "@/lib/apiBase";
+import { useTranslation } from "react-i18next";
 
 const DEFAULT_NOTE =
   "Please keep the required documents ready before raising a grievance. Documents will be requested during the grievance filing process.";
 
 export default function DocumentRequiredInfo() {
   const location = useLocation();
+  const { t } = useTranslation();
   const caseTypeId = location.state?.caseTypeId as string | undefined;
   const caseTypeFromNav = location.state?.caseType as string | undefined;
   const descriptionFromNav =
@@ -57,12 +59,12 @@ export default function DocumentRequiredInfo() {
           <Link to="/user/services" className="p-1.5 rounded-full hover:bg-secondary mt-1">
             <ChevronLeft className="w-5 h-5 text-foreground" />
           </Link>
-          <h1 className="text-xl font-semibold text-foreground">Documents</h1>
+          <h1 className="text-xl font-semibold text-foreground">{t("documents")}</h1>
         </div>
         <div className="bg-card border border-border rounded-2xl p-6 text-center">
-          <p className="text-sm text-destructive">Could not load document requirements.</p>
+          <p className="text-sm text-destructive">{t("couldNotLoad")}</p>
           <Link to="/user/services" className="text-sm text-primary mt-3 inline-block hover:underline">
-            Back to Services
+            {t("backToServices")}
           </Link>
         </div>
       </div>
@@ -77,7 +79,7 @@ export default function DocumentRequiredInfo() {
         <Link to="/user/services" className="p-1.5 rounded-full hover:bg-secondary mt-1">
           <ChevronLeft className="w-5 h-5 text-foreground" />
         </Link>
-        <h1 className="text-xl font-semibold text-foreground">Documents</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("documents")}</h1>
       </div>
 
       {/* Title section */}
@@ -95,7 +97,7 @@ export default function DocumentRequiredInfo() {
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center gap-2 mb-4">
           <img src="/icons/folder.svg" alt="" className="w-4 h-4 invert dark:invert-0" />
-          <h3 className="text-base font-semibold text-foreground">Documents Required</h3>
+          <h3 className="text-base font-semibold text-foreground">{t("documentsRequired")}</h3>
         </div>
         <div className="space-y-4">
           {documents.length > 0 ? (
@@ -131,8 +133,8 @@ export default function DocumentRequiredInfo() {
           ) : (
             <div className="flex flex-col items-center justify-center py-6 text-center opacity-80">
               <Folder className="w-10 h-10 text-muted-foreground/30 mb-2" />
-              <p className="text-sm font-medium text-foreground">No documents required at this moment.</p>
-              <p className="text-xs text-muted-foreground mt-1">You can proceed to the next step.</p>
+              <p className="text-sm font-medium text-foreground">{t("noDocumentsRequired")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("proceedNextStep")}</p>
             </div>
           )}
         </div>
@@ -141,7 +143,7 @@ export default function DocumentRequiredInfo() {
       {/* Guidelines — from admin Required Documents config */}
       {guidelines.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="text-base font-semibold text-foreground mb-3">Guidelines</h3>
+          <h3 className="text-base font-semibold text-foreground mb-3">{t("guidelines")}</h3>
           <ul className="space-y-2">
             {guidelines.map((item: string, i: number) => (
               <li key={i} className="flex items-start gap-2 text-sm text-foreground">
@@ -158,7 +160,7 @@ export default function DocumentRequiredInfo() {
         <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-1">
             <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
-            <p className="text-sm font-semibold text-destructive">Note</p>
+            <p className="text-sm font-semibold text-destructive">{t("note")}</p>
           </div>
           <p className="text-sm text-foreground leading-relaxed">{note}</p>
         </div>
@@ -174,7 +176,7 @@ export default function DocumentRequiredInfo() {
         }}
         className="w-full flex items-center justify-center bg-[#826CF3] text-white font-bold py-4 rounded-xl hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(130,108,243,0.35)]"
       >
-        Raise Grievance
+        {t("raiseGrievance")}
       </Link>
 
     </div>

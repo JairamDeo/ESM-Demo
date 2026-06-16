@@ -8,6 +8,8 @@ import { useTrackGrievance } from "@/hooks/useApi";
 import { getApiBaseUrl } from "@/lib/apiBase";
 import { Icon } from "@iconify/react";
 import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import {
   getConcernDocuments,
   concernNeedsGeneral,
@@ -67,6 +69,19 @@ function Accordion({ title, defaultOpen = false, children }: { title: string; de
   );
 }
 
+function getDisplayText(item: any, fallback: string) {
+  if (!item || (!item.originalText && !item.translatedText)) return fallback;
+  if (item.translationFailed) return item.originalText || fallback;
+
+  const currentLang = i18n.language || "en";
+  if (currentLang === "en") {
+    return item.language === "en" ? item.originalText : item.translatedText;
+  } else {
+    // 'hi' or other languages
+    return item.language === "en" ? item.translatedText : item.originalText;
+  }
+}
+
 export default memo(function TrackCase() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,6 +90,7 @@ export default memo(function TrackCase() {
 
   const { data: liveData } = useTrackGrievance(grievanceId);
   const complaint = liveData || initialComplaint || {};
+  const { t } = useTranslation();
 
   const comments = complaint.comments || [];
   const concernStatus = getEffectiveConcernStatus(complaint);
@@ -166,13 +182,10 @@ export default memo(function TrackCase() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link
-          to="/user/complaints"
-          className="p-1.5 rounded-full hover:bg-secondary transition-colors"
-        >
+        <Link to="/user/complaints" className="p-1.5 rounded-full hover:bg-secondary transition-colors">
           <ChevronLeft className="w-5 h-5 text-foreground" />
         </Link>
-        <h1 className="text-lg font-bold text-foreground">Complaint Details</h1>
+        <h1 className="text-lg font-bold text-foreground">{t("complaintDetails")}</h1>
       </div>
 
       {/* Basic Info Card */}
@@ -194,7 +207,7 @@ export default memo(function TrackCase() {
         <div className="flex items-start gap-2 bg-secondary/50 px-3 py-2 rounded-xl border border-border">
           <img src="/icons/datecalender.svg" className="w-4 h-4 mt-0.5 invert dark:invert-0 flex-shrink-0" />
         <div>
-          <p className="text-xs text-foreground/60">Submitted on</p>
+          <p className="text-xs text-foreground/60">{t("submittedOn")}</p>
           <p className="text-xs font-medium text-foreground">
           {new Date(complaint.createdAt || Date.now()).toLocaleDateString("en-IN", {
           day: "2-digit", month: "long", year: "numeric",
@@ -225,13 +238,13 @@ export default memo(function TrackCase() {
           <div className="bg-destructive/10 border border-destructive/25 rounded-xl p-4 flex gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-bold text-destructive">Action Required</p>
+              <p className="text-sm font-bold text-destructive">{t("actionRequired")}</p>
               <p className="text-xs mt-0.5">
                 {needsGeneral && needsDocuments
-                  ? "Correct your details and re-upload flagged documents."
+                  ? t("correctDetailsAndDocs")
                   : needsDocuments && flaggedDocumentLabels.length > 0
                     ? `Please re-upload: ${flaggedDocumentLabels.join(", ")}`
-                    : "An officer raised a concern. Please review and respond below."}
+                    : t("officerRaisedConcern")}
               </p>
             </div>
           </div>
@@ -242,7 +255,7 @@ export default memo(function TrackCase() {
                 <div className="w-7 h-7 rounded-full bg-[#2c59b8] dark:bg-[#080808] flex items-center justify-center flex-shrink-0">
                   <img src="/icons/comment-dots.svg" className="w-4 h-4" />
                 </div>
-              <span className="text-sm font-semibold text-foreground">Officer Concern</span>
+              <span className="text-sm font-semibold text-foreground">{t("officerConcernLabel")}</span>
               </div>
               <span className="text-[10px] text-foreground">
                 {new Date(activeQuery.createdAt).toLocaleDateString("en-IN", {
@@ -272,7 +285,7 @@ export default memo(function TrackCase() {
                 </div>
               )}
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                {activeQuery.message}
+                {getDisplayText(activeQuery, activeQuery.message)}
               </p>
               {activeQuery.attachments?.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
@@ -281,7 +294,7 @@ export default memo(function TrackCase() {
                     const isPdf = url.toLowerCase().includes(".pdf");
                     return isPdf ? (
                       <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary rounded-lg border border-border text-xs font-medium text-primary">
-                        <FileText className="w-3.5 h-3.5" /> View attachment
+                        <FileText className="w-3.5 h-3.5" /> {t("viewAttachment")}
                       </a>
                     ) : (
                       <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="block">
@@ -292,7 +305,7 @@ export default memo(function TrackCase() {
                 </div>
               )}
               <p className="text-xs font-medium">
-                <span className="text-[#2D7FF9]">Requested By: </span>
+                <span className="text-[#2D7FF9]">{t("requestedBy")}</span>
                 <span className="font-semibold">
                 {activeQuery.authorRole === "admin" ? "Record Officer" : activeQuery.authorName}
               </span>
@@ -322,9 +335,9 @@ export default memo(function TrackCase() {
            <img src="/icons/check-fill.svg" className="w-4 h-4 brightness-0 saturate-0 invert" />
             </div>
             <div>
-              <p className="text-sm font-bold text-[#20A13C] dark:text-green-400">Response Submit</p>
+              <p className="text-sm font-bold text-[#20A13C] dark:text-green-400">{t("responseSubmit")}</p>
               <p className="text-xs mt-0.5">
-                Your response and document have been shared with the concerned officer.
+                {t("responseSharedMsg")}
               </p>
               <p className="text-[10px] mt-1.5 flex items-center gap-1">
                 <img src="/icons/datecalender.svg" className="w-5 h-5 invert dark:invert-0" />
@@ -338,14 +351,14 @@ export default memo(function TrackCase() {
             </div>
           </div>
 
-          <Accordion title="Query History" defaultOpen={true}>
+          <Accordion title={t("queryHistory")} defaultOpen={true}>
             <div className="space-y-3">
               <div className="bg-secondary/40 rounded-xl p-3 space-y-2">
                 <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full inline-block">
                   Query #01
                 </span>
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                  {previousQuery.message}
+                  {getDisplayText(previousQuery, previousQuery.message)}
                 </p>
               </div>
 
@@ -354,17 +367,17 @@ export default memo(function TrackCase() {
                   <div className="w-6 h-6 rounded-full bg-[#B8B8B8] dark:bg-[#475569] flex items-center justify-center flex-shrink-0">
                     <img src="/icons/profile-fill.svg" className="w-4 h-4 text-primary" />
                   </div>
-                  <span className="text-sm font-semibold text-foreground">Your Response</span>
+                  <span className="text-sm font-semibold text-foreground">{t("yourResponse")}</span>
                 </div>
 
                 <div className="bg-secondary/40 rounded-lg p-3">
-                  <p className="text-[12px] font-semibold text-foreground mb-1">· Response</p>
-                  <p className="text-sm text-foreground">{submittedResponse.message}</p>
+                  <p className="text-[12px] font-semibold text-foreground mb-1">{t("responseLabel")}</p>
+                  <p className="text-sm text-foreground">{getDisplayText(submittedResponse, submittedResponse.message)}</p>
                 </div>
 
                 {submittedResponse.attachments?.length > 0 && (
                   <div className="bg-secondary/40 rounded-lg p-3">
-                    <p className="text-[12px] font-semibold text-foreground mb-2">· Uploaded Document</p>
+                      <p className="text-[12px] font-semibold text-foreground mb-2">{t("uploadedDocLabel")}</p>
                     <div className="flex items-center justify-between bg-white dark:bg-[#1B1B1B] border border-border rounded-xl p-3 shadow-sm">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         {/* <div className="w-10 h-10 flex items-center justify-center rounded-md bg-[#ffff] dark:bg-secondary/90 shrink-0"> */}
@@ -374,7 +387,7 @@ export default memo(function TrackCase() {
                         <p className="text-xs font-semibold text-foreground truncate">
                         {submittedResponse.attachments[0].split("/").pop()}
                         </p>
-                        <p className="text-[10px] text-foreground mt-0.5">Document</p>
+                        <p className="text-[10px] text-foreground mt-0.5">{t("documentLabel")}</p>
                     </div>
                     </div>
 
@@ -385,7 +398,7 @@ export default memo(function TrackCase() {
                         rel="noreferrer"
                         className="px-5 py-2 mx-1 bg-[#0051AE] text-white text-xs font-semibold rounded-md hover:opacity-90"
                       >
-                        View
+                        {t("viewBtn")}
                       </a>
                     </div>
                   </div>
@@ -397,13 +410,13 @@ export default memo(function TrackCase() {
       )}
 
       {/* Grievance Details */}
-      <Accordion title="Grievance Details" defaultOpen={true}>
+      <Accordion title={t("grievanceDetailsTitle")} defaultOpen={true}>
         <div className="space-y-0">
           {[
-            { label: "Concern for", value: complaint.veteranName ? "Self" : "Other" },
-            { label: "Station HQ",  value: complaint.stationName },
-            { label: "Rank",        value: complaint.veteranRank || "—" },
-            { label: "Army No",     value: complaint.veteranArmyNo || "—" },
+            { label: t("concernForDetail"),  value: complaint.veteranName ? "Self" : "Other" },
+            { label: t("stationHQ"),    value: complaint.stationName },
+            { label: t("rankLabel2"),   value: complaint.veteranRank || "—" },
+            { label: t("armyNoLabel"),  value: complaint.veteranArmyNo || "—" },
           ].map((row, i) => (
             <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-none">
               <span className="text-sm font-medium text-foreground">{row.label}</span>
@@ -411,16 +424,16 @@ export default memo(function TrackCase() {
             </div>
           ))}
           <div className="pt-3">
-            <span className="text-sm font-medium text-foreground block mb-1.5">Description</span>
+            <span className="text-sm font-medium text-foreground block mb-1.5">{t("descriptionLabel")}</span>
             <p className="text-xs text-foreground leading-relaxed break-words">
-              {complaint.description || "—"}
+              {getDisplayText(complaint, complaint.description || "—")}
             </p>
           </div>
         </div>
       </Accordion>
 
       {/* Uploaded Documents */}
-      <Accordion title="Uploaded Documents" defaultOpen={true}>
+      <Accordion title={t("uploadedDocuments")} defaultOpen={true}>
         {submittedDocs.length > 0 ? (
           <div className="space-y-2">
             {submittedDocs.map((doc: any) => {
@@ -442,7 +455,7 @@ export default memo(function TrackCase() {
             })}
           </div>
         ) : (!complaint.attachments || complaint.attachments.length === 0) ? (
-          <p className="text-xs text-muted-foreground text-center py-2">No documents attached.</p>
+          <p className="text-xs text-muted-foreground text-center py-2">{t("noDocumentsAttached")}</p>
         ) : (
           <div className="space-y-2">
             {complaint.attachments.map((url: string, i: number) => {
@@ -454,7 +467,7 @@ export default memo(function TrackCase() {
                       <img src="/icons/pdf2.svg" alt="" className="w-8 h-8" />
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-foreground truncate max-w-[140px]">{filename}</p>
-                      <p className="text-[10px] text-muted-foreground">Uploaded</p>
+                      <p className="text-[10px] text-muted-foreground">{t("uploadedLabel")}</p>
                     </div>
                   </div>
 
@@ -463,7 +476,7 @@ export default memo(function TrackCase() {
                     rel="noreferrer"
                     className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0"
                   >
-                    View
+                    {t("viewBtn")}
                   </a>
                 </div>
               );
@@ -473,7 +486,7 @@ export default memo(function TrackCase() {
       </Accordion>
 
       {/* Tracking History */}
-      <Accordion title="Tracking History" defaultOpen={true}>
+      <Accordion title={t("trackingHistory")} defaultOpen={true}>
         <div className="space-y-0 pt-1">
           {timeline.map((step: any, i: number) => {
             const isLast = i === timeline.length - 1;
@@ -500,7 +513,7 @@ export default memo(function TrackCase() {
                       {timelineStepLabel(step)}
                     </p>
                     {step.note && step.eventType !== "status" && (
-                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{step.note}</p>
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{getDisplayText(step, step.note)}</p>
                     )}
                     {step.concernDocuments?.length > 0 ? (
                       <div className="text-[10px] text-primary mt-1 space-y-0.5">
@@ -517,7 +530,7 @@ export default memo(function TrackCase() {
                           const fullUrl = resolveFileUrl(url);
                           const isPdf = url.toLowerCase().includes(".pdf");
                           return isPdf ? (
-                            <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="text-[10px] text-primary underline">PDF attachment</a>
+                            <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="text-[10px] text-primary underline">{t("pdfAttachment")}</a>
                           ) : (
                             <a key={idx} href={fullUrl} target="_blank" rel="noreferrer">
                               <img src={fullUrl} alt="" className="w-14 h-14 object-cover rounded-md border border-border" />
@@ -527,7 +540,7 @@ export default memo(function TrackCase() {
                       </div>
                     )}
                     {step.status === "in-progress" && isLast && step.eventType !== "concern" && (
-                      <p className="text-[10px] text-muted-foreground">(Documents Required)</p>
+                      <p className="text-[10px] text-muted-foreground">{t("docsRequiredNote")}</p>
                     )}
                   </div>
                   <div className="text-right">
