@@ -367,47 +367,6 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
 
 export const getCategories = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Auto-seed categories if none exist
-    const count = await Category.countDocuments();
-    if (count === 0) {
-      const defaultCategories = [
-        { name: "Identity & Personal", isActive: true },
-        { name: "Pension & Financial", isActive: true },
-        { name: "Family Details", isActive: true },
-        { name: "Requests & Tracking", isActive: true },
-      ];
-      const inserted = await Category.insertMany(defaultCategories);
-      
-      // Fix orphaned CaseTypes based on known names
-      const categoryByName = Object.fromEntries(inserted.map(c => [c.name, c._id]));
-      const caseTypeMapping: Record<string, string> = {
-        "Update Name": "Identity & Personal",
-        "Update Aadhaar & PAN": "Identity & Personal",
-        "Update Mobile & Email": "Identity & Personal",
-        "Update Address": "Identity & Personal",
-        "Resolve Pension Issues": "Pension & Financial",
-        "Stop FMA": "Pension & Financial",
-        "Monthly Pay Slip": "Pension & Financial",
-        "Pension Payment Order": "Pension & Financial",
-        "Add Nominee": "Family Details",
-        "Update DOB of Spouse": "Family Details",
-        "Update Spouse Details": "Family Details",
-        "Add/Update Family Details": "Family Details",
-        "Death Intimation": "Requests & Tracking",
-        "Grievance for Increment": "Requests & Tracking",
-        "Track Case Status": "Requests & Tracking",
-        "SMS / Portal Alerts": "Requests & Tracking",
-        "Medical Certificate": "Requests & Tracking"
-      };
-
-      const allCaseTypes = await CaseType.find();
-      for (const ct of allCaseTypes) {
-        const catName = caseTypeMapping[ct.name] || "Identity & Personal";
-        ct.category = categoryByName[catName];
-        await ct.save();
-      }
-    }
-
     const { status } = req.query;
     const filter: any = {};
     if (status !== "all") {

@@ -1,4 +1,4 @@
-import { useState, memo, useRef, useCallback, useMemo } from "react";
+import { useState, memo, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -379,6 +379,11 @@ export default memo(function UsersOfficers() {
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [areaFilterId, setAreaFilterId] = useState("");
+  const [hqFilterId, setHqFilterId] = useState("");
+  const [stationFilterId, setStationFilterId] = useState("");
+  const [page, setPage] = useState(1);
+  const limit = 10;
   const [addOpen, setAddOpen] = useState(false);
   const [editOfficer, setEditOfficer] = useState<any>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
@@ -399,7 +404,23 @@ export default memo(function UsersOfficers() {
     password: "",
   });
 
-  const { data, isLoading } = useOfficers({ search, role: roleFilter || undefined });
+  const shouldShowAreaFilter = roleFilter === "Area Officer" || roleFilter === "Headquarter Officer" || roleFilter === "Station HQ Officer";
+  const shouldShowHqFilter = roleFilter === "Headquarter Officer" || roleFilter === "Station HQ Officer";
+  const shouldShowStationFilter = roleFilter === "Station HQ Officer";
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, roleFilter, areaFilterId, hqFilterId, stationFilterId]);
+
+  const { data, isLoading } = useOfficers({
+    search,
+    role: roleFilter || undefined,
+    stateId: shouldShowAreaFilter && areaFilterId ? areaFilterId : undefined,
+    hqId: shouldShowHqFilter && hqFilterId ? hqFilterId : undefined,
+    stationId: shouldShowStationFilter && stationFilterId ? stationFilterId : undefined,
+    page,
+    limit,
+  });
   const { data: summaryData, isLoading: summaryLoading } = useOfficers({});
   const { data: statesData = [] } = useStates();
   const { data: hqData = [] } = useHQs();
@@ -411,10 +432,37 @@ export default memo(function UsersOfficers() {
   const deleteOfficer = useDeleteOfficer();
 
   const officers = useMemo(() => data?.data || [], [data]);
+  const pagination = data?.pagination || { total: 0, page: 1, limit, totalPages: 1 };
+  const total = pagination.total || 0;
+  const totalPages = Math.max(1, pagination.totalPages || 1);
+  const pageStart = total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
+  const pageEnd = total === 0 ? 0 : Math.min(total, pagination.page * pagination.limit);
   const stationsList = useMemo(() => stationsRes?.data || [], [stationsRes]);
   const summary = useMemo(() => summaryData?.summary || {
     esmOfficers: 0, stationOfficers: 0, recordOffice: 0,
   }, [summaryData]);
+
+  const filteredHqsForFilters = useMemo(() => {
+    if (!areaFilterId) return hqData as any[];
+    return (hqData as any[]).filter((h: any) => String(h.stateId) === String(areaFilterId));
+  }, [hqData, areaFilterId]);
+
+  const filteredStationsForFilters = useMemo(() => {
+    let list = stationsList as any[];
+    if (areaFilterId) {
+      const areaName = (statesData as any[]).find((s: any) => String(s._id) === String(areaFilterId))?.name;
+      if (areaName) {
+        list = list.filter((s: any) => String(s.stateName || s.state) === String(areaName));
+      }
+    }
+    if (hqFilterId) {
+      list = list.filter((s: any) => {
+        const sid = typeof s.hqId === "object" && s.hqId ? s.hqId._id : s.hqId;
+        return String(sid || "") === String(hqFilterId);
+      });
+    }
+    return list;
+  }, [stationsList, areaFilterId, hqFilterId, statesData]);
 
   const defaultRole = creatableRoles[creatableRoles.length - 1] || "Station HQ Officer";
 
@@ -616,7 +664,13 @@ export default memo(function UsersOfficers() {
             <div className="relative">
               <select
                 value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setRoleFilter(next);
+                  setAreaFilterId("");
+                  setHqFilterId("");
+                  setStationFilterId("");
+                }}
                 className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer"
               >
                 <option value="">All Roles</option>
@@ -624,6 +678,67 @@ export default memo(function UsersOfficers() {
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
             </div>
+
+            {shouldShowAreaFilter && (
+              <div className="relative">
+                <select
+                  value={areaFilterId}
+                  onChange={(e) => {
+                    setAreaFilterId(e.target.value);
+                    setHqFilterId("");
+                    setStationFilterId("");
+                  }}
+                  className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer"
+                >
+                  <option value="">All Areas</option>
+                  {(statesData as any[]).map((s: any) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+              </div>
+            )}
+
+            {shouldShowHqFilter && (
+              <div className="relative">
+                <select
+                  value={hqFilterId}
+                  onChange={(e) => {
+                    setHqFilterId(e.target.value);
+                    setStationFilterId("");
+                  }}
+                  className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer min-w-[180px]"
+                >
+                  <option value="">All HQs</option>
+                  {filteredHqsForFilters.map((h: any) => (
+                    <option key={h._id} value={h._id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+              </div>
+            )}
+
+            {shouldShowStationFilter && (
+              <div className="relative">
+                <select
+                  value={stationFilterId}
+                  onChange={(e) => setStationFilterId(e.target.value)}
+                  className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer min-w-[200px]"
+                >
+                  <option value="">All Station HQs</option>
+                  {filteredStationsForFilters.map((s: any) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -720,6 +835,36 @@ export default memo(function UsersOfficers() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+          <p className="text-xs text-muted-foreground">
+            Showing <span className="text-foreground font-medium">{pageStart}</span>–<span className="text-foreground font-medium">{pageEnd}</span> of{" "}
+            <span className="text-foreground font-medium">{total}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={isLoading || page <= 1}
+              className="px-3 py-1.5 text-xs rounded-lg border border-border bg-secondary/40 hover:bg-secondary/70 disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <span className="text-xs text-muted-foreground">
+              Page <span className="text-foreground font-medium">{page}</span> /{" "}
+              <span className="text-foreground font-medium">{totalPages}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={isLoading || page >= totalPages}
+              className="px-3 py-1.5 text-xs rounded-lg border border-border bg-secondary/40 hover:bg-secondary/70 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
