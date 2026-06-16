@@ -420,7 +420,7 @@ export default function DocumentCheckList() {
                         ? t("replaceDocument")
                         : t("uploadDocument")}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, PDF (Max 5 MB)</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("jpgPngPdf")}</p>
               </div>
               <input
                 type="file"

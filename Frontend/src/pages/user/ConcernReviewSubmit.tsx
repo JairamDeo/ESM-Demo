@@ -177,7 +177,7 @@ export default function ConcernReviewSubmit() {
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No file selected — go back to upload.</p>
+                <p className="text-xs text-muted-foreground">{t("noFileSelected")}</p>
               )}
             </div>
           </div>
@@ -201,7 +201,7 @@ export default function ConcernReviewSubmit() {
 
       {isGeneralFull && flaggedLabels.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Documents updated</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t("documentsUpdated")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-1">
             {(reuploadedDocumentLabels.length > 0 ? reuploadedDocumentLabels : flaggedLabels).map((label: string) => (
               <p key={label} className="text-xs font-medium text-primary">{label}</p>
@@ -216,25 +216,25 @@ export default function ConcernReviewSubmit() {
           <div className="bg-card border border-border rounded-xl p-4 space-y-2 text-sm">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Service</p>
+                <p className="text-[10px] text-muted-foreground uppercase">{t("service")}</p>
                 <p className="font-medium">{form.caseType || complaint?.type || "—"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Station HQ</p>
+                <p className="text-[10px] text-muted-foreground uppercase">{t("stationHQLabel")}</p>
                 <p className="font-medium">{form.stationHQ || complaint?.stationName || "—"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Rank</p>
+                <p className="text-[10px] text-muted-foreground uppercase">{t("rankLabel")}</p>
                 <p className="font-medium">{form.rank || complaint?.veteranRank || "—"}</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Army No.</p>
+                <p className="text-[10px] text-muted-foreground uppercase">{t("armyNo")}</p>
                 <p className="font-medium">{form.armyNumber || complaint?.veteranArmyNo || "—"}</p>
               </div>
             </div>
             {form.description && (
               <div>
-                <p className="text-[10px] text-muted-foreground uppercase">Description</p>
+                <p className="text-[10px] text-muted-foreground uppercase">{t("description")}</p>
                 <p className="text-xs mt-0.5 whitespace-pre-wrap">{form.description}</p>
               </div>
             )}

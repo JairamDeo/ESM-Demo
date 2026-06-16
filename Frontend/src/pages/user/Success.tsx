@@ -70,7 +70,7 @@ export default function Success() {
               <img src="/icons/file.svg" className="w-5 h-5 brightness-0 invert dark:brightness-100 dark:invert-0" />
             </div>
             <div>
-              <p className="text-xs text-foreground mb-0.5">Grievance ID</p>
+              <p className="text-xs text-foreground mb-0.5">{t("grievanceId")}</p>
               <p className="text-sm font-bold text-[#155DFC] dark:text-[#F0C902]">{grievanceId}</p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function Success() {
             className="flex items-center gap-1.5 border border-primary rounded-md px-3 py-1.5 hover:bg-secondary transition-colors"
           >
             <Copy className="w-4 h-4 text-foreground" />
-            <span className="text-sm dark:text-foreground text-[#826CF3] font-medium">Copy</span>
+            <span className="text-sm dark:text-foreground text-[#826CF3] font-medium">{t("copy")}</span>
           </button>
         </div>
 
@@ -87,7 +87,7 @@ export default function Success() {
         <div className="px-4 divide-y divide-border">
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-foreground">Date & Time</span>
+            <span className="text-sm text-foreground">{t("dateAndTime")}</span>
             <span className="text-sm text-foreground font-medium text-right">{formattedDate}</span>
           </div>
 
@@ -114,7 +114,7 @@ export default function Success() {
 
           <div className="flex items-center justify-between py-3.5">
             <span className="text-sm text-foreground">{t("status")}</span>
-            <span className="text-sm font-semibold text-[#20A13C]">Submitted</span>
+            <span className="text-sm font-semibold text-[#20A13C]">{t("submitted")}</span>
           </div>
 
         </div>
