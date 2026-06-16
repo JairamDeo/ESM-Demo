@@ -12,6 +12,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { resolveUploadUrl, getApiBaseUrl } from "@/lib/apiBase";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 function mergeSubmittedDoc(doc: any, submittedDocs: any[]) {
   const submitted = submittedDocs.find((s) => s.documentLabel === doc.label);
@@ -31,6 +32,7 @@ function mergeSubmittedDoc(doc: any, submittedDocs: any[]) {
 export default function DocumentCheckList() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const formState = location.state?.form || {};
   const isFromQR = location.state?.isFromQR || false;
@@ -41,9 +43,9 @@ export default function DocumentCheckList() {
   const documentOnlyConcernMode = concernMode && !generalConcernMode;
   const flaggedDocumentLabels: string[] = location.state?.flaggedDocumentLabels || [];
   const flaggedSet = useMemo(() => new Set(flaggedDocumentLabels), [flaggedDocumentLabels]);
-  const hasRequiredDocFixes = flaggedSet.size > 0;
+  const hasRequiredDocFixes = location.state?.hasRequiredDocFixes === true;
   const grievanceId = location.state?.grievanceId as string | undefined;
-  const concernMessage = location.state?.concernMessage as string | undefined;
+  const concernMessage = location.state?.concernMessage || "";
   const complaint = location.state?.complaint || {};
   const caseTypeId = formState.caseTypeId;
   const useGrievanceUpload = (generalConcernMode || documentOnlyConcernMode) && !!grievanceId;
@@ -264,18 +266,18 @@ export default function DocumentCheckList() {
   }
 
   const stepLabel = documentOnlyConcernMode
-    ? "Step 1 / 2"
+    ? t("step1of2")
     : generalConcernMode
-      ? "Step 2 / 3"
-      : "Step 2 / 3";
+      ? t("step2of3")
+      : t("step2of3");
 
   const pageTitle = documentOnlyConcernMode
     ? flaggedSet.size > 1
-      ? "Correct Documents"
-      : "Correct Document"
+      ? t("correctDocuments")
+      : t("correctDocument")
     : generalConcernMode
-      ? "Review Documents"
-      : "Document Check List";
+      ? t("reviewDocuments")
+      : t("documentChecklist");
 
   return (
     <div className="px-3 space-y-4 pb-6">
@@ -295,10 +297,10 @@ export default function DocumentCheckList() {
           <div>
             <p className="text-sm font-semibold text-destructive">
               {documentOnlyConcernMode
-                ? `Re-upload ${flaggedSet.size > 1 ? `all ${flaggedSet.size} flagged documents` : "the corrected document"}`
+                ? t("reuploadAllFlagged")
                 : hasRequiredDocFixes
-                  ? "Re-upload flagged documents (required)"
-                  : "Update documents if needed"}
+                  ? t("reuploadFlaggedRequired")
+                  : t("updateDocumentsIfNeeded")}
             </p>
             {concernMessage && (
               <p className="text-xs text-foreground/90 mt-1 whitespace-pre-wrap">{concernMessage}</p>
@@ -327,7 +329,7 @@ export default function DocumentCheckList() {
               <div className="min-w-0">
                 {flagged && (
                   <span className="text-[10px] font-semibold text-warning bg-warning/15 px-2 py-0.5 rounded-full inline-block mb-1">
-                    Officer flagged
+                    {t("officerFlagged")}
                   </span>
                 )}
                 <p className="text-sm text-foreground leading-relaxed">
@@ -354,11 +356,11 @@ export default function DocumentCheckList() {
                       <p className="text-sm font-medium text-foreground truncate">{upload.originalFileName}</p>
                       <p className="text-xs text-muted-foreground">
                         {reuploaded
-                          ? "Updated"
+                          ? t("updated")
                           : useGrievanceUpload
-                            ? "Current file"
+                            ? t("currentFile")
                             : upload
-                              ? "Uploaded"
+                              ? t("uploaded")
                               : ""}
                         {upload?.fileSize ? ` · ${(upload.fileSize / 1024).toFixed(0)} KB` : ""}
                       </p>
@@ -390,7 +392,7 @@ export default function DocumentCheckList() {
               >
                 <div className="flex items-center gap-3">
                   <img src="/icons/file.svg" className="w-5 h-5 invert dark:invert-0" alt="" />
-                  <span className="text-sm font-medium text-foreground">Download Format</span>
+                  <span className="text-sm font-medium text-foreground">{t("downloadFormat")}</span>
                 </div>
                 <Download className="w-8 h-8 text-[#F0C902] invert dark:invert-0" />
               </a>
@@ -409,14 +411,14 @@ export default function DocumentCheckList() {
               <div>
                 <p className="text-sm font-semibold text-foreground">
                   {isUploading
-                    ? "Uploading..."
+                    ? t("uploading")
                     : useGrievanceUpload
                       ? reuploaded
-                        ? "Upload again"
-                        : "Upload corrected document"
+                        ? t("uploadAgain")
+                        : t("uploadCorrected")
                       : upload
-                        ? "Replace document"
-                        : "Upload Document"}
+                        ? t("replaceDocument")
+                        : t("uploadDocument")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, PDF (Max 5 MB)</p>
               </div>
@@ -433,7 +435,7 @@ export default function DocumentCheckList() {
       }) : (
         <div className="bg-card border border-border rounded-xl p-6 flex flex-col items-center text-center">
           <Folder className="w-12 h-12 text-muted-foreground/30 mb-3" />
-          <p className="text-sm font-medium text-foreground">No documents to upload.</p>
+          <p className="text-sm font-medium text-foreground">{t("noDocumentsRequired")}</p>
         </div>
       )}
 
@@ -443,7 +445,7 @@ export default function DocumentCheckList() {
           disabled={hasRequiredDocFixes && !allRequiredReuploaded}
           className="w-full flex items-center justify-center bg-[#826CF3] text-white font-bold py-4 mt-4 rounded-xl hover:opacity-90 shadow-[0_4px_16px_rgba(130,108,243,0.35)] disabled:opacity-50"
         >
-          Continue to Review
+          {generalConcernMode || documentOnlyConcernMode ? t("continueToReview") : t("continue")}
         </button>
       )}
     </div>

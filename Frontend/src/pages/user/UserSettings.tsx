@@ -18,6 +18,7 @@ import { useTheme, type ThemePreference } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 function SettingRow({
   icon: Icon,
@@ -81,18 +82,20 @@ function SettingRow({
 function AppearanceSelector({
   value,
   onChange,
+  t,
 }: {
   value: ThemePreference;
   onChange: (value: ThemePreference) => void;
+  t: (key: string) => string;
 }) {
   const options: {
     id: ThemePreference;
     label: string;
     icon: typeof Sun;
   }[] = [
-    { id: "light", label: "Light", icon: Sun },
-    { id: "dark", label: "Dark", icon: Moon },
-    { id: "system", label: "System", icon: Monitor },
+    { id: "light", label: t("lightOption"), icon: Sun },
+    { id: "dark", label: t("darkOption"), icon: Moon },
+    { id: "system", label: t("systemOption"), icon: Monitor },
   ];
 
   return (
@@ -120,6 +123,7 @@ function AppearanceSelector({
 }
 
 export default memo(function UserSettings() {
+  const { t } = useTranslation();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -129,10 +133,10 @@ export default memo(function UserSettings() {
 
   const appearanceDescription =
     theme === "system"
-      ? `System default (${isDark ? "Dark" : "Light"})`
+      ? isDark ? t("systemDefaultDark") : t("systemDefaultLight")
       : theme === "dark"
-        ? "Dark mode"
-        : "Light mode";
+        ? t("darkMode")
+        : t("lightMode");
 
   const handleLogout = () => {
     logout();
@@ -152,8 +156,8 @@ export default memo(function UserSettings() {
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Settings</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Manage your portal preferences</p>
+            <h1 className="text-xl font-bold text-foreground">{t("settingsTitle")}</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("managePortalPrefs")}</p>
           </div>
         </div>
 
@@ -181,7 +185,7 @@ export default memo(function UserSettings() {
         {/* Preferences */}
         <section>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Preferences
+            {t("preferencesSection")}
           </p>
           <div className="space-y-2">
             <div className="w-full bg-card border border-border rounded-2xl p-4 space-y-3">
@@ -198,19 +202,19 @@ export default memo(function UserSettings() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-semibold text-foreground">Appearance</p>
+                  <p className="text-sm font-semibold text-foreground">{t("appearance")}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{appearanceDescription}</p>
                 </div>
               </div>
-              <AppearanceSelector value={theme} onChange={setTheme} />
+              <AppearanceSelector value={theme} onChange={setTheme} t={t} />
             </div>
             <SettingRow
               icon={Bell}
               iconBg="bg-[#4F81FF]/15"
               iconColor="text-[#4F81FF]"
-              label="Notifications"
+              label={t("notificationsLabel")}
               description={
-                unreadCount > 0 ? `${unreadCount} unread message${unreadCount > 1 ? "s" : ""}` : "View all updates"
+                unreadCount > 0 ? `${unreadCount} ${t(unreadCount > 1 ? "unreadMessagesPlural" : "unreadMessages")}` : t("viewAllUpdates")
               }
               to="/user/notifications"
               trailing={
@@ -230,31 +234,31 @@ export default memo(function UserSettings() {
         {/* Account */}
         <section>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Account
+            {t("accountSection")}
           </p>
           <div className="space-y-2">
             <SettingRow
               icon={User}
               iconBg="bg-[#826CF3]/15"
               iconColor="text-[#826CF3]"
-              label="My Profile"
-              description="Name, rank, contact details"
+              label={t("myProfileLabel")}
+              description={t("nameRankContactDesc")}
               to="/user/profile"
             />
             <SettingRow
               icon={FileText}
               iconBg="bg-emerald-500/15"
               iconColor="text-emerald-500"
-              label="My Complaints"
-              description="Track submitted grievances"
+              label={t("myComplaintsLabel")}
+              description={t("trackSubmittedGrievances")}
               to="/user/complaints"
             />
             <SettingRow
               icon={Shield}
               iconBg="bg-secondary"
               iconColor="text-muted-foreground"
-              label="Privacy & Security"
-              description="Your data is encrypted & secure"
+              label={t("privacySecurity")}
+              description={t("dataEncryptedDesc")}
               onClick={() => toast.info("Your account is protected with secure OTP login.")}
             />
           </div>
@@ -263,24 +267,24 @@ export default memo(function UserSettings() {
         {/* Support */}
         <section>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Support
+            {t("supportSection")}
           </p>
           <div className="space-y-2">
             <SettingRow
               icon={HelpCircle}
               iconBg="bg-[#4F81FF]/15"
               iconColor="text-[#4F81FF]"
-              label="Help & Support"
-              description="ESM Grievance Portal assistance"
+              label={t("helpSupport")}
+              description={t("esmPortalAssist")}
               onClick={() => toast.info("Contact your Station HQ for grievance support.")}
             />
             <SettingRow
               icon={Smartphone}
               iconBg="bg-secondary"
               iconColor="text-muted-foreground"
-              label="App Version"
-              description="ESM Veteran Portal v1.0"
-              trailing={<span className="text-xs text-muted-foreground">Latest</span>}
+              label={t("appVersion")}
+              description={t("appVersionDesc")}
+              trailing={<span className="text-xs text-muted-foreground">{t("latest")}</span>}
               onClick={() => {}}
             />
           </div>
@@ -293,7 +297,7 @@ export default memo(function UserSettings() {
           className="w-full bg-destructive/8 border border-destructive/25 rounded-2xl p-4 flex items-center justify-center gap-2.5 hover:bg-destructive/12 transition-colors active:scale-[0.99]"
         >
           <LogOut className="w-4 h-4 text-destructive" />
-          <span className="text-sm font-semibold text-destructive">Logout</span>
+          <span className="text-sm font-semibold text-destructive">{t("logoutBtn")}</span>
         </button>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
 import { useGrievanceDraft } from "@/hooks/useGrievanceDraft";
 import { getDraftContinueRoute, beginDraftResume, getDraftStepLabel } from "@/lib/grievanceDraft";
+import { useTranslation } from "react-i18next";
 
 const statusBadge: Record<string, string> = {
   resolved: "bg-[#22C55E]",
@@ -73,10 +74,12 @@ const RecentComplaintCard = ({
 }: {
   complaint: any;
   progress: number;
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <section className="pt-1">
     <h2 className="text-foreground text-base font-bold leading-5 tracking-[0.01em] mb-3 px-1">
-      Recent Complaint
+      {t("recentComplaint")}
     </h2>
 
     {complaint ? (
@@ -122,9 +125,9 @@ const RecentComplaintCard = ({
                 className="w-6 h-6 shrink-0 invert dark:invert-0"
               />
               <div>
-                <p className="text-foreground/60 text-xs font-medium leading-5">Submitted on</p>
+                <p className="text-foreground/60 text-xs font-medium leading-5">{t("submittedOn")}</p>
                 <p className="text-foreground text-xs font-medium leading-5">
-                  {complaint.createdAt ? formatComplaintDate(complaint.createdAt) : "—"}
+                  {complaint.createdAt ? formatComplaintDate(complaint.createdAt) : "\u2014"}
                 </p>
               </div>
             </div>
@@ -135,9 +138,9 @@ const RecentComplaintCard = ({
                 className="w-5 h-5 shrink-0 invert dark:invert-0  mt-0.5"
               />
               <div>
-                <p className="text-foreground/60 text-xs font-medium leading-5">Station HQ</p>
+                <p className="text-foreground/60 text-xs font-medium leading-5">{t("stationHQ")}</p>
                 <p className="text-foreground text-xs font-medium leading-5 text-left">
-                  {complaint.stationName || complaint.station || "—"}
+                  {complaint.stationName || complaint.station || "\u2014"}
                 </p>
               </div>
             </div>
@@ -150,7 +153,7 @@ const RecentComplaintCard = ({
               className="flex items-center justify-between group hover:bg-secondary/40 dark:hover:bg-transparent -mx-1 px-1 rounded-lg transition-colors"
             >
               <span className="text-foreground dark:text-[#E2E8F0] text-sm font-medium leading-[23px] pl-4">
-                View Details
+                {t("viewDetails")}
               </span>
               <ArrowRight className="w-6 h-6 text-foreground dark:text-[#E2E8F0] mr-1 group-hover:translate-x-0.5 transition-transform" />
             </Link>
@@ -160,12 +163,13 @@ const RecentComplaintCard = ({
     ) : (
       <div className="bg-card border border-border dark:bg-[#2B2B2B] dark:border-l dark:border-l-[#434343] dark:border-y-0 dark:border-r-0 rounded-lg py-10 text-center">
         <Icon icon="iconoir:doc-magnifying-glass" className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">No complaints yet.</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">Raise a grievance to see it here</p>
+        <p className="text-sm text-muted-foreground">{t("noCmplaints")}</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">{t("raiseGrievanceToSee")}</p>
       </div>
     )}
   </section>
-);
+  );
+};
 
 const popularServices = [
   {
@@ -193,6 +197,7 @@ const popularServices = [
 export default memo(function UserHome() {
   const { user } = useAuth();
   const { data: complaints = [] } = useMyGrievances();
+  const { t } = useTranslation();
 
   const recentComplaint = useMemo(() => complaints[0] ?? null, [complaints]);
   const progress = recentComplaint
@@ -222,12 +227,12 @@ export default memo(function UserHome() {
           <div className="flex-1 min-w-0 pl-[17px] pr-1 pt-4 pb-4 flex flex-col justify-between max-w-[58%]">
             <div>
               <h1 className="text-white text-lg font-semibold leading-7 tracking-[0.01em]">
-                <span className="block whitespace-nowrap">All Your Grievance</span>
-                <span className="block whitespace-nowrap">Services in One Place</span>
+                <span className="block whitespace-nowrap">{t("heroTitle1")}</span>
+                <span className="block whitespace-nowrap">{t("heroTitle2")}</span>
               </h1>
               <p className="text-white/80 text-xs font-medium leading-5 tracking-[0.01em] mt-2">
-                <span className="block whitespace-nowrap">Raise complaints, track status, and</span>
-                <span className="block whitespace-nowrap">get timely updates with ease.</span>
+                <span className="block whitespace-nowrap">{t("heroSubtitle1")}</span>
+                <span className="block whitespace-nowrap">{t("heroSubtitle2")}</span>
               </p>
             </div>
             <Link
@@ -239,7 +244,7 @@ export default memo(function UserHome() {
                 alt=""
                 className="w-6 h-6 absolute left-2 top-1/2 -translate-y-1/2 shrink-0"
               />
-              Raise Grievance
+              {t("raiseGrievance")}
             </Link>
           </div>
           <div className="w-[38%] flex items-end justify-end shrink-0">
@@ -263,7 +268,7 @@ export default memo(function UserHome() {
             <FileEdit className="w-5 h-5 text-[#826CF3]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">Continue your draft</p>
+            <p className="text-sm font-semibold text-foreground">{t("continueDraft")}</p>
             <p className="text-xs text-muted-foreground truncate">
               {draft.form.caseType || "Grievance"} · {getDraftStepLabel(draft.step)}
             </p>
@@ -272,23 +277,24 @@ export default memo(function UserHome() {
         </Link>
       )}
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Quick actions — FIX: items-stretch ensures both cards are equal height */}
+      <div className="grid grid-cols-2 gap-3 items-stretch">
         <Link
           to="/user/complaints"
-          className="bg-card border border-border dark:bg-[#2B2B2B] dark:border-transparent rounded-xl flex flex-col items-center text-center px-3 pt-1.5 pb-4 min-h-[194px] hover:border-primary/30 dark:hover:bg-[#323232] transition-colors"
+          className="bg-card border border-border dark:bg-[#2B2B2B] dark:border-transparent rounded-xl flex flex-col items-center text-center px-3 pt-1.5 pb-4 h-full min-h-[194px] hover:border-primary/30 dark:hover:bg-[#323232] transition-colors"
         >
           <div className="w-[47px] h-[47px] rounded-full bg-[#D2E5FC] flex items-center justify-center mt-1.5 mb-2">
             <img src="/icons/notepad.svg" alt="" className="w-6 h-6" />
           </div>
           <p className="text-foreground text-[15px] font-bold leading-[25px] tracking-[0.01em]">
-            My Complaints
+            {t("myComplaints")}
           </p>
-          <p className="text-muted-foreground dark:text-white/80 text-xs font-medium leading-[17px] tracking-[0.01em] text-center mt-1 mb-4 max-w-[127px]">
-            View and track your complaints
+          {/* FIX: flex-1 pushes ViewPill to bottom regardless of text length */}
+          <p className="text-muted-foreground dark:text-white/80 text-xs font-medium leading-[17px] tracking-[0.01em] text-center mt-1 mb-4 max-w-[127px] flex-1">
+            {t("viewTrackComplaints")}
           </p>
           <ViewPill
-            label="View"
+            label={t("view")}
             bg="bg-[#D2E5FC]"
             textColor="text-[#172EFF]"
             arrowBg="bg-[#1754CF]"
@@ -297,19 +303,20 @@ export default memo(function UserHome() {
 
         <Link
           to="/user/services"
-          className="bg-card border border-border dark:bg-[#2B2B2B] dark:border-transparent rounded-xl flex flex-col items-center text-center px-3 pt-1.5 pb-4 min-h-[194px] hover:border-[#9D7327]/40 dark:hover:bg-[#323232] transition-colors"
+          className="bg-card border border-border dark:bg-[#2B2B2B] dark:border-transparent rounded-xl flex flex-col items-center text-center px-3 pt-1.5 pb-4 h-full min-h-[194px] hover:border-[#9D7327]/40 dark:hover:bg-[#323232] transition-colors"
         >
           <div className="w-[47px] h-[47px] rounded-full bg-[#FDF6E7] flex items-center justify-center mt-1.5 mb-2">
             <img src="/icons/category.svg" alt="" className="w-6 h-6" />
           </div>
           <p className="text-foreground text-[15px] font-bold leading-[25px] tracking-[0.01em]">
-            Services
+            {t("services")}
           </p>
-          <p className="text-muted-foreground dark:text-white/80 text-xs font-medium leading-[17px] tracking-[0.01em] text-center mt-1 mb-4 max-w-[127px]">
-            Explore all available services
+          {/* FIX: flex-1 pushes ViewPill to bottom regardless of text length */}
+          <p className="text-muted-foreground dark:text-white/80 text-xs font-medium leading-[17px] tracking-[0.01em] text-center mt-1 mb-4 max-w-[127px] flex-1">
+            {t("exploreServices")}
           </p>
           <ViewPill
-            label="View"
+            label={t("view")}
             bg="bg-[#FDF6E7]"
             textColor="text-[#9D7327]"
             arrowBg="bg-[#9D7327]"
@@ -323,13 +330,13 @@ export default memo(function UserHome() {
       <section>
         <div className="flex items-center justify-between mb-4 px-1">
           <h2 className="text-foreground text-base font-bold leading-5 tracking-[0.01em]">
-            Popular Services
+            {t("popularServices")}
           </h2>
           <Link
             to="/user/services"
             className="text-[#0d56e9] dark:text-[#9BBCFF] text-[15px] font-semibold leading-5 tracking-[0.01em] hover:opacity-80"
           >
-            View all
+            {t("viewAll")}
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-2.5">
@@ -363,4 +370,3 @@ export default memo(function UserHome() {
     </div>
   );
 });
-
