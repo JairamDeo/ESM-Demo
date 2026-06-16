@@ -3,11 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, FileText, UploadCloud, AlertTriangle } from "lucide-react";
 import { useAddComment } from "@/hooks/useApi";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 export default function ConcernReviewSubmit() {
   const location = useLocation();
   const navigate = useNavigate();
   const addComment = useAddComment();
+  const { t } = useTranslation();
 
   const {
     concernMode = false,
@@ -113,12 +115,12 @@ export default function ConcernReviewSubmit() {
   if (!targetId || (!isLegacySingleDoc && !isDocumentOnly && !generalMode && !isGeneralFull)) {
     return (
       <div className="px-3 py-8 text-center space-y-3">
-        <p className="text-sm text-muted-foreground">Invalid concern session.</p>
+        <p className="text-sm text-muted-foreground">{t("invalidConcernSession")}</p>
         <button
           onClick={() => navigate("/user/complaints")}
           className="text-sm text-primary font-medium"
         >
-          Back to complaints
+          {t("backToComplaints")}
         </button>
       </div>
     );
@@ -134,17 +136,17 @@ export default function ConcernReviewSubmit() {
           >
             <ChevronLeft className="w-5 h-5 text-foreground" />
           </button>
-          <h1 className="text-lg font-semibold text-foreground">Review & Submit</h1>
+          <h1 className="text-lg font-semibold text-foreground">{t("reviewSubmit")}</h1>
         </div>
         <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">
-          {isLegacySingleDoc || isDocumentOnly ? "Step 2 / 2" : isGeneralFull ? "Step 3 / 3" : "Step 1 / 1"}
+          {isLegacySingleDoc || isDocumentOnly ? t("step2of2") : isGeneralFull ? t("step3of3") : t("step1of1")}
         </span>
       </div>
 
       <div className="bg-destructive/10 border border-destructive/25 rounded-xl p-3.5 flex gap-3">
         <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-destructive">Officer concern</p>
+          <p className="text-sm font-semibold text-destructive">{t("officerConcern")}</p>
           <p className="text-xs text-foreground/90 mt-1 whitespace-pre-wrap">{concernMessage}</p>
         </div>
       </div>
@@ -152,7 +154,7 @@ export default function ConcernReviewSubmit() {
       {isLegacySingleDoc && (
         <>
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-foreground">Document to correct</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("documentToCorrect")}</h2>
             <div className="bg-card border border-border rounded-xl p-4 space-y-2">
               <p className="text-sm font-semibold text-primary">{documentLabel}</p>
               {documentText && (
@@ -162,7 +164,7 @@ export default function ConcernReviewSubmit() {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-foreground">Your corrected upload</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("yourCorrectedUpload")}</h2>
             <div className="bg-card border border-border rounded-xl p-4">
               {replacementFile ? (
                 <div className="flex items-center gap-3">
@@ -184,7 +186,7 @@ export default function ConcernReviewSubmit() {
       {isDocumentOnly && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-foreground">
-            {flaggedLabels.length > 1 ? "Documents corrected" : "Document corrected"}
+            {flaggedLabels.length > 1 ? t("documentsCorrected") : t("documentCorrected")}
           </h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-2">
             {(reuploadedDocumentLabels.length > 0 ? reuploadedDocumentLabels : flaggedLabels).map((label: string) => (
@@ -210,7 +212,7 @@ export default function ConcernReviewSubmit() {
 
       {isGeneralFull && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Corrected details</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t("correctedDetails")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-2 text-sm">
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -242,7 +244,7 @@ export default function ConcernReviewSubmit() {
 
       {isGeneralSimple && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Grievance</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t("grievanceLabel")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 text-sm">
             <p className="font-medium">{complaint?.type || form.caseType}</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -254,7 +256,7 @@ export default function ConcernReviewSubmit() {
 
       <div className="space-y-1.5">
         <label className="text-xs font-semibold text-foreground">
-          Your note {isGeneralSimple && <span className="text-destructive">*</span>}
+          {t("yourNote")} {isGeneralSimple && <span className="text-destructive">*</span>}
         </label>
         <textarea
           value={responseNote}
@@ -262,10 +264,10 @@ export default function ConcernReviewSubmit() {
           rows={3}
           placeholder={
             isLegacySingleDoc
-              ? "Optional note about the corrected document..."
+              ? t("optionalNoteDoc")
               : isGeneralFull || isDocumentOnly
-                ? "Optional note for the officer..."
-                : "Enter your response to the officer..."
+                ? t("optionalNoteOfficer")
+                : t("enterResponse")
           }
           className="w-full bg-secondary/40 border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary resize-none"
         />
@@ -273,12 +275,12 @@ export default function ConcernReviewSubmit() {
 
       {(isGeneralSimple || isGeneralFull || isDocumentOnly) && (
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground">Attachment (optional)</label>
+          <label className="text-xs font-semibold text-foreground">{t("attachment")}</label>
           <label className="flex items-center justify-center gap-4 w-full border-2 border-dashed border-[#2952A3] rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/5">
             <UploadCloud className="w-8 h-8 text-[#4F81FF] shrink-0" />
             <div>
-              <p className="text-sm font-semibold">Upload Document</p>
-              <p className="text-xs text-muted-foreground">JPG, PNG, PDF (Max 5 MB)</p>
+              <p className="text-sm font-semibold">{t("uploadDocumentLabel")}</p>
+              <p className="text-xs text-muted-foreground">{t("jpgPngPdf")}</p>
             </div>
             <input
               type="file"
@@ -304,7 +306,7 @@ export default function ConcernReviewSubmit() {
         {addComment.isPending ? (
           <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
         ) : (
-          "Submit Response"
+          t("submitResponse")
         )}
       </button>
     </div>

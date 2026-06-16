@@ -91,6 +91,23 @@ function FormField({ label, children }: { label:string; children:React.ReactNode
   return <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">{label}</label>{children}</div>;
 }
 
+/** Shows a small badge when grievance description/comment was translated from Hindi. */
+function TranslationBadge({ language, failed }: { language?: string; failed?: boolean }) {
+  if (!language || language === "en") return null;
+  if (failed) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/30 ml-2">
+        ⚠ Translation unavailable
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-info/15 text-info border border-info/30 ml-2">
+      🌐 Translated from Hindi
+    </span>
+  );
+}
+
 function InputField({ value, onChange, placeholder, type="text" }: { value:string; onChange:(v:string)=>void; placeholder?:string; type?:string }) {
   return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />;
 }
@@ -1142,8 +1159,28 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         )}
         {grievance.description && (
           <div className="bg-secondary/30 rounded-lg p-3">
-            <p className="text-xs text-muted-foreground mb-1">Description</p>
-            <p className="text-sm text-foreground break-words overflow-hidden">{grievance.description}</p>
+            <p className="text-xs text-muted-foreground mb-1 flex items-center flex-wrap gap-1">
+              Description
+              <TranslationBadge
+                language={grievance.language}
+                failed={grievance.translationFailed}
+              />
+            </p>
+            {/* Admin sees translatedText (EN) by default; falls back to description */}
+            <p className="text-sm text-foreground break-words overflow-hidden">
+              {grievance.translationFailed
+                ? grievance.originalText || grievance.description
+                : grievance.translatedText || grievance.description}
+            </p>
+            {/* Show original Hindi text if translation succeeded */}
+            {grievance.language && grievance.language !== "en" && !grievance.translationFailed && grievance.originalText && (
+              <details className="mt-2">
+                <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground select-none">
+                  View original (Hindi)
+                </summary>
+                <p className="text-xs text-foreground/70 mt-1 whitespace-pre-wrap">{grievance.originalText}</p>
+              </details>
+            )}
           </div>
         )}
         {submittedDocs.length > 0 ? (
@@ -1232,7 +1269,27 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                         ))}
                       </div>
                     )}
-                    {t.note && <p className="text-sm text-foreground whitespace-pre-wrap">{t.note}</p>}
+                    {t.note && (
+                      <div className="mt-1">
+                        <p className="text-sm text-foreground whitespace-pre-wrap">
+                          {t.translationFailed
+                            ? t.originalText || t.note
+                            : t.translatedText || t.note}
+                          <TranslationBadge
+                            language={t.language}
+                            failed={t.translationFailed}
+                          />
+                        </p>
+                        {t.language && t.language !== "en" && !t.translationFailed && t.originalText && (
+                          <details className="mt-1.5">
+                            <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground select-none">
+                              View original (Hindi)
+                            </summary>
+                            <p className="text-xs text-foreground/70 mt-1 whitespace-pre-wrap">{t.originalText}</p>
+                          </details>
+                        )}
+                      </div>
+                    )}
                     {t.attachments?.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {t.attachments.map((url: string, idx: number) => {

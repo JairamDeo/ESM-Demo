@@ -7,11 +7,13 @@ import { loadVeteranDocumentPreview, type VeteranUploadPreview } from "@/lib/vet
 import { saveGrievanceDraft, clearGrievanceDraft, clearDraftResumeSession } from "@/lib/grievanceDraft";
 import { DocumentPreviewModal } from "@/components/DocumentPreviewModal";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 export default function ReviewSubmit() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const createGrievance = useCreateGrievance();
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [preview, setPreview] = useState<VeteranUploadPreview | null>(null);
@@ -121,9 +123,9 @@ export default function ReviewSubmit() {
             >
               <ChevronLeft className="w-5 h-5 text-foreground" />
             </button>
-            <h1 className="text-lg font-semibold text-foreground">Review & Submit</h1>
+            <h1 className="text-lg font-semibold text-foreground">{t("reviewSubmit")}</h1>
           </div>
-          <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">Step 3 / 3</span>
+          <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">{t("step3of3")}</span>
         </div>
 
         <div className="bg-[#826CF3]/10 border border-[#826CF3]/40 rounded-xl p-3.5 flex items-start gap-3">
@@ -131,18 +133,18 @@ export default function ReviewSubmit() {
             <img src="/icons/info.svg" className="w-5 h-5" alt="" />
           </div>
           <p className="text-sm text-foreground/90 leading-relaxed">
-            Please review all the details below before submitting your grievance.
+            {t("reviewDesc")}
           </p>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Services Details</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("servicesDetails")}</h2>
             <button
               onClick={() => navigate("/user/raise-grievance", { state: { form, caseType, isFromQR } })}
               className="text-sm font-medium px-2 text-[#FF2E27] hover:text-[#fe0c03]"
             >
-              Edit
+              {t("edit")}
             </button>
           </div>
           <div className="bg-card border border-border rounded-xl p-4">
@@ -161,20 +163,20 @@ export default function ReviewSubmit() {
                 onClick={() => navigate("/user/raise-grievance", { state: { form, caseType, isFromQR } })}
                 className="text-sm font-medium text-[#579BFF] hover:opacity-80"
               >
-                Change
+                {t("change")}
               </button>
             </div>
           </div>
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Grievance Details</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t("grievanceDetails")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-0">
             {[
-              { label: "Concern for", value: form.concernType },
-              { label: "Station HQ", value: form.stationHQ },
-              { label: "Rank", value: form.rank },
-              { label: "Army No", value: form.armyNumber },
+              { label: t("concernFor"), value: form.concernType === "Self" ? t("self") : form.concernType === "Dependent" ? t("dependent") : form.concernType },
+              { label: t("stationHQLabel"), value: form.stationHQ },
+              { label: t("rankLabel"), value: form.rank },
+              { label: t("armyNo"), value: form.armyNumber },
             ].map((row, i) => (
               <div
                 key={i}
@@ -185,7 +187,7 @@ export default function ReviewSubmit() {
               </div>
             ))}
             <div className="pt-3">
-              <span className="text-sm font-medium text-foreground block mb-2">Description</span>
+              <span className="text-sm font-medium text-foreground block mb-2">{t("description")}</span>
               <p className="text-sm text-foreground leading-relaxed px-1 break-words overflow-hidden">
                 {form.description || "—"}
               </p>
@@ -194,7 +196,7 @@ export default function ReviewSubmit() {
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Documents summary</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t("documentsSummary")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-5">
             {documents.length > 0 ? (
               documents.map((doc: any, index: number) => {
@@ -245,13 +247,13 @@ export default function ReviewSubmit() {
                         </div>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
                           <img src="/icons/upload.svg" className="w-4 h-4" alt="" />
-                          1 file uploaded
+                          1 {t("fileUploaded")}
                         </div>
                       </div>
                     ) : (
                       <div className="ml-10 flex items-center gap-1.5 text-xs text-muted-foreground">
                         <img src="/icons/upload.svg" className="w-4 h-4" alt="" />
-                        No file uploaded
+                        {t("noFileUploaded")}
                       </div>
                     )}
                   </div>
@@ -260,7 +262,7 @@ export default function ReviewSubmit() {
             ) : (
               <div className="flex flex-col items-center justify-center py-4 opacity-80">
                 <Folder className="w-10 h-10 text-muted-foreground/30 mb-2" />
-                <p className="text-sm font-medium text-foreground">No documents required.</p>
+                <p className="text-sm font-medium text-foreground">{t("noDocsRequiredReview")}</p>
               </div>
             )}
           </div>
@@ -276,7 +278,7 @@ export default function ReviewSubmit() {
             {createGrievance.isPending ? (
               <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
             ) : (
-              "Confirm & Submit"
+              t("confirmSubmit")
             )}
           </button>
 
@@ -286,7 +288,7 @@ export default function ReviewSubmit() {
             disabled={createGrievance.isPending}
             className="flex-1 min-w-0 bg-secondary border border-border text-foreground font-semibold text-sm py-3.5 px-3 rounded-xl hover:bg-secondary/80 transition-colors disabled:opacity-50"
           >
-            Save as Draft
+            {t("saveDraft")}
           </button>
         </div>
       </div>

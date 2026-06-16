@@ -2,10 +2,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Check, Copy, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function Success() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const {
     grievanceId = "GRV/2025/05/24/0815",
@@ -33,7 +35,7 @@ export default function Success() {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(grievanceId);
-    toast.success("Grievance ID copied to clipboard");
+    toast.success("Copied to clipboard");
   };
 
   return (
@@ -52,10 +54,10 @@ export default function Success() {
 
       {/* Title */}
       <h1 className="text-xl font-bold text-foreground mb-2 text-center">
-        Grievance submitted Successfully!
+        {t("grievanceSubmitted")}
       </h1>
       <p className="text-sm text-foreground/70 text-center max-w-[260px] leading-relaxed mb-8">
-        Your grievance has been submitted successfully & is being processed
+        {t("successMessage")}
       </p>
 
       {/* Details Card */}
@@ -90,7 +92,7 @@ export default function Success() {
           </div>
 
           <div className="flex items-start justify-between py-3.5">
-            <span className="text-sm text-foreground pt-0.5">Service</span>
+            <span className="text-sm text-foreground pt-0.5">{t("services")}</span>
             <div className="text-right flex flex-col items-end gap-1">
               <span className="text-sm text-foreground font-medium ">{category}</span>
               <span className="text-sm text-foreground flex items-center gap-1.5">
@@ -101,17 +103,17 @@ export default function Success() {
           </div>
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-foreground">Concern Type</span>
-            <span className="text-sm text-foreground font-medium">{concernType}</span>
+            <span className="text-sm text-foreground">{t("concernFor")}</span>
+            <span className="text-sm text-foreground font-medium">{concernType === "Self" ? t("self") : concernType === "Dependent" ? t("dependent") : concernType}</span>
           </div>
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-foreground">Station HQ</span>
+            <span className="text-sm text-foreground">{t("stationHQLabel")}</span>
             <span className="text-sm text-foreground font-medium">{stationHQ}</span>
           </div>
 
           <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-foreground">Status</span>
+            <span className="text-sm text-foreground">{t("status")}</span>
             <span className="text-sm font-semibold text-[#20A13C]">Submitted</span>
           </div>
 
@@ -123,7 +125,7 @@ export default function Success() {
         onClick={() => navigate("/user")}
         className="mt-8 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        Back to Home
+        {t("backToHome")}
       </button>
 
     </div>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/categoryIcons";
 import { useGrievanceDraft } from "@/hooks/useGrievanceDraft";
 import { getDraftContinueRoute, getDraftStepLabel, beginDraftResume } from "@/lib/grievanceDraft";
+import { useTranslation } from "react-i18next";
 
 const CATEGORY_ORDER = [
   "Identity & Personal",
@@ -34,6 +35,7 @@ const getCaseTypeCategoryLabel = (ct: any) =>
 export default function Services() {
   const { user } = useAuth();
   const location = useLocation();
+  const { t } = useTranslation();
   const { data: caseTypes = [], isLoading, isError, error } = useCaseTypes({ status: "active" });
   const { data: categories = [] } = useCategories({ status: "active" });
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,6 +43,7 @@ export default function Services() {
 
   useEffect(() => {
     const fromMenu = (location.state as { openCategory?: string } | null)?.openCategory;
+    if (fromMenu) setOpenCategory(fromMenu);
     if (fromMenu) setOpenCategory(fromMenu);
   }, [location.state]);
 
@@ -116,7 +119,7 @@ export default function Services() {
         <Link to="/user" className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground mt-1">
           <ChevronRight className="w-5 h-5 rotate-180 text-foreground" />
         </Link>
-        <h1 className="text-xl font-semibold text-foreground">Services</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("services")}</h1>
       </div>
 
       {draft && draftRoute && (
@@ -130,7 +133,7 @@ export default function Services() {
             <FileEdit className="w-5 h-5 text-[#826CF3]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">Continue your draft</p>
+            <p className="text-sm font-semibold text-foreground">{t("continueDraftServices")}</p>
             <p className="text-xs text-muted-foreground truncate">
               {draft.form.caseType || "Grievance"} · {getDraftStepLabel(draft.step)}
             </p>
@@ -144,7 +147,7 @@ export default function Services() {
         <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         <input
           type="text"
-          placeholder="Search services"
+          placeholder={t("searchServicesInput")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground w-full"
@@ -155,14 +158,14 @@ export default function Services() {
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-12 space-y-3">
           <span className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Loading services...</p>
+          <p className="text-sm text-muted-foreground">{t("loadingServices")}</p>
         </div>
       )}
 
       {/* Error */}
       {isError && !isLoading && (
         <div className="text-center py-10 bg-card border border-border rounded-2xl space-y-2">
-          <p className="text-sm text-destructive">Could not load services.</p>
+          <p className="text-sm text-destructive">{t("couldNotLoadServices")}</p>
           <p className="text-xs text-muted-foreground">
             {(error as any)?.response?.data?.message || (error as Error)?.message}
           </p>
@@ -173,7 +176,7 @@ export default function Services() {
       {!isLoading && !isError && groupedCategories.length === 0 && (
         <div className="text-center py-10 bg-card border border-border rounded-2xl">
           <p className="text-sm text-muted-foreground">
-            {searchQuery ? "No services found matching your search." : "No active services available."}
+            {searchQuery ? t("noServicesFound") : t("noActiveServices")}
           </p>
         </div>
       )}

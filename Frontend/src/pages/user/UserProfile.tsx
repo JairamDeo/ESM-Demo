@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyGrievances, useUpdateProfile, useUserMe } from "@/hooks/useApi";
+import { useTranslation } from "react-i18next";
 
 interface ProfileForm {
   name: string;
@@ -34,6 +35,8 @@ function FieldCard({
   onChange,
   readOnly,
   placeholder,
+  notAddedLabel,
+  cannotBeChangedLabel,
 }: {
   icon: typeof User;
   iconBg: string;
@@ -44,6 +47,8 @@ function FieldCard({
   onChange?: (v: string) => void;
   readOnly?: boolean;
   placeholder?: string;
+  notAddedLabel?: string;
+  cannotBeChangedLabel?: string;
 }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
@@ -62,11 +67,11 @@ function FieldCard({
             />
           ) : (
             <p className="text-sm font-medium text-foreground mt-1 break-words">
-              {value || <span className="text-muted-foreground font-normal">Not added</span>}
+              {value || <span className="text-muted-foreground font-normal">{notAddedLabel ?? "Not added"}</span>}
             </p>
           )}
           {readOnly && (
-            <p className="text-[10px] text-muted-foreground mt-1">Cannot be changed</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{cannotBeChangedLabel ?? "Cannot be changed"}</p>
           )}
         </div>
       </div>
@@ -75,6 +80,7 @@ function FieldCard({
 }
 
 export default memo(function UserProfile() {
+  const { t } = useTranslation();
   const { user, updateUser } = useAuth();
   const updateProfile = useUpdateProfile();
   const { data: userMe, isLoading } = useUserMe();
@@ -166,8 +172,8 @@ export default memo(function UserProfile() {
               <ChevronLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-xl font-bold text-foreground">My Profile</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Manage your personal details</p>
+              <h1 className="text-xl font-bold text-foreground">{t("myProfile")}</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("managePersonalDetails")}</p>
             </div>
           </div>
           {!editing ? (
@@ -177,7 +183,7 @@ export default memo(function UserProfile() {
               className="flex items-center gap-1.5 text-sm font-semibold text-[#826CF3] bg-[#826CF3]/10 px-3 py-1.5 rounded-full hover:bg-[#826CF3]/15 transition-colors"
             >
               <Edit2 className="w-3.5 h-3.5" />
-              Edit
+              {t("editBtn")}
             </button>
           ) : (
             <div className="flex items-center gap-2">
@@ -199,7 +205,7 @@ export default memo(function UserProfile() {
                 ) : (
                   <>
                     <Save className="w-3.5 h-3.5" />
-                    Save
+                    {t("saveBtn")}
                   </>
                 )}
               </button>
@@ -228,11 +234,11 @@ export default memo(function UserProfile() {
             <div className="flex items-center gap-4 mt-4 w-full max-w-xs">
               <div className="flex-1 bg-background/60 backdrop-blur rounded-xl py-2.5 px-3 border border-border/50">
                 <p className="text-lg font-bold text-foreground">{totalComplaints}</p>
-                <p className="text-[10px] text-muted-foreground font-medium">Complaints</p>
+                <p className="text-[10px] text-muted-foreground font-medium">{t("complaintsLabel")}</p>
               </div>
               <div className="flex-1 bg-background/60 backdrop-blur rounded-xl py-2.5 px-3 border border-border/50">
                 <p className="text-lg font-bold text-[#826CF3]">{profileComplete}%</p>
-                <p className="text-[10px] text-muted-foreground font-medium">Profile</p>
+                <p className="text-[10px] text-muted-foreground font-medium">{t("profileLabel")}</p>
               </div>
             </div>
 
@@ -245,8 +251,8 @@ export default memo(function UserProfile() {
               </div>
               <p className="text-[10px] text-muted-foreground mt-1.5">
                 {profileComplete < 100
-                  ? "Complete your profile for faster grievance processing"
-                  : "Profile complete"}
+                  ? t("completeProfileMsg")
+                  : t("profileComplete")}
               </p>
             </div>
           </div>
@@ -256,83 +262,95 @@ export default memo(function UserProfile() {
       <div className="px-4 space-y-6">
         <section>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Personal
+            {t("personalSection")}
           </p>
           <div className="space-y-2">
             <FieldCard
               icon={User}
               iconBg="bg-[#826CF3]/15"
               iconColor="text-[#826CF3]"
-              label="Full Name"
+              label={t("fullNameLabel")}
               value={form.name}
               editing={editing}
               onChange={(v) => setField("name", v)}
-              placeholder="Enter your full name"
+              placeholder={t("enterFullNamePlaceholder")}
+              notAddedLabel={t("notAdded")}
+              cannotBeChangedLabel={t("cannotBeChanged")}
             />
             <FieldCard
               icon={Phone}
               iconBg="bg-[#4F81FF]/15"
               iconColor="text-[#4F81FF]"
-              label="Phone Number"
+              label={t("phoneNumberFieldLabel")}
               value={phone ? `+91 ${phone}` : ""}
               editing={false}
               readOnly
+              notAddedLabel={t("notAdded")}
+              cannotBeChangedLabel={t("cannotBeChanged")}
             />
           </div>
         </section>
 
         <section>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Service Details
+            {t("serviceDetailsSection")}
           </p>
           <div className="space-y-2">
             <FieldCard
               icon={Shield}
               iconBg="bg-amber-500/15"
               iconColor="text-amber-500"
-              label="Rank"
+              label={t("rankFieldLabel")}
               value={form.rank}
               editing={editing}
               onChange={(v) => setField("rank", v)}
-              placeholder="e.g. Havildar, Naik"
+              placeholder={t("rankFieldPlaceholder")}
+              notAddedLabel={t("notAdded")}
+              cannotBeChangedLabel={t("cannotBeChanged")}
             />
             <FieldCard
               icon={Hash}
               iconBg="bg-emerald-500/15"
               iconColor="text-emerald-500"
-              label="Army / Service Number"
+              label={t("armyServiceNumber")}
               value={form.serviceNumber}
               editing={editing}
               onChange={(v) => setField("serviceNumber", v)}
-              placeholder="Enter service number"
+              placeholder={t("enterServiceNumber")}
+              notAddedLabel={t("notAdded")}
+              cannotBeChangedLabel={t("cannotBeChanged")}
             />
           </div>
         </section>
 
         <section>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-            Contact
+            {t("contactSection")}
           </p>
           <div className="space-y-2">
             <FieldCard
               icon={Mail}
               iconBg="bg-[#4F81FF]/15"
               iconColor="text-[#4F81FF]"
-              label="Email"
+              label={t("emailLabel")}
               value={form.email}
               editing={editing}
               onChange={(v) => setField("email", v)}
-              placeholder="your@email.com"
+              placeholder={t("emailPlaceholderField")}
+              notAddedLabel={t("notAdded")}
+              cannotBeChangedLabel={t("cannotBeChanged")}
             />
             <FieldCard
               icon={MapPin}
               iconBg="bg-rose-500/15"
               iconColor="text-rose-500"
-              label="Address"
+              label={t("addressLabel")}
               value={form.address}
               editing={editing}
               onChange={(v) => setField("address", v)}
-              placeholder="City, State, PIN"
+              placeholder={t("addressPlaceholderField")}
+              notAddedLabel={t("notAdded")}
+              cannotBeChangedLabel={t("cannotBeChanged")}
             />
           </div>
         </section>
@@ -344,7 +362,7 @@ export default memo(function UserProfile() {
             className="w-full py-3.5 bg-secondary border border-border text-foreground rounded-2xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-secondary/80 transition-colors"
           >
             <X className="w-4 h-4" />
-            Cancel changes
+            {t("cancelChanges")}
           </button>
         )}
 
@@ -352,7 +370,7 @@ export default memo(function UserProfile() {
           to="/user/settings"
           className="block text-center text-xs text-muted-foreground hover:text-[#826CF3] transition-colors py-2"
         >
-          Account settings →
+          {t("accountSettings")}
         </Link>
       </div>
     </div>

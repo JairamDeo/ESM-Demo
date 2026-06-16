@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { detectAndTranslateToEnglish, translateFromEnglish } from "../services/translateService";
 import mongoose from "mongoose";
 import Grievance from "../models/Grievance";
 import Escalation from "../models/Escalation";
@@ -245,6 +246,23 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       }
     }
 
+    // ── Translate description (veteran → English for admin) ──────────────────
+    let translationData: {
+      originalText?: string;
+      translatedText?: string;
+      language?: string;
+      translationFailed?: boolean;
+    } = {};
+    if (description && String(description).trim()) {
+      const xlat = await detectAndTranslateToEnglish(String(description).trim());
+      translationData = {
+        originalText: xlat.originalText,
+        translatedText: xlat.translatedText,
+        language: xlat.language,
+        translationFailed: xlat.translationFailed,
+      };
+    }
+
     const grievance = await Grievance.create({
       grievanceId,
       type: resolvedType,
@@ -271,6 +289,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       submissionSource: submissionSource || "portal",
       ...(slaTierDeadline ? { slaDeadline: slaTierDeadline, slaTierDeadline } : {}),
       userId,
+      ...translationData,
       timeline: [{
         status: "pending",
         note: l1Officer
@@ -280,6 +299,12 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
         updatedAt: now,
         attachments,
         eventType: "status",
+        ...(translationData.originalText !== undefined ? {
+          originalText: translationData.originalText,
+          translatedText: translationData.translatedText,
+          language: translationData.language,
+          translationFailed: translationData.translationFailed,
+        } : {}),
       }],
     });
 
@@ -758,6 +783,32 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
               : `Concern on ${resolvedDocumentLabel}`
             : "General concern raised");
 
+    // ── Translate comment bidirectionally ─────────────────────────────────────
+    // Veteran writes in Hindi → translate to English for admin
+    // Admin/Officer writes in English → translate to Hindi for veteran
+    let commentOriginalText: string | undefined;
+    let commentTranslatedText: string | undefined;
+    let commentLanguage: string | undefined;
+    let commentTranslationFailed: boolean | undefined;
+
+    if (noteText && noteText.trim()) {
+      if (isVeteran) {
+        // Veteran: detect language and translate to English
+        const xlat = await detectAndTranslateToEnglish(noteText);
+        commentOriginalText    = xlat.originalText;
+        commentTranslatedText  = xlat.translatedText;
+        commentLanguage        = xlat.language;
+        commentTranslationFailed = xlat.translationFailed;
+      } else {
+        // Admin/Officer: translate English → Hindi for veteran to read
+        const xlat = await translateFromEnglish(noteText, "hi");
+        commentOriginalText    = noteText;
+        commentTranslatedText  = xlat.translatedText;
+        commentLanguage        = "en";
+        commentTranslationFailed = xlat.failed;
+      }
+    }
+
     const commentPayload = {
       authorId: authUser?.id,
       authorName: resolvedName,
@@ -770,6 +821,13 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
       documentUploadId: concernDocuments.length === 1 ? resolvedUploadId : undefined,
       concernDocuments: concernDocuments.length > 0 ? concernDocuments : undefined,
       replacedDocumentUrl,
+      // Translation fields on comment
+      ...(commentOriginalText !== undefined ? {
+        originalText: commentOriginalText,
+        translatedText: commentTranslatedText,
+        language: commentLanguage,
+        translationFailed: commentTranslationFailed,
+      } : {}),
       createdAt: new Date(),
     };
 
@@ -788,6 +846,12 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
       documentUploadId: concernDocuments.length === 1 ? resolvedUploadId : undefined,
       concernDocuments: concernDocuments.length > 0 ? concernDocuments : undefined,
       replacedDocumentUrl,
+      ...(commentOriginalText !== undefined ? {
+        originalText: commentOriginalText,
+        translatedText: commentTranslatedText,
+        language: commentLanguage,
+        translationFailed: commentTranslationFailed,
+      } : {}),
     });
 
     grievance.concernStatus = isVeteran ? "awaiting_officer" : "awaiting_veteran";

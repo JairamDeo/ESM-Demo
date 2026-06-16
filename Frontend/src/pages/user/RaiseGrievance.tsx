@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, Paperclip, X, FileText, Image, ChevronUp } fr
 import { useCreateGrievance, useCaseTypes, useStations } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 const CATEGORY_CONFIG = [
   { key: "Identity & Personal", icon: <img src="/icons/profile-filled.svg" className="w-6 h-6" />, bg: "bg-[#D2E5FC]" },
@@ -66,6 +67,7 @@ export default memo(function RaiseGrievance() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
   const { data: stationsData } = useStations({ limit: 100 });
@@ -154,7 +156,7 @@ export default memo(function RaiseGrievance() {
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(() => {
     if (!form.concernType || !form.caseType || !form.stationHQ) {
-      toast.error("Please fill all required fields");
+      toast.error(t("fillRequired"));
       return;
     }
     if (generalConcernMode) {
@@ -196,11 +198,11 @@ export default memo(function RaiseGrievance() {
             </Link>
           )}
           <h1 className="text-lg font-semibold text-foreground">
-            {generalConcernMode ? "Correct Details" : "Raise Grievance"}
+            {generalConcernMode ? t("correctDetails") : t("raiseGrievance")}
           </h1>
         </div>
         <span className="text-xs font-semibold text-[#1754CF] dark:text-[#F0C902]">
-          {generalConcernMode ? (hasDocumentFixes ? "Step 1 / 3" : "Step 1 / 3") : "Step 1 / 3"}
+          {generalConcernMode ? (hasDocumentFixes ? t("step1of3") : t("step1of2")) : t("step1of3")}
         </span>
       </div>
 
@@ -216,7 +218,7 @@ export default memo(function RaiseGrievance() {
         <div className="mx-4 mb-3 flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-xl px-3 py-2">
           <span className="text-primary text-xs">📱</span>
           <p className="text-xs text-primary">
-            Station pre-filled from QR — <span className="font-semibold">{stationFromQR}</span>
+            {t("stationPreFilled")} <span className="font-semibold">{stationFromQR}</span>
           </p>
         </div>
       )}
@@ -226,7 +228,7 @@ export default memo(function RaiseGrievance() {
         {/* ── Services accordion ───────────────────────────────────────── */}
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-foreground">
-            Services <span className="text-red-500">*</span>
+            {t("services")} <span className="text-red-500">*</span>
           </label>
 
           {/* Toggle button showing selected value */}
@@ -236,7 +238,7 @@ export default memo(function RaiseGrievance() {
             className={`w-full flex items-center justify-between bg-secondary border border-border rounded-xl px-4 py-3 text-sm transition-colors ${generalConcernMode ? "opacity-70 cursor-not-allowed" : ""}`}
           >
             <span className={form.caseType ? "text-foreground font-normal" : "text-muted-foreground"}>
-              {form.caseType || "Select Services"}
+              {form.caseType || t("selectServices")}
             </span>
             {servicesOpen
               ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -306,25 +308,25 @@ export default memo(function RaiseGrievance() {
 
         {/* Concern For */}
         <SelectRow
-          label="Concern For"
+          label={t("concernFor")}
           value={form.concernType}
           onChange={(v: string) => setForm((prev) => ({ ...prev, concernType: v }))}
           required
         >
-          <option value="" disabled hidden>Select concern type</option>
-          <option value="Self">Self</option>
-          <option value="Dependent">Dependent</option>
+          <option value="" disabled hidden>{t("selectConcernType")}</option>
+          <option value="Self">{t("self")}</option>
+          <option value="Dependent">{t("dependent")}</option>
         </SelectRow>
 
         {/* Station HQ */}
         <SelectRow
-          label="Station HQ"
+          label={t("stationHQLabel")}
           value={form.stationHQ}
           onChange={(v: string) => setForm((prev) => ({ ...prev, stationHQ: v }))}
           required
           disabled={isFromQR}
         >
-          <option value="" disabled hidden>Select Station HQ</option>
+          <option value="" disabled hidden>{t("selectStationHQ")}</option>
           {stationHQsList.map((s: any) => (
             <option key={s._id || s.name} value={s.name}>{s.name}</option>
           ))}
@@ -332,28 +334,28 @@ export default memo(function RaiseGrievance() {
 
         {/* Rank */}
         <InputRow
-          label="Rank"
+          label={t("rankLabel")}
           value={form.rank}
           onChange={(v: string) => setForm((prev) => ({ ...prev, rank: v }))}
-          placeholder="Enter rank"
+          placeholder={t("enterRank")}
         />
 
         {/* Army No */}
         <InputRow
-          label="Army No"
+          label={t("armyNo")}
           value={form.armyNumber}
           onChange={(v: string) => setForm((prev) => ({ ...prev, armyNumber: v }))}
-          placeholder="Enter army number"
+          placeholder={t("enterArmyNo")}
         />
 
         {/* Description */}
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-foreground">Description</label>
+          <label className="block text-sm font-medium text-foreground">{t("description")}</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
             rows={4}
-            placeholder="Describe your grievance..."
+            placeholder={t("descriptionPlaceholder")}
             className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors resize-none leading-relaxed"
           />
         </div>
@@ -364,7 +366,7 @@ export default memo(function RaiseGrievance() {
           disabled={!form.concernType || !form.caseType || !form.stationHQ}
           className="w-full bg-[#826CF3] text-white font-bold text-sm py-4 rounded-xl shadow-[0_4px_16px_rgba(130,108,243,0.35)] flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Continue
+          {t("continue")}
         </button>
 
       </div>

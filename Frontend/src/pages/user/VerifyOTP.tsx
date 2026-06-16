@@ -4,6 +4,7 @@ import { ArrowLeft, Sun, Moon, Clock } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 const DEFAULT_EXPIRY = 120;
 const DEFAULT_RESEND_AFTER = 30;
@@ -21,6 +22,7 @@ export default memo(function VerifyOTP() {
   const { resolvedTheme, toggleTheme } = useTheme();
   const { sendOtp, verifyOtp } = useAuth();
   const phone = (location.state as any)?.phone || "";
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!phone) {
@@ -133,10 +135,10 @@ export default memo(function VerifyOTP() {
         {/* Scroll only if keyboard / very small screen needs it */}
         <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto overscroll-contain scrollbar-none py-1">
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground mb-2 sm:mb-3 text-center">
-            Verify OTP
+            {t("verifyOtp")}
           </h1>
           <p className="text-xs text-foreground/80 text-center leading-relaxed mb-4 sm:mb-6 px-1">
-            We&apos;ve sent a 4-digit verification code to your registered mobile number ending in{" "}
+            {t("otpSentTo")}{" "}
             <span className="font-semibold text-foreground">{maskedPhone}</span>
           </p>
 
@@ -173,23 +175,23 @@ export default memo(function VerifyOTP() {
               >
                 {expiryTimer > 0
                   ? `${String(expiryMinutes).padStart(2, "0")}:${String(expirySeconds).padStart(2, "0")}`
-                  : "Expired"}
+                  : t("expired")}
               </span>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 mb-2 sm:mb-4 px-1">
-            <p className="text-xs sm:text-sm text-muted-foreground">Didn&apos;t receive the code?</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">{t("didntReceive")}</p>
             <button
               onClick={handleResend}
               disabled={resendTimer > 0 || resending}
               className="text-xs sm:text-sm font-medium text-[#1754CF] dark:text-[#9CF3D2] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {resending
-                ? "Sending..."
+                ? t("sendingOtp")
                 : resendTimer > 0
-                  ? `Resend in ${resendTimer}s`
-                  : "Resend OTP"}
+                  ? `${t("resendIn")} ${resendTimer}s`
+                  : t("resendOtp")}
             </button>
           </div>
 
@@ -212,10 +214,10 @@ export default memo(function VerifyOTP() {
             {loading ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Verifying...
+                {t("verifying")}
               </>
             ) : (
-              "Verify OTP"
+              t("verifyOtp")
             )}
           </button>
         </div>
