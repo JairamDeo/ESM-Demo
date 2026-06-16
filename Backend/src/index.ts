@@ -6,7 +6,6 @@ import { verifyCloudinaryConnection } from "./services/storageService";
 import { getLanIPv4Addresses } from "./utils/network";
 
 import { runSlaEscalationCheck } from "./services/slaEscalationService";
-import { ensureSuperAdminExists } from "./services/superAdminBootstrap";
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -16,7 +15,6 @@ const startServer = async () => {
     // Connect to MongoDB first
     await connectDB();
     await ensureRolePermissionsSeeded();
-    await ensureSuperAdminExists();
     await verifyCloudinaryConnection();
 
     // Auto SLA escalation check every 5 minutes (+ once on startup)

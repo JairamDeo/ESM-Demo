@@ -13,6 +13,8 @@
     "backfill:required-docs": "ts-node src/scripts/backfill-required-documents.ts",
     "migrate:category-icons": "ts-node src/scripts/migrate-category-icons-to-cloudinary.ts",
     "seed:test-hierarchy": "ts-node src/scripts/seedTestHierarchy.ts",
+    "seed:org-officers": "ts-node src/scripts/seedOrgOfficers.ts",
+    "set:officer-passwords": "ts-node src/scripts/setOfficerPasswords.ts",
     "fix:stations-hq-mapping": "ts-node src/scripts/fixStationsHqAreaMapping.ts"
   },
   "keywords": [],

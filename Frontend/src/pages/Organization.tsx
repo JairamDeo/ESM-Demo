@@ -139,6 +139,7 @@ export default memo(function Organization() {
   const [areaForm, setAreaForm] = useState({ name: "", code: "" });
   const [hqForm, setHqForm] = useState({ name: "", city: "", stateId: "", address: "" });
   const [stationForm, setStationForm] = useState({
+    name: "",
     city: "",
     stateId: "",
     stateName: "",
@@ -278,17 +279,16 @@ export default memo(function Organization() {
   }, [hqForm, createHQ, isArea, user?.stateId]);
 
   const handleCreateStation = useCallback(async () => {
-    if (!stationForm.city.trim() || !stationForm.stateName || !stationForm.hqId) return;
-    const name = `${stationForm.city.trim()} Station HQ`;
+    if (!stationForm.name.trim() || !stationForm.city.trim() || !stationForm.stateName || !stationForm.hqId) return;
     await createStation.mutateAsync({
-      name,
+      name: stationForm.name.trim(),
       city: stationForm.city.trim(),
       state: stationForm.stateName,
       hqId: stationForm.hqId,
       hqName: stationForm.hqName,
       address: stationForm.address,
     });
-    setStationForm({ city: "", stateId: "", stateName: "", hqId: "", hqName: "", address: "" });
+    setStationForm({ name: "", city: "", stateId: "", stateName: "", hqId: "", hqName: "", address: "" });
     setStationOpen(false);
   }, [stationForm, createStation]);
 
@@ -550,6 +550,7 @@ export default memo(function Organization() {
               onClick={() => {
                 if (isHQ && user?.hqId) {
                   setStationForm({
+                    name: "",
                     city: "",
                     address: "",
                     stateId: user.stateId || "",
@@ -802,18 +803,21 @@ export default memo(function Organization() {
             </>
           )}
           <Field
+            label="Station HQ Name *"
+            value={stationForm.name}
+            onChange={(v) => setStationForm({ ...stationForm, name: v })}
+            placeholder="e.g. Nagpur Station HQ"
+          />
+          <Field
             label="City *"
             value={stationForm.city}
             onChange={(v) => setStationForm({ ...stationForm, city: v })}
             placeholder="Nagpur"
           />
-          {stationForm.city && (
-            <p className="text-xs text-muted-foreground -mt-2">Name: {stationForm.city} Station HQ</p>
-          )}
           <Submit
             onClick={handleCreateStation}
             loading={createStation.isPending}
-            disabled={!stationForm.city || !stationForm.hqId || !stationForm.stateName}
+            disabled={!stationForm.name.trim() || !stationForm.city || !stationForm.hqId || !stationForm.stateName}
             label="Create Station HQ"
           />
         </Modal>

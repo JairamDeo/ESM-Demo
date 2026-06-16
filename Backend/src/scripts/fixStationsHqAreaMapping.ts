@@ -1,7 +1,7 @@
 /**
- * Fix station → HQ mapping when stations were created under the wrong HQ.
+ * Fix station → HQ mapping when a station's area does not match its HQ's area.
  *
- * Use-case: Gujarat stations mistakenly assigned to Maharashtra HQ (Kamptee).
+ * Hierarchy: Area (state) → HQ → Station HQ
  *
  * Run: npm run fix:stations-hq-mapping
  */
@@ -11,54 +11,80 @@ dotenv.config();
 
 import Station from "../models/Station";
 import HQ from "../models/HeadQuarter";
-import State from "../models/State";
-import { removeStationFromHQ, syncStationOnHQ } from "../services/hqStationSync";
+import { removeStationFromHQ, syncStationOnHQ, rebuildAllHQStationLists } from "../services/hqStationSync";
+
+async function pickHqForState(stateId: mongoose.Types.ObjectId, hqsInState: any[]): Promise<any> {
+  if (hqsInState.length === 1) return hqsInState[0];
+  // Prefer HQ whose name contains the state's primary city when multiple exist
+  const preferred = hqsInState.find((h) => {
+    const city = String(h.city || "").toLowerCase();
+    const name = String(h.name || "").toLowerCase();
+    return city && name.includes(city);
+  });
+  return preferred || hqsInState[0];
+}
 
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI as string);
   console.log("✅ Connected to MongoDB");
 
-  const gujarat = await State.findOne({ name: { $regex: "^Gujarat$", $options: "i" }, isActive: { $ne: false } }).lean();
-  if (!gujarat) throw new Error("Gujarat state not found");
+  const activeStations = await Station.find({ isActive: { $ne: false } })
+    .select("_id name hqId hqName state stateName")
+    .lean();
 
-  const gujaratHqs = await HQ.find({ isActive: true, stateId: gujarat._id }).lean();
-  if (gujaratHqs.length === 0) throw new Error("No HQ found for Gujarat");
+  const hqById = new Map(
+    (await HQ.find({ isActive: { $ne: false } }).lean()).map((h) => [String(h._id), h])
+  );
 
-  // If multiple Gujarat HQs exist, prefer the one with name containing 'Rajkot'
-  const targetHq =
-    gujaratHqs.find((h: any) => String(h.name || "").toLowerCase().includes("rajkot")) || gujaratHqs[0];
-
-  console.log(`🎯 Target Gujarat HQ: ${targetHq.name} (${targetHq._id})`);
-
-  const wrongStations = await Station.find({
-    isActive: true,
-    state: gujarat._id,
-    hqId: { $ne: targetHq._id },
-  }).select("_id name hqId hqName stateName").lean();
-
-  if (wrongStations.length === 0) {
-    console.log("✅ No stations require remapping.");
-    return;
+  const hqsByState = new Map<string, any[]>();
+  for (const hq of hqById.values()) {
+    const key = String(hq.stateId);
+    if (!hqsByState.has(key)) hqsByState.set(key, []);
+    hqsByState.get(key)!.push(hq);
   }
 
-  console.log(`🔎 Found ${wrongStations.length} station(s) to remap to Gujarat HQ.`);
+  let remapped = 0;
 
-  for (const s of wrongStations) {
-    const oldHqId = s.hqId;
-    console.log(`↪️  ${s.name}: ${s.hqName || oldHqId}  →  ${targetHq.name}`);
+  for (const station of activeStations) {
+    const stationStateId = String(station.state);
+    const currentHq = station.hqId ? hqById.get(String(station.hqId)) : null;
 
-    // Update station document
+    if (currentHq && String(currentHq.stateId) === stationStateId) {
+      continue;
+    }
+
+    const candidates = hqsByState.get(stationStateId) || [];
+    if (candidates.length === 0) {
+      console.warn(`⚠️  No HQ for area ${station.stateName || stationStateId}; skipping ${station.name}`);
+      continue;
+    }
+
+    const targetHq = await pickHqForState(station.state as mongoose.Types.ObjectId, candidates);
+    const oldHqId = station.hqId;
+
+    console.log(
+      `↪️  ${station.name}: ${station.hqName || oldHqId || "none"} → ${targetHq.name} (${station.stateName || stationStateId})`
+    );
+
     await Station.updateOne(
-      { _id: s._id },
+      { _id: station._id },
       { $set: { hqId: targetHq._id, hqName: targetHq.name } }
     );
 
-    // Sync HQ station lists
-    await removeStationFromHQ(oldHqId as any, s._id);
-    await syncStationOnHQ(targetHq._id, s._id, s.name);
+    if (oldHqId) {
+      await removeStationFromHQ(oldHqId as any, station._id);
+    }
+    await syncStationOnHQ(targetHq._id, station._id, station.name);
+    remapped++;
   }
 
-  console.log("✅ Station → HQ mapping fixed.");
+  await rebuildAllHQStationLists();
+
+  if (remapped === 0) {
+    console.log("✅ All stations already mapped to an HQ in their area.");
+  } else {
+    console.log(`✅ Remapped ${remapped} station(s) and rebuilt HQ station lists.`);
+  }
 }
 
 main()
@@ -69,4 +95,3 @@ main()
   .finally(async () => {
     await mongoose.disconnect();
   });
-
