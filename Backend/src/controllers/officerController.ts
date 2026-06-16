@@ -68,7 +68,7 @@ export const getOfficerCreateOptions = async (req: Request, res: Response): Prom
 
 export const getOfficers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { search, role, station, status, page = 1, limit = 20 } = req.query;
+    const { search, role, station, status, page = 1, limit = 20, stateId, hqId, stationId } = req.query;
     const scopeFilter = officerScopeQuery((req as any).user);
     const query: any = { ...scopeFilter };
 
@@ -83,6 +83,9 @@ export const getOfficers = async (req: Request, res: Response): Promise<void> =>
       ];
     }
     if (role) query.role = role;
+    if (stateId) query.stateId = stateId;
+    if (hqId) query.hqId = hqId;
+    if (stationId) query.station = stationId;
     if (station && (req as any).user?.role === "super_admin") {
       query.$or = [
         { stationName: { $regex: station, $options: "i" } },

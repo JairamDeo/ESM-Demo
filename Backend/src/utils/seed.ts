@@ -144,28 +144,48 @@ const seed = async () => {
     },
   ]);
   console.log(`🏛️  Created ${hqs.length} HQs`);
-  const mainHQ = hqs[0];
-  const gjHQ = hqs[1];
+  const mhHQ = hqs[0]; // Kamptee Sub-Area HQ → Maharashtra
+  const gjHQ = hqs[1]; // Rajkot Area HQ → Gujarat
 
-  // ── Stations ──────────────────────────────────────────────────────────────
-  const stationsData = [
-  { name: "Nagpur Station HQ",     city: "Nagpur",     hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 6,  totalCases: 187, resolvedCases: 145, qrActive: true,  qrCode: "NAG-QR-001" },
-  { name: "Pune Station HQ",       city: "Pune",       hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 5,  totalCases: 156, resolvedCases: 128, qrActive: true,  qrCode: "PUN-QR-001" },
-  { name: "Ahmedabad Station HQ",  city: "Ahmedabad",  hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 5,  totalCases: 143, resolvedCases: 112, qrActive: true,  qrCode: "AHM-QR-001" },
-  { name: "Nashik Station HQ",     city: "Nashik",     hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 112, resolvedCases: 89,  qrActive: true,  qrCode: "NAS-QR-001" },
-  { name: "Aurangabad Station HQ", city: "Aurangabad", hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 5,  totalCases: 98,  resolvedCases: 76,  qrActive: true,  qrCode: "AUR-QR-001" },
-  { name: "Kolhapur Station HQ",   city: "Kolhapur",   hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 87,  resolvedCases: 72,  qrActive: true,  qrCode: "KOL-QR-001" },
-  { name: "Solapur Station HQ",    city: "Solapur",    hqId: mainHQ._id, hqName: mainHQ.name, state: mh._id, stateName: "Maharashtra", stateCode: "MH", officerCount: 4,  totalCases: 82,  resolvedCases: 65,  qrActive: true,  qrCode: "SOL-QR-001" },
-  { name: "Baroda Station HQ",     city: "Baroda",     hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 5,  totalCases: 95,  resolvedCases: 78,  qrActive: true,  qrCode: "BAR-QR-001" },
-  { name: "Rajkot Station HQ",     city: "Rajkot",     hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 74,  resolvedCases: 58,  qrActive: false, qrCode: "RAJ-QR-001" },
-  { name: "Surat Station HQ",      city: "Surat",      hqId: mainHQ._id, hqName: mainHQ.name, state: gj._id, stateName: "Gujarat",     stateCode: "GJ", officerCount: 4,  totalCases: 113, resolvedCases: 91,  qrActive: true,  qrCode: "SUR-QR-001" },
-];
+  // ── Stations (each station under HQ in its own area) ─────────────────────
+  const mhStations = [
+    { name: "Nagpur Station HQ",     city: "Nagpur",     officerCount: 6,  totalCases: 187, resolvedCases: 145, qrActive: true,  qrCode: "NAG-QR-001" },
+    { name: "Pune Station HQ",       city: "Pune",       officerCount: 5,  totalCases: 156, resolvedCases: 128, qrActive: true,  qrCode: "PUN-QR-001" },
+    { name: "Nashik Station HQ",     city: "Nashik",     officerCount: 4,  totalCases: 112, resolvedCases: 89,  qrActive: true,  qrCode: "NAS-QR-001" },
+    { name: "Aurangabad Station HQ", city: "Aurangabad", officerCount: 5,  totalCases: 98,  resolvedCases: 76,  qrActive: true,  qrCode: "AUR-QR-001" },
+    { name: "Kolhapur Station HQ",   city: "Kolhapur",   officerCount: 4,  totalCases: 87,  resolvedCases: 72,  qrActive: true,  qrCode: "KOL-QR-001" },
+    { name: "Solapur Station HQ",    city: "Solapur",    officerCount: 4,  totalCases: 82,  resolvedCases: 65,  qrActive: true,  qrCode: "SOL-QR-001" },
+  ].map((s) => ({
+    ...s,
+    hqId: mhHQ._id,
+    hqName: mhHQ.name,
+    state: mh._id,
+    stateName: mh.name,
+    stateCode: mh.code,
+  }));
+
+  const gjStations = [
+    { name: "Ahmedabad Station HQ", city: "Ahmedabad", officerCount: 5, totalCases: 143, resolvedCases: 112, qrActive: true,  qrCode: "AHM-QR-001" },
+    { name: "Baroda Station HQ",    city: "Baroda",    officerCount: 5, totalCases: 95,  resolvedCases: 78,  qrActive: true,  qrCode: "BAR-QR-001" },
+    { name: "Rajkot Station HQ",    city: "Rajkot",    officerCount: 4, totalCases: 74,  resolvedCases: 58,  qrActive: false, qrCode: "RAJ-QR-001" },
+    { name: "Surat Station HQ",     city: "Surat",     officerCount: 4, totalCases: 113, resolvedCases: 91,  qrActive: true,  qrCode: "SUR-QR-001" },
+  ].map((s) => ({
+    ...s,
+    hqId: gjHQ._id,
+    hqName: gjHQ.name,
+    state: gj._id,
+    stateName: gj.name,
+    stateCode: gj.code,
+  }));
+
+  const stationsData = [...mhStations, ...gjStations];
   const stations = await Station.create(stationsData);
-  console.log(`🏢 Created ${stations.length} stations`);
+  console.log(`🏢 Created ${stations.length} stations (${mhStations.length} MH → ${mhHQ.name}, ${gjStations.length} GJ → ${gjHQ.name})`);
 
   const { rebuildHQStationsList } = await import("../services/hqStationSync");
-  await rebuildHQStationsList(mainHQ._id);
-  console.log(`🔗 Linked ${stations.length} stations to HQ "${mainHQ.name}"`);
+  await rebuildHQStationsList(mhHQ._id);
+  await rebuildHQStationsList(gjHQ._id);
+  console.log(`🔗 Linked stations to HQ "${mhHQ.name}" and "${gjHQ.name}"`);
 
   // ── Portal login officers (former admins) ─────────────────────────────────
   const portalOfficers = await Officer.create([
@@ -184,15 +204,23 @@ const seed = async () => {
       username: "headquarter", password: "headquarter123", canLogin: true, level: "L1",
       name: "Maj. P. Kulkarni", email: "hq.portal@vitric.in",
       role: "Headquarter Officer", rbacRole: "headquarter", rank: "Maj.", status: "active",
-      hqId: mainHQ._id, hqName: mainHQ.name,
+      hqId: mhHQ._id, hqName: mhHQ.name,
+      stateId: mh._id, stateName: mh.name, stateCode: mh.code,
+    },
+    {
+      username: "headquarter-gj", password: "headquarter123", canLogin: true, level: "L1",
+      name: "Capt. N. Verma", email: "hq.gj.portal@vitric.in",
+      role: "Headquarter Officer", rbacRole: "headquarter", rank: "Capt.", status: "active",
+      hqId: gjHQ._id, hqName: gjHQ.name,
+      stateId: gj._id, stateName: gj.name, stateCode: gj.code,
     },
     {
       username: "stationhq", password: "stationhq123", canLogin: true, level: "L1",
       name: "Maj. T. Nair", email: "station.portal@vitric.in",
       role: "Station HQ Officer", rbacRole: "station_hq", rank: "Maj.", status: "active",
-      station: stations[5]._id, stationName: stations[5].name,
-      hqId: stations[5].hqId, hqName: stations[5].hqName,
-      stateId: stations[5].state, stateName: stations[5].stateName, stateCode: stations[5].stateCode,
+      station: stations[4]._id, stationName: stations[4].name,
+      hqId: stations[4].hqId, hqName: stations[4].hqName,
+      stateId: stations[4].state, stateName: stations[4].stateName, stateCode: stations[4].stateCode,
     },
   ]);
   console.log(`🔐 Created ${portalOfficers.length} portal login officers`);
@@ -200,15 +228,15 @@ const seed = async () => {
   // ── Field officers (no portal login) ──────────────────────────────────────
   const officersData = [
     { name: "Lt. Col. V. Rao",  rank: "Lt. Col.", role: "Area Officer",        level: "L2", stateId: mh._id, stateName: mh.name, stateCode: mh.code, email: "v.rao@army.in",      activeCases: 42, status: "active" },
-    { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "p.kulkarni@army.in", activeCases: 35, status: "active" },
-    { name: "Capt. A. Desai",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "a.desai@army.in",    activeCases: 28, status: "active" },
-    { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "s.joshi@army.in",    activeCases: 31, status: "active" },
-    { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "r.mehta@army.in",    activeCases: 22, status: "active" },
-    { name: "Maj. T. Nair",     rank: "Maj.",     role: "Station HQ Officer",  level: "L2", station: stations[5]._id, stationName: stations[5].name, hqId: stations[5].hqId, hqName: stations[5].hqName, stateId: stations[5].state, stateName: stations[5].stateName, stateCode: stations[5].stateCode, email: "t.nair@army.in", activeCases: 18, status: "inactive" },
-    { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "d.pawar@army.in",    activeCases: 24, status: "active" },
-    { name: "Maj. H. Patel",    rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "h.patel@army.in",    activeCases: 27, status: "active" },
+    { name: "Maj. P. Kulkarni", rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mhHQ._id, hqName: mhHQ.name, stateId: mh._id, stateName: mh.name, stateCode: mh.code, email: "p.kulkarni@army.in", activeCases: 35, status: "active" },
+    { name: "Capt. A. Desai",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: mhHQ._id, hqName: mhHQ.name, stateId: mh._id, stateName: mh.name, stateCode: mh.code, email: "a.desai@army.in",    activeCases: 28, status: "active" },
+    { name: "Maj. S. Joshi",    rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: gjHQ._id, hqName: gjHQ.name, stateId: gj._id, stateName: gj.name, stateCode: gj.code, email: "s.joshi@army.in",    activeCases: 31, status: "active" },
+    { name: "Capt. R. Mehta",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: gjHQ._id, hqName: gjHQ.name, stateId: gj._id, stateName: gj.name, stateCode: gj.code, email: "r.mehta@army.in",    activeCases: 22, status: "active" },
+    { name: "Maj. T. Nair",     rank: "Maj.",     role: "Station HQ Officer",  level: "L2", station: stations[4]._id, stationName: stations[4].name, hqId: stations[4].hqId, hqName: stations[4].hqName, stateId: stations[4].state, stateName: stations[4].stateName, stateCode: stations[4].stateCode, email: "t.nair@army.in", activeCases: 18, status: "inactive" },
+    { name: "Lt. D. Pawar",     rank: "Lt.",      role: "Headquarter Officer", level: "L2", hqId: mhHQ._id, hqName: mhHQ.name, stateId: mh._id, stateName: mh.name, stateCode: mh.code, email: "d.pawar@army.in",    activeCases: 24, status: "active" },
+    { name: "Maj. H. Patel",    rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: mhHQ._id, hqName: mhHQ.name, stateId: mh._id, stateName: mh.name, stateCode: mh.code, email: "h.patel@army.in",    activeCases: 27, status: "active" },
     { name: "Col. K. Sharma",   rank: "Col.",     role: "Area Officer",        level: "L2", stateId: gj._id, stateName: gj.name, stateCode: gj.code, email: "k.sharma@army.in", activeCases: 15, status: "active" },
-    { name: "Capt. N. Verma",   rank: "Capt.",    role: "Headquarter Officer", level: "L2", hqId: mainHQ._id, hqName: mainHQ.name, email: "n.verma@army.in",    activeCases: 20, status: "active" },
+    { name: "Maj. G. Shah",     rank: "Maj.",     role: "Headquarter Officer", level: "L2", hqId: gjHQ._id, hqName: gjHQ.name, stateId: gj._id, stateName: gj.name, stateCode: gj.code, email: "g.shah@army.in",     activeCases: 20, status: "active" },
   ];
   const fieldOfficers = await (Officer as any).create(
     officersData.map((o) => ({
@@ -224,11 +252,11 @@ const seed = async () => {
   const qrCodesData = [
     { code: "NAGPUR-QR-001", station: stations[0], scans: 234, lastScanned: new Date(Date.now() - 2 * 60 * 60 * 1000) },
     { code: "PUNE-QR-001", station: stations[1], scans: 198, lastScanned: new Date(Date.now() - 4 * 60 * 60 * 1000) },
-    { code: "AHMEDABAD-QR-001", station: stations[2], scans: 167, lastScanned: new Date(Date.now() - 1 * 60 * 60 * 1000) },
-    { code: "NASHIK-QR-001", station: stations[3], scans: 132, lastScanned: new Date(Date.now() - 6 * 60 * 60 * 1000) },
-    { code: "AURANGABAD-QR-001", station: stations[4], scans: 98,  lastScanned: new Date(Date.now() - 12 * 60 * 60 * 1000) },
-    { code: "KOLHAPUR-QR-001", station: stations[5], scans: 87,  lastScanned: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-    { code: "SOLAPUR-QR-001", station: stations[6], scans: 76,  lastScanned: new Date(Date.now() - 8 * 60 * 60 * 1000) },
+    { code: "NASHIK-QR-001", station: stations[2], scans: 132, lastScanned: new Date(Date.now() - 6 * 60 * 60 * 1000) },
+    { code: "AURANGABAD-QR-001", station: stations[3], scans: 98,  lastScanned: new Date(Date.now() - 12 * 60 * 60 * 1000) },
+    { code: "KOLHAPUR-QR-001", station: stations[4], scans: 87,  lastScanned: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    { code: "SOLAPUR-QR-001", station: stations[5], scans: 76,  lastScanned: new Date(Date.now() - 8 * 60 * 60 * 1000) },
+    { code: "AHMEDABAD-QR-001", station: stations[6], scans: 167, lastScanned: new Date(Date.now() - 1 * 60 * 60 * 1000) },
     { code: "BARODA-QR-001", station: stations[7], scans: 112, lastScanned: new Date(Date.now() - 3 * 60 * 60 * 1000) },
     { code: "RAJKOT-QR-001", station: stations[8], scans: 45,  lastScanned: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), status: "inactive" },
     { code: "SURAT-QR-001", station: stations[9], scans: 134, lastScanned: new Date(Date.now() - 5 * 60 * 60 * 1000) },
@@ -292,7 +320,7 @@ const seed = async () => {
       veteranArmyNo: "JC-789012",
       veteranRank: "Havildar",
       userId: users[1]._id,
-      stationId: stations[3]._id,
+      stationId: stations[2]._id,
       stationName: "Nashik Station HQ",
       officerName: "Capt. A. Desai",
       status: "in-progress",
@@ -334,7 +362,7 @@ const seed = async () => {
       veteranName: "Nk. V. Deshmukh",
       veteranArmyNo: "14567890",
       veteranRank: "Naik",
-      stationId: stations[2]._id,
+      stationId: stations[6]._id,
       stationName: "Ahmedabad Station HQ",
       officerName: "Maj. S. Joshi",
       status: "resolved",
@@ -356,7 +384,7 @@ const seed = async () => {
       veteranName: "Sub. A.K. Singh",
       veteranArmyNo: "JC-112233",
       veteranRank: "Subedar",
-      stationId: stations[4]._id,
+      stationId: stations[3]._id,
       stationName: "Aurangabad Station HQ",
       officerName: "Capt. R. Mehta",
       status: "pending",
@@ -457,8 +485,9 @@ const seed = async () => {
   console.log("🔑 Portal login (officers collection):");
   console.log("   Super Admin  → admin / admin123");
   console.log("   Area  → area / area123");
-  console.log("   Headquarter   → headquarter / headquarter123");
-  console.log("   Station HQ → stationhq / stationhq123");
+  console.log("   Headquarter   → headquarter / headquarter123  (Kamptee / MH)");
+  console.log("   Headquarter GJ → headquarter-gj / headquarter123  (Rajkot / GJ)");
+  console.log("   Station HQ → stationhq / stationhq123  (Kolhapur)");
   console.log("─────────────────────────────────────────");
   console.log("📱 Test User Phone: 9876543210 (OTP: 1234)");
   console.log("─────────────────────────────────────────\n");
