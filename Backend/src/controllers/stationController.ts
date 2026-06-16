@@ -117,6 +117,15 @@ export const createStation = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Enforce org mapping: a station must belong to the same Area(State) as its HQ.
+    if (hqDoc.stateId && hqDoc.stateId.toString() !== stateDoc._id.toString()) {
+      res.status(400).json({
+        success: false,
+        message: `Headquarters belongs to ${(hqDoc as any).stateName || (hqDoc as any).state || "a different area"}. Please select the correct HQ for this area.`,
+      });
+      return;
+    }
+
     if (actor.role === "area" && actor.stateId && stateDoc._id.toString() !== actor.stateId) {
       res.status(403).json({ success: false, message: "Station must belong to your area" });
       return;
@@ -130,7 +139,8 @@ export const createStation = async (req: Request, res: Response): Promise<void> 
       name: name.trim(),
       city: city.trim(),
       hqId: hqDoc._id,
-      hqName: (hqName || hqDoc.name).trim(),
+      // Trust DB source of truth for HQ name.
+      hqName: String(hqDoc.name).trim(),
       state: stateDoc._id,
       stateCode: stateDoc.code,
       stateName: stateDoc.name,
@@ -196,6 +206,8 @@ export const updateStation = async (req: Request, res: Response): Promise<void> 
 
     const { hqId, hqName, state, ...rest } = req.body;
     const updateData: Record<string, unknown> = { ...rest };
+    let nextHqDoc: any | null = null;
+    let nextStateDoc: any | null = null;
 
     if (hqId) {
       const hqDoc = await resolveHQ(hqId);
@@ -203,8 +215,9 @@ export const updateStation = async (req: Request, res: Response): Promise<void> 
         res.status(400).json({ success: false, message: "Invalid headquarters selected" });
         return;
       }
+      nextHqDoc = hqDoc;
       updateData.hqId = hqDoc._id;
-      updateData.hqName = (hqName || hqDoc.name).trim();
+      updateData.hqName = String(hqDoc.name).trim();
     }
 
     if (state) {
@@ -213,9 +226,23 @@ export const updateStation = async (req: Request, res: Response): Promise<void> 
         res.status(400).json({ success: false, message: "Invalid state selected" });
         return;
       }
+      nextStateDoc = stateDoc;
       updateData.state = stateDoc._id;
       updateData.stateCode = stateDoc.code;
       updateData.stateName = stateDoc.name;
+    }
+
+    // Enforce org mapping on update as well.
+    if (nextHqDoc || nextStateDoc) {
+      const hqDoc = nextHqDoc || (before.hqId ? await resolveHQ(before.hqId.toString()) : null);
+      const stateDoc = nextStateDoc || (before.state ? await State.findById(before.state) : null);
+      if (hqDoc?.stateId && stateDoc && hqDoc.stateId.toString() !== stateDoc._id.toString()) {
+        res.status(400).json({
+          success: false,
+          message: `Headquarters belongs to ${(hqDoc as any).stateName || (hqDoc as any).state || "a different area"}. Station must be in the same area as its HQ.`,
+        });
+        return;
+      }
     }
 
     const actor = (req as any).user;

@@ -356,7 +356,17 @@ export const getQRViewUrl = (id: string) =>
   `${getApiBaseUrl()}/qr-codes/${id}/view`;
 
 // ─── Officers ─────────────────────────────────────────────────────────────────
-export interface OfficerParams { search?: string; role?: string; station?: string; status?: string; page?: number; limit?: number; }
+export interface OfficerParams {
+  search?: string;
+  role?: string;
+  station?: string;
+  status?: string;
+  stateId?: string;
+  hqId?: string;
+  stationId?: string;
+  page?: number;
+  limit?: number;
+}
 
 export const useOfficers = (params: OfficerParams = {}) =>
   useQuery({

@@ -12,7 +12,8 @@
     "backfill:hq-area": "ts-node src/scripts/backfill-hq-area.ts",
     "backfill:required-docs": "ts-node src/scripts/backfill-required-documents.ts",
     "migrate:category-icons": "ts-node src/scripts/migrate-category-icons-to-cloudinary.ts",
-    "seed:test-hierarchy": "ts-node src/scripts/seedTestHierarchy.ts"
+    "seed:test-hierarchy": "ts-node src/scripts/seedTestHierarchy.ts",
+    "fix:stations-hq-mapping": "ts-node src/scripts/fixStationsHqAreaMapping.ts"
   },
   "keywords": [],
   "author": "",
