@@ -315,48 +315,54 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           }
           className={shellClass}
         >
-          <header className="flex-shrink-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
-            <div className="flex items-center justify-between px-6 h-[69px]">
-              <div className="flex items-center gap-4 min-w-0">
+          {/* FIX: header always fixed at h-[56px], no wrapping */}
+          <header className="flex-shrink-0 z-50 bg-background/95 backdrop-blur-md border-b border-border h-[60px]">
+            <div className="flex items-center justify-between px-3 h-full gap-2">
+
+              {/* Left: hamburger + portal name */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => setMenuOpen(true)}
-                  className="shrink-0 w-[30px] h-[30px] flex items-center justify-center rounded-lg hover:bg-secondary/80 transition-colors"
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary/80 transition-colors"
                   aria-label="Open menu"
                 >
                   <img
                     src="/icons/hamburger.svg"
                     alt=""
-                    className="w-[30px] h-[30px] dark:invert"
+                    className="w-6 h-6 dark:invert"
                   />
                 </button>
                 <Link to="/user" className="min-w-0 group">
-                  <p className="text-foreground text-sm font-semibold leading-5 tracking-[0.01em] max-w-[140px] group-hover:text-primary transition-colors">
+                  {/* FIX: single line, truncate if too long */}
+                  <p className="text-foreground text-[14px] font-semibold leading-tight tracking-[0.01em] truncate max-w-[140px] group-hover:text-primary transition-colors">
                     {t("welcomeTo")}
                   </p>
                 </Link>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+
+              {/* Right: action icons */}
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Link
                   to="/user/notifications"
-                  className="relative w-10 h-10 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
+                  className="relative w-8 h-8 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
                   aria-label="Notifications"
                 >
-                  <Icon icon="mi:notification" className="w-6 h-6 text-foreground dark:text-[#E4E4E4]" />
+                  <Icon icon="mi:notification" className="w-5 h-5 text-foreground dark:text-[#E4E4E4]" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-2 right-3 w-2 h-2 rounded-full bg-[#D81B60]" />
+                    <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-[#D81B60]" />
                   )}
                 </Link>
 
                 <Link
                   to="/user/settings"
-                  className="w-10 h-10 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
                   aria-label="Settings"
                 >
-                  <Settings className="w-5 h-5 text-foreground" />
+                  <Settings className="w-4 h-4 text-foreground" />
                 </Link>
 
-                {/* Language switcher — EN / हिं */}
+                {/* Language switcher */}
                 <button
                   type="button"
                   onClick={() => {
@@ -364,7 +370,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                     i18n.changeLanguage(next);
                     localStorage.setItem("lang", next);
                   }}
-                  className="h-10 px-2.5 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors text-xs font-bold text-foreground tracking-wide select-none"
+                  className="h-8 px-2 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors text-[11px] font-bold text-foreground tracking-wide select-none"
                   aria-label="Toggle language"
                 >
                   {i18n.language === "hi" ? "EN" : "हिं"}
@@ -372,20 +378,20 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
                 <button
                   onClick={toggleTheme}
-                  className="w-10 h-10 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
                   aria-label="Toggle theme"
                 >
                   {resolvedTheme === "dark" ? (
-                    <Sun className="w-5 h-5 text-foreground" />
+                    <Sun className="w-4 h-4 text-foreground" />
                   ) : (
-                    <Moon className="w-5 h-5 text-foreground" />
+                    <Moon className="w-4 h-4 text-foreground" />
                   )}
                 </button>
               </div>
             </div>
           </header>
 
-          {/* Slide-in menu (same items as footer) */}
+          {/* Slide-in menu */}
           <div
             className={`absolute inset-0 z-[60] transition-opacity duration-[400ms] ease-out ${
               menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"

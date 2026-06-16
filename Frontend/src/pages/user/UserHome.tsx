@@ -362,9 +362,9 @@ export default memo(function UserHome() {
       {/* Footer tagline */}
       <div className="pt-2 pb-1 px-1">
         <p className="text-2xl font-bold leading-8 tracking-[0.01em] text-foreground/30 dark:text-white/48">
-          Fast, transparent
+          {t("fastTransparent")}
           <br />
-          grievance resolution
+          {t("grievanceResolution")}
         </p>
       </div>
     </div>
