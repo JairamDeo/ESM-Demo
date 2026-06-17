@@ -56,15 +56,16 @@ export async function translateText(
 }
 
 /**
- * Detect the source language of `text` and translate to English if not already English.
+ * Detect the source language of `text` and translate to the opposite language.
+ * (If Hindi, translate to English. If English, translate to Hindi.)
  *
  * Returns:
  *   originalText   – the raw input
- *   translatedText – English version (or same as original if already EN or translation failed)
+ *   translatedText – translated version (opposite language)
  *   language       – detected source language code ("en", "hi", etc.)
  *   translationFailed – true if translation API errored / rate-limited
  */
-export async function detectAndTranslateToEnglish(text: string): Promise<{
+export async function detectAndTranslateToOpposite(text: string): Promise<{
   originalText: string;
   translatedText: string;
   language: string;
@@ -80,11 +81,10 @@ export async function detectAndTranslateToEnglish(text: string): Promise<{
   }
 
   // First translate to EN to detect source language
-  const result = await translateText(text, "en");
+  const resultToEn = await translateText(text, "en");
+  const detectedLang = resultToEn.detectedLang || "en";
 
-  const detectedLang = result.detectedLang || "en";
-
-  if (result.failed) {
+  if (resultToEn.failed) {
     return {
       originalText: text,
       translatedText: text,
@@ -93,21 +93,23 @@ export async function detectAndTranslateToEnglish(text: string): Promise<{
     };
   }
 
-  // If already English, no translation needed
-  if (detectedLang === "en") {
+  // If source was not English, the translated text to EN is our target
+  if (detectedLang !== "en") {
     return {
       originalText: text,
-      translatedText: text,
-      language: "en",
+      translatedText: resultToEn.translatedText,
+      language: detectedLang,
       translationFailed: false,
     };
   }
 
+  // If source IS English, we need to translate it to Hindi
+  const resultToHi = await translateText(text, "hi", "en");
   return {
     originalText: text,
-    translatedText: result.translatedText,
-    language: detectedLang,
-    translationFailed: false,
+    translatedText: resultToHi.failed ? text : resultToHi.translatedText,
+    language: "en",
+    translationFailed: resultToHi.failed,
   };
 }
 

@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { resolveUploadUrl, getApiBaseUrl } from "@/lib/apiBase";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { useDynamicTranslation } from "@/utils/translationHelper";
 
 function mergeSubmittedDoc(doc: any, submittedDocs: any[]) {
   const submitted = submittedDocs.find((s) => s.documentLabel === doc.label);
@@ -33,6 +34,7 @@ export default function DocumentCheckList() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { getField } = useDynamicTranslation();
 
   const formState = location.state?.form || {};
   const isFromQR = location.state?.isFromQR || false;
@@ -105,6 +107,7 @@ export default function DocumentCheckList() {
           return {
             label: submitted.documentLabel,
             text: submitted.documentText || submitted.documentLabel,
+            textHi: submitted.documentTextHi || "", // Keep textHi if available from submitted (though usually just label)
             isMandatory: true,
             templateUrl: null,
             templateFileName: null,
@@ -333,7 +336,7 @@ export default function DocumentCheckList() {
                   </span>
                 )}
                 <p className="text-sm text-foreground leading-relaxed">
-                  {doc.text}
+                  {getField(doc, "text")}
                   {(doc.isMandatory || isRequiredReupload(doc.label)) && (
                     <span className="text-destructive font-bold ml-1">*</span>
                   )}

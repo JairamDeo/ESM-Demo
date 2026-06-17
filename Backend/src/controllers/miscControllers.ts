@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import CaseType from "../models/CaseType";
+import { detectAndTranslateToOpposite } from "../services/translateService";
 import Grievance from "../models/Grievance";
 import Escalation from "../models/Escalation";
 import Station from "../models/Station";
@@ -52,7 +53,7 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
     if (status === "active") {
       filter.isActive = { $ne: false }; // Match active case types
     }
-    const caseTypesRaw = await CaseType.find(filter).populate("category", "name isActive iconUrl").lean();
+    const caseTypesRaw = await CaseType.find(filter).populate("category", "name nameHi isActive iconUrl").lean();
     // Sort by casetype<N> numeric suffix if present, else fallback stable.
     const caseTypes = caseTypesRaw
       .sort((a: any, b: any) => {
@@ -71,6 +72,7 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
           ...ct,
           categoryId: populated?._id ?? ct.category,
           categoryName: populated?.name ?? "Other",
+          categoryNameHi: populated?.nameHi ?? "",
           categoryIconUrl: populated?.iconUrl ?? null,
         };
       });
@@ -107,10 +109,23 @@ export const createCaseType = async (req: Request, res: Response): Promise<void>
     const createdBy = actor
       ? { id: actor.id, name: actor.name, email: actor.email, role: actor.role }
       : undefined;
+    let nameHi = "";
+    let descriptionHi = "";
+    if (name) {
+      const xlatName = await detectAndTranslateToOpposite(name);
+      nameHi = xlatName.translatedText;
+    }
+    if (description) {
+      const xlatDesc = await detectAndTranslateToOpposite(description);
+      descriptionHi = xlatDesc.translatedText;
+    }
+
     const caseType = await CaseType.create({
       id: nextId,
       name,
+      nameHi,
       description,
+      descriptionHi,
       category,
       createdBy,
       updatedBy: createdBy,
@@ -132,6 +147,15 @@ export const updateCaseType = async (req: Request, res: Response): Promise<void>
     if (!existing) { res.status(404).json({ success: false, message: "Case type not found" }); return; }
 
     const update: any = { ...req.body, updatedBy };
+    if (update.name) {
+      const xlatName = await detectAndTranslateToOpposite(update.name);
+      update.nameHi = xlatName.translatedText;
+    }
+    if (update.description !== undefined) {
+      const xlatDesc = await detectAndTranslateToOpposite(update.description);
+      update.descriptionHi = xlatDesc.translatedText;
+    }
+
     if (Object.prototype.hasOwnProperty.call(req.body, "isActive") && req.body.isActive !== existing.isActive) {
       update.statusUpdatedBy = updatedBy;
       update.statusUpdatedAt = new Date();
@@ -387,8 +411,15 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
     const existing = await Category.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
     if (existing) { res.status(400).json({ success: false, message: "Category with this name already exists" }); return; }
 
+    let nameHi = "";
+    if (name) {
+      const xlatName = await detectAndTranslateToOpposite(name);
+      nameHi = xlatName.translatedText;
+    }
+
     const category = await Category.create({
       name: String(name).trim(),
+      nameHi,
       isActive: isActive !== undefined ? isActive === true || isActive === "true" : true,
     });
 
@@ -411,7 +442,11 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     if (!existing) { res.status(404).json({ success: false, message: "Category not found" }); return; }
 
     const update: Record<string, unknown> = {};
-    if (req.body.name !== undefined) update.name = String(req.body.name).trim();
+    if (req.body.name !== undefined) {
+      update.name = String(req.body.name).trim();
+      const xlatName = await detectAndTranslateToOpposite(update.name as string);
+      update.nameHi = xlatName.translatedText;
+    }
     if (req.body.isActive !== undefined) {
       update.isActive = req.body.isActive === true || req.body.isActive === "true";
     }

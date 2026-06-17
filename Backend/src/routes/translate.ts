@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { protect } from "../middleware/auth";
-import { translateText, detectAndTranslateToEnglish } from "../services/translateService";
+import { translateText, detectAndTranslateToOpposite } from "../services/translateService";
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.post("/", protect, async (req: Request, res: Response): Promise<void> => 
     }
 
     if (targetLang === "en") {
-      const result = await detectAndTranslateToEnglish(text);
+      const result = await detectAndTranslateToOpposite(text);
       if (result.translationFailed) {
         res.status(503).json({
           success: false,

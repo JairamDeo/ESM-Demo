@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { detectAndTranslateToEnglish, translateFromEnglish } from "../services/translateService";
+import { detectAndTranslateToOpposite } from "../services/translateService";
 import mongoose from "mongoose";
 import Grievance from "../models/Grievance";
 import Escalation from "../models/Escalation";
@@ -253,8 +253,8 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       language?: string;
       translationFailed?: boolean;
     } = {};
-    if (description && String(description).trim()) {
-      const xlat = await detectAndTranslateToEnglish(String(description).trim());
+      if (description && String(description).trim()) {
+        const xlat = await detectAndTranslateToOpposite(String(description).trim());
       translationData = {
         originalText: xlat.originalText,
         translatedText: xlat.translatedText,
@@ -784,8 +784,6 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
             : "General concern raised");
 
     // ── Translate comment bidirectionally ─────────────────────────────────────
-    // Veteran writes in Hindi → translate to English for admin
-    // Admin/Officer writes in English → translate to Hindi for veteran
     let commentOriginalText: string | undefined;
     let commentTranslatedText: string | undefined;
     let commentLanguage: string | undefined;
@@ -794,14 +792,14 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     if (noteText && noteText.trim()) {
       if (isVeteran) {
         // Veteran: detect language and translate to English
-        const xlat = await detectAndTranslateToEnglish(noteText);
+        const xlat = await detectAndTranslateToOpposite(noteText);
         commentOriginalText    = xlat.originalText;
         commentTranslatedText  = xlat.translatedText;
         commentLanguage        = xlat.language;
         commentTranslationFailed = xlat.translationFailed;
       } else {
         // Admin/Officer: translate English → Hindi for veteran to read
-        const xlat = await translateFromEnglish(noteText, "hi");
+        const xlat = await detectAndTranslateToOpposite(noteText);
         commentOriginalText    = noteText;
         commentTranslatedText  = xlat.translatedText;
         commentLanguage        = "en";
@@ -979,8 +977,21 @@ export const getMyGrievances = async (req: Request, res: Response): Promise<void
     const { status } = req.query;
     const query: any = { userId, isDeleted: false };
     if (status) query.status = status;
-    const grievances = await Grievance.find(query).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: grievances });
+    const grievances = await Grievance.find(query)
+      .populate("caseTypeId", "name nameHi")
+      .sort({ createdAt: -1 });
+
+    const data = grievances.map(g => {
+      const obj = g.toObject();
+      if (obj.caseTypeId) {
+        (obj as any).typeHi = (obj.caseTypeId as any).nameHi || "";
+        // optionally keep caseTypeId as just the ID for backwards compatibility
+        obj.caseTypeId = (obj.caseTypeId as any)._id;
+      }
+      return obj;
+    });
+
+    res.status(200).json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -998,10 +1009,16 @@ export const trackGrievance = async (req: Request, res: Response): Promise<void>
       isDeleted: false,
     }).select(
       "grievanceId type caseTypeId veteranName veteranRank veteranArmyNo stationName officerName status priority timeline description comments attachments concernStatus createdAt resolvedAt"
-    );
+    ).populate("caseTypeId", "name nameHi");
 
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found. Check your complaint ID." }); return; }
     const obj = grievance.toObject();
+    
+    if (obj.caseTypeId) {
+      (obj as any).typeHi = (obj.caseTypeId as any).nameHi || "";
+      obj.caseTypeId = (obj.caseTypeId as any)._id;
+    }
+
     obj.concernStatus = effectiveConcernStatus(obj);
     const data = await enrichGrievanceWithDocuments(obj);
     res.status(200).json({ success: true, data });

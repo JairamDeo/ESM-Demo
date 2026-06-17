@@ -13,6 +13,7 @@ import {
 import { useGrievanceDraft } from "@/hooks/useGrievanceDraft";
 import { getDraftContinueRoute, getDraftStepLabel, beginDraftResume } from "@/lib/grievanceDraft";
 import { useTranslation } from "react-i18next";
+import { useDynamicTranslation } from "@/utils/translationHelper";
 
 const CATEGORY_ORDER = [
   "Identity & Personal",
@@ -40,6 +41,7 @@ export default function Services() {
   const { data: categories = [] } = useCategories({ status: "active" });
   const [searchQuery, setSearchQuery] = useState("");
   const [openCategory, setOpenCategory] = useState<string | null>("Identity & Personal");
+  const { currentLang, getField } = useDynamicTranslation();
 
   useEffect(() => {
     const fromMenu = (location.state as { openCategory?: string } | null)?.openCategory;
@@ -58,21 +60,40 @@ export default function Services() {
 
     const filtered = q
       ? list.filter((ct: any) => {
-          const name = String(ct?.name ?? "").toLowerCase();
-          const desc = String(ct?.description ?? "").toLowerCase();
-          const category = getCaseTypeCategoryLabel(ct).toLowerCase();
+          const name = getField(ct, "name").toLowerCase();
+          const desc = getField(ct, "description").toLowerCase();
+          
+          let ctCategoryLabel = "Other";
+          if (ct?.categoryName) ctCategoryLabel = ct.categoryName;
+          else if (typeof ct?.category === "object" && ct?.category?.name) ctCategoryLabel = getField(ct.category, "name");
+          else if (typeof ct?.category === "string") ctCategoryLabel = ct.category;
+          
+          const category = ctCategoryLabel.toLowerCase();
           return name.includes(q) || desc.includes(q) || category.includes(q);
         })
       : list;
 
-    const byCategory = new Map<string, { items: any[]; categoryId?: string; iconUrl?: string | null }>();
+    const byCategory = new Map<string, { items: any[]; categoryId?: string; iconUrl?: string | null; nameHi?: string }>();
     for (const ct of filtered) {
-      const category = getCaseTypeCategoryLabel(ct).trim() || "Other";
+      let ctCategoryLabel = "Other";
+      let ctCategoryNameHi = "";
+      if (ct?.categoryName) {
+        ctCategoryLabel = ct.categoryName;
+        ctCategoryNameHi = ct.categoryNameHi || "";
+      } else if (typeof ct?.category === "object" && ct?.category?.name) {
+        ctCategoryLabel = ct.category.name;
+        ctCategoryNameHi = ct.category.nameHi || "";
+      } else if (typeof ct?.category === "string") {
+        ctCategoryLabel = ct.category;
+      }
+
+      const category = ctCategoryLabel.trim() || "Other";
       if (!byCategory.has(category)) {
         byCategory.set(category, {
           items: [],
           categoryId: ct.categoryId,
           iconUrl: ct.categoryIconUrl ?? lookupCategoryIcon(categoryIconMap, category, ct.categoryId),
+          nameHi: ctCategoryNameHi,
         });
       }
       byCategory.get(category)!.items.push(ct);
@@ -86,17 +107,17 @@ export default function Services() {
           group.iconUrl ?? lookupCategoryIcon(categoryIconMap, categoryName, group.categoryId);
         return {
           key: categoryName,
-          title: categoryName,
+          title: (currentLang === "hi" && group.nameHi) ? group.nameHi : categoryName,
           iconUrl,
           bg: fallback.bg,
           items: group.items.map((ct: any) => ({
             id: String(ct._id ?? ct.id ?? ct.name),
-            label: ct.name,
-            description: ct.description || "",
+            label: getField(ct, "name"),
+            description: getField(ct, "description"),
           })),
         };
       });
-  }, [caseTypes, searchQuery, categoryIconMap]);
+  }, [caseTypes, searchQuery, categoryIconMap, currentLang]);
 
   const effectiveOpen = searchQuery.trim()
     ? groupedCategories.map((c) => c.key)

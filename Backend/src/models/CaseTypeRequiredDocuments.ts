@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IDocumentChecklistItem {
   label: string;
   text: string;
+  textHi?: string;
   isMandatory: boolean;
   sortOrder: number;
   templateUrl?: string;
@@ -18,8 +19,11 @@ export interface ICaseTypeRequiredDocuments extends Document {
   documents: IDocumentChecklistItem[];
   /** Admin-defined custom text fields (veteran filing). Not pre-seeded. */
   questions: string[];
+  questionsHi?: string[];
   guidelines: string[];
+  guidelinesHi?: string[];
   note?: string;
+  noteHi?: string;
   acceptedFormats: string;
   maxFileSizeMb: number;
   isActive: boolean;
@@ -33,6 +37,7 @@ const documentItemSchema = new Schema<IDocumentChecklistItem>(
   {
     label: { type: String, required: true, trim: true },
     text: { type: String, required: true, trim: true },
+    textHi: { type: String, trim: true },
     isMandatory: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
     templateUrl: { type: String },
@@ -46,12 +51,17 @@ const CaseTypeRequiredDocumentsSchema = new Schema<ICaseTypeRequiredDocuments>(
     caseType: { type: Schema.Types.ObjectId, ref: "CaseType", required: true, unique: true },
     caseTypeSlug: { type: String, required: true, trim: true, index: true },
     caseTypeName: { type: String, required: true, trim: true, index: true },
+    caseTypeNameHi: { type: String, default: "" },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category" },
     categoryName: { type: String, trim: true },
+    categoryNameHi: { type: String, default: "" },
     documents: { type: [documentItemSchema], default: [] },
     questions: { type: [String], default: [] },
+    questionsHi: { type: [String], default: [] },
     guidelines: { type: [String], default: [] },
+    guidelinesHi: { type: [String], default: [] },
     note: { type: String, default: "" },
+    noteHi: { type: String, default: "" },
     acceptedFormats: { type: String, default: "PDF, JPG, JPEG, PNG" },
     maxFileSizeMb: { type: Number, default: 5, min: 1, max: 20 },
     isActive: { type: Boolean, default: true },

@@ -2,12 +2,16 @@ import { memo, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, FileEdit } from "lucide-react";
 import { Icon } from "@iconify/react";
-import { useMyGrievances } from "@/hooks/useApi";
+import { useMyGrievances, useCategories } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
 import { useGrievanceDraft } from "@/hooks/useGrievanceDraft";
 import { getDraftContinueRoute, beginDraftResume, getDraftStepLabel } from "@/lib/grievanceDraft";
 import { useTranslation } from "react-i18next";
+import { useDynamicTranslation } from "@/utils/translationHelper";
+import { getCategoryFallbackMeta } from "@/lib/categoryIcons";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { resolveUploadUrl } from "@/lib/apiBase";
 
 const statusBadge: Record<string, string> = {
   resolved: "bg-[#22C55E]",
@@ -171,33 +175,12 @@ const RecentComplaintCard = ({
   );
 };
 
-const popularServices = [
-  {
-    icon: "/icons/profile-filled.svg",
-    bg: "bg-[#D2E5FC]",
-    label: "Identity &\nPersonal",
-  },
-  {
-    icon: "/icons/money-rupee.svg",
-    bg: "bg-[#FDE7E7]",
-    label: "Pension &\nFinancial",
-  },
-  {
-    icon: "/icons/family.svg",
-    bg: "bg-[#E8FDE7]",
-    label: "Family\nDetails",
-  },
-  {
-    icon: "/icons/seal-check.svg",
-    bg: "bg-[#FFFFE4]",
-    label: "Requests &\nTracking",
-  },
-];
-
 export default memo(function UserHome() {
   const { user } = useAuth();
   const { data: complaints = [] } = useMyGrievances();
   const { t } = useTranslation();
+  const { getField } = useDynamicTranslation();
+  const { data: categoriesData = [] } = useCategories({ status: "active" });
 
   const recentComplaint = useMemo(() => complaints[0] ?? null, [complaints]);
   const progress = recentComplaint
@@ -206,6 +189,19 @@ export default memo(function UserHome() {
 
   const draft = useGrievanceDraft(user?.id);
   const draftRoute = draft ? getDraftContinueRoute(draft) : null;
+
+  // Build popular services dynamically from categories API
+  const popularServices = useMemo(() => {
+    const cats = Array.isArray(categoriesData) ? (categoriesData as any[]) : [];
+    return cats.slice(0, 4).map((cat: any) => {
+      return {
+        key: cat.name,                    // English name for navigation state
+        label: getField(cat, "name"),     // Translated label
+        iconUrl: cat.iconUrl || null,
+        title: cat.name,
+      };
+    });
+  }, [categoriesData, getField]);
 
   return (
     <div className="font-['Montserrat',sans-serif] min-h-full px-3 pb-8 space-y-5 mt-2">
@@ -281,7 +277,7 @@ export default memo(function UserHome() {
       <div className="grid grid-cols-2 gap-3 items-stretch">
         <Link
           to="/user/complaints"
-          className="bg-card border border-border dark:bg-[#2B2B2B] dark:border-transparent rounded-xl flex flex-col items-center text-center px-3 pt-1.5 pb-4 h-full min-h-[194px] hover:border-primary/30 dark:hover:bg-[#323232] transition-colors"
+          className="bg-card border border-border dark:bg-[#2B2B2B] dark:border-transparent rounded-xl flex flex-col items-center text-center px-3 pt-1.5 pb-4 h-full min-h-[194px] hover:border-primary  dark:hover:bg-[#323232] transition-colors"
         >
           <div className="w-[47px] h-[47px] rounded-full bg-[#D2E5FC] flex items-center justify-center mt-1.5 mb-2">
             <img src="/icons/notepad.svg" alt="" className="w-6 h-6" />
@@ -342,15 +338,12 @@ export default memo(function UserHome() {
         <div className="grid grid-cols-2 gap-2.5">
           {popularServices.map((svc) => (
             <Link
-              key={svc.label}
+              key={svc.key}
               to="/user/services"
-              className="bg-card border border-border dark:bg-[#323232] dark:border-transparent rounded-lg shadow-[0_4px_23px_rgba(0,0,0,0.05)] flex items-center gap-3 px-3 min-h-[67px] hover:border-primary/20 dark:hover:bg-[#3a3a3a] transition-colors"
+              state={{ openCategory: svc.key }}
+              className="bg-card border border-border dark:bg-[#323232] dark:border-transparent rounded-sm shadow-[0_4px_23px_rgba(0,0,0,0.05)] flex items-center gap-3 px-3 min-h-[67px] hover:border-primary/20 dark:hover:bg-[#3a3a3a] transition-colors"
             >
-              <div
-                className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${svc.bg}`}
-              >
-                <img src={svc.icon} alt="" className="w-7 h-7 object-contain" />
-              </div>
+              <CategoryIcon name={svc.title} iconUrl={svc.iconUrl} size="lg" />
               <p className="text-foreground text-sm font-semibold leading-5 tracking-[0.01em] whitespace-pre-line">
                 {svc.label}
               </p>

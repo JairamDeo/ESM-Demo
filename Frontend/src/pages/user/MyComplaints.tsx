@@ -4,6 +4,7 @@ import { FileText, Clock, CheckCircle2, AlertTriangle, Search, ChevronLeft, MapP
 import { useMyGrievances } from "@/hooks/useApi";
 import { Icon } from "@iconify/react";
 import { useTranslation } from "react-i18next";
+import { useDynamicTranslation } from "@/utils/translationHelper";
 
 interface Complaint {
   _id: string;
@@ -37,6 +38,7 @@ const tabDot: Record<string, string> = {
 
 export default memo(function MyComplaints() {
   const { t } = useTranslation();
+  const { getField } = useDynamicTranslation();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<Tab>("All");
   const { data: complaints = [] as Complaint[], isLoading } = useMyGrievances();
@@ -174,7 +176,7 @@ export default memo(function MyComplaints() {
                     <Icon icon="iconoir:profile-circle" className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-foreground leading-tight">{c.type}</p>
+                    <p className="text-sm font-bold text-foreground leading-tight">{getField(c, "type") || c.type}</p>
                     {c.subType && (
                       <p className="text-[11px] text-muted-foreground">· {c.subType}</p>
                     )}

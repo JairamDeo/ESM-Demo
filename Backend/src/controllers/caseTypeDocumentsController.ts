@@ -22,7 +22,7 @@ function paramString(value: string | string[] | undefined): string {
 async function resolveCaseType(key: string) {
   const trimmed = key.trim();
   if (mongoose.Types.ObjectId.isValid(trimmed)) {
-    const byId = await CaseType.findById(trimmed).populate("category", "name");
+    const byId = await CaseType.findById(trimmed).populate("category", "name nameHi");
     if (byId) return byId;
   }
   const bySlug = await CaseType.findOne({ id: { $regex: `^${trimmed}$`, $options: "i" } }).populate(
@@ -30,7 +30,7 @@ async function resolveCaseType(key: string) {
     "name"
   );
   if (bySlug) return bySlug;
-  return CaseType.findOne({ name: { $regex: `^${trimmed}$`, $options: "i" } }).populate("category", "name");
+  return CaseType.findOne({ name: { $regex: `^${trimmed}$`, $options: "i" } }).populate("category", "name nameHi");
 }
 
 function formatChecklist(doc: any, caseType?: any) {
@@ -39,15 +39,21 @@ function formatChecklist(doc: any, caseType?: any) {
     caseTypeId: json.caseType?.toString?.() ?? json.caseType,
     caseTypeSlug: json.caseTypeSlug,
     caseTypeName: json.caseTypeName,
+    caseTypeNameHi: json.caseTypeNameHi || caseType?.nameHi || "",
     categoryId: json.categoryId,
     categoryName: json.categoryName,
+    categoryNameHi: json.categoryNameHi || (caseType?.category as any)?.nameHi || "",
     description: caseType?.description ?? "",
+    descriptionHi: caseType?.descriptionHi ?? "",
     documents: (json.documents || []).sort(
       (a: IDocumentChecklistItem, b: IDocumentChecklistItem) => a.sortOrder - b.sortOrder
     ),
     questions: json.questions || [],
+    questionsHi: json.questionsHi || [],
     guidelines: json.guidelines || [],
+    guidelinesHi: json.guidelinesHi || [],
     note: json.note || "",
+    noteHi: json.noteHi || "",
     acceptedFormats: json.acceptedFormats || "PDF, JPG, JPEG, PNG",
     maxFileSizeMb: json.maxFileSizeMb ?? 5,
     isActive: json.isActive !== false,
@@ -71,7 +77,7 @@ function normalizeDocuments(raw: unknown): IDocumentChecklistItem[] {
 export const listCaseTypeDocuments = async (req: Request, res: Response): Promise<void> => {
   try {
     const caseTypes = await CaseType.find({ isActive: { $ne: false } })
-      .populate("category", "name")
+      .populate("category", "name nameHi")
       .sort({ id: 1 })
       .lean();
 
@@ -135,12 +141,18 @@ export const getRequiredDocumentsForCaseType = async (req: Request, res: Respons
           caseTypeId: caseType._id,
           caseTypeSlug: caseType.id,
           caseTypeName: caseType.name,
+          caseTypeNameHi: caseType.nameHi || "",
           categoryName: (caseType.category as any)?.name ?? "",
+          categoryNameHi: (caseType.category as any)?.nameHi ?? "",
           description: caseType.description,
+          descriptionHi: caseType.descriptionHi || "",
           documents: [],
           questions: [],
+          questionsHi: [],
           guidelines: [],
+          guidelinesHi: [],
           note: "",
+          noteHi: "",
           acceptedFormats: "PDF, JPG, JPEG, PNG",
           maxFileSizeMb: 5,
           isActive: false,
@@ -178,15 +190,49 @@ export const upsertCaseTypeDocuments = async (req: Request, res: Response): Prom
       caseType: caseType._id,
       caseTypeSlug: caseType.id,
       caseTypeName: caseType.name,
+      caseTypeNameHi: caseType.nameHi || "",
       categoryId: category?._id ?? caseType.category,
       categoryName: category?.name ?? "",
+      categoryNameHi: category?.nameHi ?? "",
       documents,
       updatedBy: actorMeta(actor),
     };
 
-    if (guidelines !== undefined) payload.guidelines = guidelines;
-    if (questions !== undefined) payload.questions = questions;
-    if (req.body.note !== undefined) payload.note = String(req.body.note).trim();
+    const { detectAndTranslateToOpposite } = await import("../services/translateService");
+
+    // Translate documents array
+    for (const doc of documents) {
+      if (doc.text) {
+        const xlat = await detectAndTranslateToOpposite(doc.text);
+        (doc as any).textHi = xlat.translatedText;
+      }
+    }
+
+    if (guidelines !== undefined) {
+      payload.guidelines = guidelines;
+      payload.guidelinesHi = await Promise.all(guidelines.map(async g => {
+        const xlat = await detectAndTranslateToOpposite(g);
+        return xlat.translatedText;
+      }));
+    }
+    if (questions !== undefined) {
+      payload.questions = questions;
+      payload.questionsHi = await Promise.all(questions.map(async q => {
+        const xlat = await detectAndTranslateToOpposite(q);
+        return xlat.translatedText;
+      }));
+    }
+    if (req.body.note !== undefined) {
+      const noteStr = String(req.body.note).trim();
+      payload.note = noteStr;
+      if (noteStr) {
+        const xlat = await detectAndTranslateToOpposite(noteStr);
+        payload.noteHi = xlat.translatedText;
+      } else {
+        payload.noteHi = "";
+      }
+    }
+    
     if (req.body.acceptedFormats !== undefined) payload.acceptedFormats = String(req.body.acceptedFormats).trim();
     if (req.body.maxFileSizeMb !== undefined) payload.maxFileSizeMb = Number(req.body.maxFileSizeMb) || 5;
     if (req.body.isActive !== undefined) payload.isActive = !!req.body.isActive;

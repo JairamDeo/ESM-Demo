@@ -9,7 +9,7 @@ import { getApiBaseUrl } from "@/lib/apiBase";
 import { Icon } from "@iconify/react";
 import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
 import { useTranslation } from "react-i18next";
-import i18n from "@/i18n";
+import { useDynamicTranslation } from "@/utils/translationHelper";
 import {
   getConcernDocuments,
   concernNeedsGeneral,
@@ -69,11 +69,10 @@ function Accordion({ title, defaultOpen = false, children }: { title: string; de
   );
 }
 
-function getDisplayText(item: any, fallback: string) {
+function getDisplayText(item: any, fallback: string, currentLang: string) {
   if (!item || (!item.originalText && !item.translatedText)) return fallback;
   if (item.translationFailed) return item.originalText || fallback;
 
-  const currentLang = i18n.language || "en";
   if (currentLang === "en") {
     return item.language === "en" ? item.originalText : item.translatedText;
   } else {
@@ -91,6 +90,7 @@ export default memo(function TrackCase() {
   const { data: liveData } = useTrackGrievance(grievanceId);
   const complaint = liveData || initialComplaint || {};
   const { t } = useTranslation();
+  const { currentLang, getField } = useDynamicTranslation();
 
   const comments = complaint.comments || [];
   const concernStatus = getEffectiveConcernStatus(complaint);
@@ -198,7 +198,7 @@ export default memo(function TrackCase() {
             <Icon icon="iconoir:profile-circle" className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground">{complaint.type}</p>
+            <p className="text-sm font-bold text-foreground">{getField(complaint, "type") || complaint.type}</p>
             {complaint.subType && (
               <p className="text-xs text-muted-foreground">· {complaint.subType}</p>
             )}
@@ -285,7 +285,7 @@ export default memo(function TrackCase() {
                 </div>
               )}
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                {getDisplayText(activeQuery, activeQuery.message)}
+                {getDisplayText(activeQuery, activeQuery.message, currentLang)}
               </p>
               {activeQuery.attachments?.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
@@ -358,7 +358,7 @@ export default memo(function TrackCase() {
                   Query #01
                 </span>
                 <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                  {getDisplayText(previousQuery, previousQuery.message)}
+                  {getDisplayText(previousQuery, previousQuery.message, currentLang)}
                 </p>
               </div>
 
@@ -372,7 +372,7 @@ export default memo(function TrackCase() {
 
                 <div className="bg-secondary/40 rounded-lg p-3">
                   <p className="text-[12px] font-semibold text-foreground mb-1">{t("responseLabel")}</p>
-                  <p className="text-sm text-foreground">{getDisplayText(submittedResponse, submittedResponse.message)}</p>
+                  <p className="text-sm text-foreground">{getDisplayText(submittedResponse, submittedResponse.message, currentLang)}</p>
                 </div>
 
                 {submittedResponse.attachments?.length > 0 && (
@@ -426,7 +426,7 @@ export default memo(function TrackCase() {
           <div className="pt-3">
             <span className="text-sm font-medium text-foreground block mb-1.5">{t("descriptionLabel")}</span>
             <p className="text-xs text-foreground leading-relaxed break-words">
-              {getDisplayText(complaint, complaint.description || "—")}
+              {getDisplayText(complaint, complaint.description || "—", currentLang)}
             </p>
           </div>
         </div>
@@ -513,7 +513,7 @@ export default memo(function TrackCase() {
                       {timelineStepLabel(step)}
                     </p>
                     {step.note && step.eventType !== "status" && (
-                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{getDisplayText(step, step.note)}</p>
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{getDisplayText(step, step.note, currentLang)}</p>
                     )}
                     {step.concernDocuments?.length > 0 ? (
                       <div className="text-[10px] text-primary mt-1 space-y-0.5">

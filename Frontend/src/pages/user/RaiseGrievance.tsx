@@ -1,25 +1,16 @@
 import { useState, memo, useCallback, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, Paperclip, X, FileText, Image, ChevronUp } from "lucide-react";
-import { useCreateGrievance, useCaseTypes, useStations } from "@/hooks/useApi";
+import { ChevronDown, ChevronLeft, ChevronUp } from "lucide-react";
+import { useCreateGrievance, useCaseTypes, useStations, useCategories } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-
-const CATEGORY_CONFIG = [
-  { key: "Identity & Personal", icon: <img src="/icons/profile-filled.svg" className="w-6 h-6" />, bg: "bg-[#D2E5FC]" },
-  { key: "Pension & Financial", icon: <img src="/icons/money-rupee.svg" className="w-6 h-6" />,   bg: "bg-[#FDE7E7]" },
-  { key: "Family Details",      icon: <img src="/icons/family.svg" className="w-6 h-6" />,        bg: "bg-[#E8FDE7]" },
-  { key: "Requests & Tracking", icon: <img src="/icons/seal-check.svg" className="w-6 h-6" />,   bg: "bg-[#FFFFE4]" },
-];
+import { useDynamicTranslation } from "@/utils/translationHelper";
+import { getCategoryFallbackMeta } from "@/lib/categoryIcons";
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 const normalizeCategory = (v: string) =>
   String(v || "").trim().toLowerCase().replace("idenity", "identity");
-
-const getCaseTypeCategoryLabel = (ct: any): string =>
-  ct?.categoryName ??
-  (typeof ct?.category === "object" ? ct?.category?.name : null) ??
-  (typeof ct?.category === "string" ? ct.category : "Other");
 
 const SelectRow = ({ label, value, onChange, children, required = false, disabled = false }: any) => (
   <div className="space-y-1.5">
@@ -68,8 +59,10 @@ export default memo(function RaiseGrievance() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const { currentLang, getField } = useDynamicTranslation();
 
   const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
+  const { data: categories = [] } = useCategories({ status: "active" });
   const { data: stationsData } = useStations({ limit: 100 });
   const stationHQsList = stationsData?.data || [];
 
@@ -101,7 +94,53 @@ export default memo(function RaiseGrievance() {
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [servicesOpen, setServicesOpen] = useState(true);
 
-  // ── Sync openCategory + caseTypeId when case types load ─────────────────
+  // ── Build category lookup map ─────────────────────────────────────────
+  const catById = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const cat of (categories as any[])) {
+      map.set(String(cat._id), cat);
+      map.set(normalizeCategory(cat.name), cat);
+    }
+    return map;
+  }, [categories]);
+
+  // ── Group case types by category (fully dynamic) ───────────────────────
+  const groupedCategories = useMemo(() => {
+    const list = Array.isArray(caseTypesList) ? (caseTypesList as any[]) : [];
+
+    const byCategory = new Map<string, { catObj: any; items: any[] }>();
+    for (const ct of list) {
+      // Get English category name as stable key
+      const catName = (ct.categoryName || "Other").trim();
+      const catId = String(ct.categoryId || "");
+      // Look up full category object to get nameHi and iconUrl
+      const catObj = catById.get(catId) || catById.get(normalizeCategory(catName)) || {
+        _id: catId,
+        name: catName,
+        nameHi: ct.categoryNameHi || "",
+        iconUrl: ct.categoryIconUrl || null,
+      };
+
+      if (!byCategory.has(catName)) {
+        byCategory.set(catName, { catObj, items: [] });
+      }
+      byCategory.get(catName)!.items.push(ct);
+    }
+
+    return Array.from(byCategory.entries()).map(([catName, { catObj, items }]) => {
+      const displayName = getField(catObj, "name") || catName;
+
+      return {
+        key: catName,          // English name — stable identifier for open/close
+        displayName,           // Translated name shown to user
+        iconUrl: catObj.iconUrl || null,
+        title: catName,
+        items,
+      };
+    });
+  }, [caseTypesList, catById, getField, currentLang]);
+
+  // ── Sync openCategory + caseTypeId when case types load ─────────────────────
   useEffect(() => {
     if (!generalConcernMode || !concernComplaint) return;
     setForm((prev) => ({
@@ -125,33 +164,23 @@ export default memo(function RaiseGrievance() {
       if (ct && String(form.caseTypeId) !== String(ct._id)) {
         setForm((prev) => ({ ...prev, caseTypeId: ct._id }));
       }
-      const category = ct ? getCaseTypeCategoryLabel(ct) : null;
-      const matched = CATEGORY_CONFIG.find(
-        (cfg) => normalizeCategory(cfg.key) === normalizeCategory(category || "")
-      );
-      setOpenCategory(matched?.key ?? CATEGORY_CONFIG[0].key);
-    } else {
-      setOpenCategory(CATEGORY_CONFIG[0].key);
+      // Find which category this belongs to and open it
+      const catName = ct?.categoryName || "Other";
+      setOpenCategory(catName);
+    } else if (groupedCategories.length > 0 && !openCategory) {
+      setOpenCategory(groupedCategories[0].key);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseTypesList, form.caseType, form.caseTypeId]);
 
-  // ── Group case types by category ─────────────────────────────────────────
-  const groupedCategories = useMemo(() => {
-    const list = Array.isArray(caseTypesList) ? (caseTypesList as any[]) : [];
-    const byCategory = new Map<string, any[]>();
-    for (const ct of list) {
-      const category = getCaseTypeCategoryLabel(ct).trim() || "Other";
-      if (!byCategory.has(category)) byCategory.set(category, []);
-      byCategory.get(category)!.push(ct);
-    }
-    return CATEGORY_CONFIG.map((cfg) => {
-      const matchedKey = [...byCategory.keys()].find(
-        (k) => normalizeCategory(k) === normalizeCategory(cfg.key)
-      );
-      const items = matchedKey ? byCategory.get(matchedKey)! : [];
-      return { ...cfg, items };
-    }).filter((c) => c.items.length > 0);
-  }, [caseTypesList]);
+  // Resolve display name of selected case type (for the toggle button)
+  const selectedCaseTypeObj = useMemo(
+    () => (caseTypesList as any[]).find((ct: any) => ct.name === form.caseType),
+    [caseTypesList, form.caseType]
+  );
+  const selectedCaseTypeDisplay = selectedCaseTypeObj
+    ? getField(selectedCaseTypeObj, "name")
+    : "";
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(() => {
@@ -237,8 +266,8 @@ export default memo(function RaiseGrievance() {
             disabled={generalConcernMode}
             className={`w-full flex items-center justify-between bg-secondary border border-border rounded-xl px-4 py-3 text-sm transition-colors ${generalConcernMode ? "opacity-70 cursor-not-allowed" : ""}`}
           >
-            <span className={form.caseType ? "text-foreground font-normal" : "text-muted-foreground"}>
-              {form.caseType || t("selectServices")}
+            <span className={selectedCaseTypeDisplay ? "text-foreground font-normal" : "text-muted-foreground"}>
+              {selectedCaseTypeDisplay || t("selectServices")}
             </span>
             {servicesOpen
               ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -261,10 +290,8 @@ export default memo(function RaiseGrievance() {
                       className="w-full flex items-center justify-between px-4 py-3  hover:bg-secondary/50 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full ${cat.bg} flex items-center justify-center flex-shrink-0`}>
-                          {cat.icon}
-                        </div>
-                        <span className="text-sm font-medium text-foreground">{cat.key}</span>
+                        <CategoryIcon name={cat.title} iconUrl={cat.iconUrl} size="sm" />
+                        <span className="text-sm font-medium text-foreground">{cat.displayName}</span>
                       </div>
                       {/* Radio indicator */}
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
@@ -279,6 +306,7 @@ export default memo(function RaiseGrievance() {
                       <div className="px-3 pb-2 space-y-1 bg-secondary/20">
                         {cat.items.map((item: any) => {
                           const isItemSelected = form.caseType === item.name;
+                          const itemDisplayName = getField(item, "name");
                           return (
                             <button
                               key={item._id || item.name}
@@ -293,7 +321,7 @@ export default memo(function RaiseGrievance() {
                                 }`}
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
-                              {item.name}
+                              {itemDisplayName}
                             </button>
                           );
                         })}
