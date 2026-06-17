@@ -3,6 +3,7 @@ import { ChevronLeft, FileText, Folder, AlertCircle, Download } from "lucide-rea
 import { useRequiredDocumentsForCaseType } from "@/hooks/useApi";
 import { resolveUploadUrl } from "@/lib/apiBase";
 import { useTranslation } from "react-i18next";
+import { useDynamicTranslation } from "@/utils/translationHelper";
 
 const DEFAULT_NOTE =
   "Please keep the required documents ready before raising a grievance. Documents will be requested during the grievance filing process.";
@@ -10,6 +11,7 @@ const DEFAULT_NOTE =
 export default function DocumentRequiredInfo() {
   const location = useLocation();
   const { t } = useTranslation();
+  const { currentLang, getField } = useDynamicTranslation();
   const caseTypeId = location.state?.caseTypeId as string | undefined;
   const caseTypeFromNav = location.state?.caseType as string | undefined;
   const descriptionFromNav =
@@ -23,17 +25,21 @@ export default function DocumentRequiredInfo() {
   });
 
   const displayTitle =
-    requiredDocsData?.caseTypeName || caseTypeFromNav || "General Grievance";
+    getField(requiredDocsData, "caseTypeName") || caseTypeFromNav || "General Grievance";
   const displayDescription =
-    requiredDocsData?.description || descriptionFromNav;
+    getField(requiredDocsData, "description") || descriptionFromNav;
   const resolvedCaseTypeId =
     requiredDocsData?.caseTypeId || caseTypeId || "";
 
   const documents = requiredDocsData?.documents || [];
 
+  const guidelinesArray = currentLang === "hi" && requiredDocsData?.guidelinesHi?.length
+    ? requiredDocsData.guidelinesHi
+    : requiredDocsData?.guidelines;
+
   const guidelines =
-    requiredDocsData?.guidelines?.filter((g: string) => g?.trim())?.length
-      ? requiredDocsData.guidelines.filter((g: string) => g?.trim())
+    guidelinesArray?.filter((g: string) => g?.trim())?.length
+      ? guidelinesArray.filter((g: string) => g?.trim())
       : [
           "Ensure all details match your supporting documents.",
           "Upload clear and self-attested documents.",
@@ -42,7 +48,7 @@ export default function DocumentRequiredInfo() {
           "Additional documents may be requested during verification.",
         ];
 
-  const note = requiredDocsData?.note?.trim() || DEFAULT_NOTE;
+  const note = getField(requiredDocsData, "note").trim() || DEFAULT_NOTE;
 
   if (isLoading) {
     return (
@@ -109,8 +115,8 @@ export default function DocumentRequiredInfo() {
                     {(doc.label || String.fromCharCode(65 + index)).replace(/[()]/g, "")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground leading-relaxed">
-                      {doc.text}
+                    <p className="text-sm text-foreground leading-relaxed break-words overflow-hidden">
+                      {getField(doc, "text")}
                       {doc.isMandatory !== false && (
                         <span className="text-destructive font-bold ml-1">*</span>
                       )}

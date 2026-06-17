@@ -61,7 +61,7 @@ export default memo(function CompleteProfile() {
 
   return (
     <div className="h-screen overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
-      <div className="flex flex-col w-full bg-background h-screen overflow-y-auto sm:h-[90vh] sm:max-w-sm sm:rounded-3xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-10 pb-8">
+      <div className="flex flex-col w-full bg-background scrollbar-none h-screen overflow-y-auto sm:h-[90vh] sm:max-w-sm sm:rounded-md sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-2 pb-4">
 
         {/* Top controls */}
         <div className="flex justify-end mb-4 flex-shrink-0">
