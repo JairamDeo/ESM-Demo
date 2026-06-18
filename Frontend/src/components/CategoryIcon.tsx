@@ -5,6 +5,7 @@ export function CategoryIcon({
   iconUrl,
   size = "md",
 }: {
+  /** English category name — used for fallback icon/bg lookup (not the translated label). */
   name: string;
   iconUrl?: string | null;
   size?: "sm" | "md" | "lg";

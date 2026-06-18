@@ -213,7 +213,7 @@ export default function Services() {
             className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-secondary/50 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <CategoryIcon name={cat.title} iconUrl={cat.iconUrl} />
+              <CategoryIcon name={cat.key} iconUrl={cat.iconUrl} />
               <span className="text-sm font-semibold text-foreground">{cat.title}</span>
             </div>
             <div className="w-6 h-6 rounded-full bg-[#D6D6D6] dark:bg-secondary flex items-center justify-center flex-shrink-0">
