@@ -1,11 +1,44 @@
 import { v2 as cloudinary } from "cloudinary";
 import sharp from "sharp";
 
+export interface CloudinaryCredentials {
+  cloud_name: string;
+  api_key: string;
+  api_secret: string;
+}
+
+/** Parse CLOUDINARY_URL or fall back to separate env vars. */
+export function getCloudinaryCredentials(): CloudinaryCredentials {
+  const url = process.env.CLOUDINARY_URL?.trim();
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === "cloudinary:") {
+        const apiKey = decodeURIComponent(parsed.username || "");
+        const apiSecret = decodeURIComponent(parsed.password || "");
+        const cloudName = parsed.hostname || "";
+        if (apiKey && apiSecret && cloudName) {
+          return { cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret };
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  return {
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME?.trim() || "",
+    api_key: process.env.CLOUDINARY_API_KEY?.trim() || "",
+    api_secret: process.env.CLOUDINARY_API_SECRET?.trim() || "",
+  };
+}
+
 function applyCloudinaryConfig(): void {
+  const { cloud_name, api_key, api_secret } = getCloudinaryCredentials();
   cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME?.trim(),
-    api_key: process.env.CLOUDINARY_API_KEY?.trim(),
-    api_secret: process.env.CLOUDINARY_API_SECRET?.trim(),
+    cloud_name,
+    api_key,
+    api_secret,
     secure: true,
   });
 }
