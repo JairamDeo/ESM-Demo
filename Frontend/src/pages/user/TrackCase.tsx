@@ -115,6 +115,9 @@ export default memo(function TrackCase() {
       concernMessage: activeQuery?.message,
       complaint,
       flaggedDocumentLabels,
+      flaggedDocuments: flaggedDocs,
+      hasDocumentFixes: needsDocuments,
+      hasRequiredDocFixes: needsDocuments,
       concernScope: activeQuery?.concernScope,
       form: {
         concernType: "Self",
@@ -143,6 +146,7 @@ export default memo(function TrackCase() {
         ...baseState,
         concernMode: true,
         documentConcernMode: true,
+        hasRequiredDocFixes: true,
       },
     });
   };
@@ -312,15 +316,15 @@ export default memo(function TrackCase() {
               </p>
             </div>
 
-            <div className="rounded-xl bg-[#826CF3]/10 border border-[#826CF3]/30 p-3 space-y-2">
-              <p className="text-xs text-foreground/90">{respondHint}</p>
+            <div className="rounded-lg bg-[#826CF3]/10 border border-[#826CF3]/30 p-2.5 space-y-1.5">
+              <p className="text-[11px] text-foreground/80 leading-snug">{respondHint}</p>
               <button
                 type="button"
                 onClick={goRespond}
-                className="w-full py-3.5 bg-[#826CF3] text-white font-bold rounded-xl shadow-[0_4px_16px_rgba(130,108,243,0.35)] hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                className="w-full py-2 px-3 bg-[#826CF3] text-white text-xs font-semibold rounded-lg shadow-[0_2px_8px_rgba(130,108,243,0.28)] hover:opacity-90 transition-all inline-flex items-center justify-center gap-1.5"
               >
-                <UploadCloud className="w-5 h-5" />
-                {respondStepLabel}
+                <UploadCloud className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-center leading-tight">{respondStepLabel}</span>
               </button>
             </div>
           </div>

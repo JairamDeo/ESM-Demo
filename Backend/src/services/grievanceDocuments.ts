@@ -112,12 +112,20 @@ export async function reuploadGrievanceDocument(params: {
     userId,
   });
 
+  if (!upload && grievance.caseTypeId) {
+    upload = await VeteranRequiredDocumentUpload.findOne({
+      userId,
+      documentLabel,
+      caseType: grievance.caseTypeId,
+    }).sort({ updatedAt: -1 });
+  }
+
   if (!upload) {
     upload = await VeteranRequiredDocumentUpload.findOne({
       userId,
       documentLabel,
       caseTypeName: grievance.type,
-    });
+    }).sort({ updatedAt: -1 });
   }
 
   if (!upload) {
