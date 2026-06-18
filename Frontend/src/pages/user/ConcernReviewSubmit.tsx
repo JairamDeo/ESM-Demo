@@ -25,7 +25,9 @@ export default function ConcernReviewSubmit() {
     replacementFile,
     form = {},
     flaggedDocumentLabels = [],
+    flaggedDocuments = [],
     reuploadedDocumentLabels = [],
+    reuploadedDocuments = [],
   } = location.state || {};
 
   const [responseNote, setResponseNote] = useState("");
@@ -40,6 +42,17 @@ export default function ConcernReviewSubmit() {
     : documentLabel
       ? [documentLabel]
       : [];
+
+  const flaggedDocSummary = flaggedLabels.map((label: string) => {
+    const reuploaded = reuploadedDocuments.find((d: any) => d.label === label);
+    if (reuploaded) return reuploaded;
+    const fromConcern = flaggedDocuments.find((d: any) => d.documentLabel === label);
+    return {
+      label,
+      text: fromConcern?.documentText || documentText,
+      fileName: null,
+    };
+  });
   const targetId = grievanceId || complaint?._id || complaint?.id;
 
   const goBack = () => {
@@ -65,6 +78,18 @@ export default function ConcernReviewSubmit() {
     if (isGeneralSimple && !responseNote.trim() && !generalFile) {
       toast.error("Please add a response or attachment.");
       return;
+    }
+
+    if ((isDocumentOnly || isGeneralFull) && flaggedLabels.length > 0) {
+      const done = reuploadedDocumentLabels.length > 0
+        ? reuploadedDocumentLabels
+        : reuploadedDocuments.map((d: any) => d.label);
+      const missing = flaggedLabels.filter((l) => !done.includes(l));
+      if (missing.length > 0) {
+        toast.error(`Please re-upload: ${missing.join(", ")}`);
+        navigate("/user/document-checklist", { state: location.state });
+        return;
+      }
     }
 
     const formData = new FormData();
@@ -188,11 +213,19 @@ export default function ConcernReviewSubmit() {
           <h2 className="text-sm font-semibold text-foreground">
             {flaggedLabels.length > 1 ? t("documentsCorrected") : t("documentCorrected")}
           </h2>
-          <div className="bg-card border border-border rounded-xl p-4 space-y-2">
-            {(reuploadedDocumentLabels.length > 0 ? reuploadedDocumentLabels : flaggedLabels).map((label: string) => (
-              <div key={label} className="flex items-center gap-2 text-sm">
-                <img src="/icons/check.svg" className="w-4 h-4" alt="" />
-                <span className="font-medium text-primary">{label}</span>
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            {flaggedDocSummary.map((doc: any) => (
+              <div key={doc.label} className="flex items-start gap-2 text-sm border-b border-border/50 last:border-0 pb-2 last:pb-0">
+                <img src="/icons/check.svg" className="w-4 h-4 mt-0.5 shrink-0" alt="" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-primary">{doc.label}</p>
+                  {doc.text && doc.text !== doc.label && (
+                    <p className="text-xs text-muted-foreground">{doc.text}</p>
+                  )}
+                  {doc.fileName && (
+                    <p className="text-xs text-foreground/80 mt-0.5 truncate">{doc.fileName}</p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -202,9 +235,22 @@ export default function ConcernReviewSubmit() {
       {isGeneralFull && flaggedLabels.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-foreground">{t("documentsUpdated")}</h2>
-          <div className="bg-card border border-border rounded-xl p-4 space-y-1">
-            {(reuploadedDocumentLabels.length > 0 ? reuploadedDocumentLabels : flaggedLabels).map((label: string) => (
-              <p key={label} className="text-xs font-medium text-primary">{label}</p>
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            {flaggedDocSummary.map((doc: any) => (
+              <div key={doc.label} className="border-b border-border/50 last:border-0 pb-2 last:pb-0">
+                <p className="text-sm font-semibold text-primary">{doc.label}</p>
+                {doc.text && doc.text !== doc.label && (
+                  <p className="text-xs text-muted-foreground">{doc.text}</p>
+                )}
+                {doc.fileName ? (
+                  <p className="text-xs text-success mt-1 flex items-center gap-1">
+                    <img src="/icons/check.svg" className="w-3.5 h-3.5" alt="" />
+                    {doc.fileName}
+                  </p>
+                ) : (
+                  <p className="text-xs text-warning mt-1">Not re-uploaded yet</p>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -273,7 +319,7 @@ export default function ConcernReviewSubmit() {
         />
       </div>
 
-      {(isGeneralSimple || isGeneralFull || isDocumentOnly) && (
+      {isGeneralSimple && (
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground">{t("attachment")}</label>
           <label className="flex items-center justify-center gap-4 w-full border-2 border-dashed border-[#2952A3] rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/5">
