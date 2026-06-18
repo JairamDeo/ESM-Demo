@@ -373,7 +373,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                   className="h-8 px-2 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors text-[11px] font-bold text-foreground tracking-wide select-none"
                   aria-label="Toggle language"
                 >
-                  {i18n.language === "hi" ? "EN" : "हिं"}
+                  {i18n.language === "hi" ? "हिं" : "EN"}
                 </button>
 
                 <button

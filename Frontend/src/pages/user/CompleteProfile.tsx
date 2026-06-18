@@ -134,12 +134,12 @@ export default memo(function CompleteProfile() {
         </button>
 
         {/* Skip */}
-        <button
+        {/* <button
           onClick={() => navigate("/user")}
           className="mt-3 text-center text-sm text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
         >
           {t("skipForNow")}
-        </button>
+        </button> */}
 
       </div>
     </div>
