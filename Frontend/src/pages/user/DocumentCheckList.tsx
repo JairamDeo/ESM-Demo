@@ -7,6 +7,7 @@ import {
   useVeteranDocumentChecklist,
   useUploadVeteranRequiredDocument,
   useDeleteVeteranUpload,
+  useTrackGrievance,
   clearVeteranDraftUploads,
 } from "@/hooks/useApi";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,9 +16,14 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useDynamicTranslation } from "@/utils/translationHelper";
 
-function mergeSubmittedDoc(doc: any, submittedDocs: any[]) {
+function mergeSubmittedDoc(
+  doc: any,
+  submittedDocs: any[],
+  options?: { preferSubmitted?: boolean }
+) {
   const submitted = submittedDocs.find((s) => s.documentLabel === doc.label);
-  if (!submitted || doc.upload) return doc;
+  if (!submitted) return doc;
+  if (doc.upload && !options?.preferSubmitted) return doc;
   return {
     ...doc,
     upload: {
@@ -27,6 +33,16 @@ function mergeSubmittedDoc(doc: any, submittedDocs: any[]) {
       fileSize: submitted.fileSize,
       fileUrl: submitted.fileUrl,
     },
+  };
+}
+
+function submittedToUpload(submitted: any) {
+  return {
+    uploadId: submitted.uploadId,
+    originalFileName: submitted.originalFileName,
+    mimeType: submitted.mimeType,
+    fileSize: submitted.fileSize,
+    fileUrl: submitted.fileUrl,
   };
 }
 
@@ -44,8 +60,11 @@ export default function DocumentCheckList() {
   const isNewGrievanceFlow = !concernMode && !generalConcernMode;
   const documentOnlyConcernMode = concernMode && !generalConcernMode;
   const flaggedDocumentLabels: string[] = location.state?.flaggedDocumentLabels || [];
+  const flaggedDocuments: { documentLabel: string; documentText?: string }[] =
+    location.state?.flaggedDocuments || [];
   const flaggedSet = useMemo(() => new Set(flaggedDocumentLabels), [flaggedDocumentLabels]);
-  const hasRequiredDocFixes = location.state?.hasRequiredDocFixes === true;
+  const hasRequiredDocFixes =
+    location.state?.hasRequiredDocFixes === true || location.state?.hasDocumentFixes === true;
   const grievanceId = location.state?.grievanceId as string | undefined;
   const concernMessage = location.state?.concernMessage || "";
   const complaint = location.state?.complaint || {};
@@ -93,41 +112,90 @@ export default function DocumentCheckList() {
   const { data: checklistData, isLoading } = useVeteranDocumentChecklist(
     draftsReady ? caseTypeId || "" : ""
   );
+  const { data: liveGrievance } = useTrackGrievance(
+    useGrievanceUpload && grievanceId ? grievanceId : ""
+  );
   const allDocuments = checklistData?.items || [];
-  const submittedDocs: any[] = complaint.submittedDocuments || [];
+  const submittedDocs: any[] =
+    (useGrievanceUpload ? liveGrievance?.submittedDocuments : null) ||
+    complaint.submittedDocuments ||
+    [];
+  const [uploadOverrides, setUploadOverrides] = useState<Record<string, any>>({});
 
   const documents = useMemo(() => {
-    if (documentOnlyConcernMode && flaggedSet.size > 0) {
+    const applyOverrides = (items: any[]) =>
+      items.map((doc: any) => {
+        const override = uploadOverrides[doc.label];
+        if (!override) return doc;
+        return { ...doc, upload: override };
+      });
+
+    const buildFlaggedOnly = () => {
       const labels = [...flaggedSet];
       return labels.map((label) => {
         const fromChecklist = allDocuments.find((d: any) => d.label === label);
         const submitted = submittedDocs.find((d) => d.documentLabel === label);
-        if (fromChecklist) return mergeSubmittedDoc(fromChecklist, submittedDocs);
+        const fromConcern = flaggedDocuments.find((d) => d.documentLabel === label);
+
         if (submitted) {
+          const meta = fromChecklist || fromConcern;
           return {
             label: submitted.documentLabel,
-            text: submitted.documentText || submitted.documentLabel,
-            textHi: submitted.documentTextHi || "", // Keep textHi if available from submitted (though usually just label)
+            text: submitted.documentText || meta?.text || fromConcern?.documentText || submitted.documentLabel,
+            textHi: fromChecklist?.textHi || "",
+            isMandatory: true,
+            templateUrl: fromChecklist?.templateUrl || null,
+            templateFileName: fromChecklist?.templateFileName || null,
+            upload: submittedToUpload(submitted),
+          };
+        }
+
+        if (fromChecklist) {
+          const base = useGrievanceUpload ? { ...fromChecklist, upload: null } : fromChecklist;
+          return mergeSubmittedDoc(base, submittedDocs, { preferSubmitted: useGrievanceUpload });
+        }
+
+        if (fromConcern) {
+          return {
+            label: fromConcern.documentLabel,
+            text: fromConcern.documentText || fromConcern.documentLabel,
+            textHi: "",
             isMandatory: true,
             templateUrl: null,
             templateFileName: null,
-            upload: {
-              uploadId: submitted.uploadId,
-              originalFileName: submitted.originalFileName,
-              mimeType: submitted.mimeType,
-              fileSize: submitted.fileSize,
-              fileUrl: submitted.fileUrl,
-            },
+            upload: null,
           };
         }
         return null;
       }).filter(Boolean);
+    };
+
+    if ((documentOnlyConcernMode || (generalConcernMode && hasRequiredDocFixes)) && flaggedSet.size > 0) {
+      return applyOverrides(buildFlaggedOnly());
     }
     if (generalConcernMode && submittedDocs.length > 0) {
-      return allDocuments.map((doc: any) => mergeSubmittedDoc(doc, submittedDocs));
+      return applyOverrides(
+        allDocuments.map((doc: any) =>
+          mergeSubmittedDoc(
+            useGrievanceUpload ? { ...doc, upload: null } : doc,
+            submittedDocs,
+            { preferSubmitted: useGrievanceUpload }
+          )
+        )
+      );
     }
-    return allDocuments;
-  }, [documentOnlyConcernMode, generalConcernMode, flaggedSet, allDocuments, submittedDocs]);
+    return applyOverrides(allDocuments);
+  }, [
+    documentOnlyConcernMode,
+    generalConcernMode,
+    hasRequiredDocFixes,
+    flaggedSet,
+    flaggedDocuments,
+    allDocuments,
+    submittedDocs,
+    useGrievanceUpload,
+    uploadOverrides,
+  ]);
 
   const uploadDoc = useUploadVeteranRequiredDocument();
   const deleteUpload = useDeleteVeteranUpload();
@@ -165,15 +233,25 @@ export default function DocumentCheckList() {
 
     if (useGrievanceUpload) {
       try {
-        await uploadDoc.mutateAsync({
+        const result = await uploadDoc.mutateAsync({
           caseTypeId,
           documentLabel: docLabel,
           itemIndex,
           file,
           grievanceId,
         });
+        setUploadOverrides((prev) => ({
+          ...prev,
+          [docLabel]: {
+            uploadId: result.uploadId,
+            originalFileName: result.originalFileName,
+            mimeType: result.mimeType,
+            fileSize: result.fileSize,
+            fileUrl: result.fileUrl,
+          },
+        }));
         setReuploadedLabels((prev) => new Set(prev).add(docLabel));
-        toast.success(`${docLabel} updated successfully`);
+        toast.success(`${docLabel} replaced successfully`);
       } catch (err: any) {
         toast.error(err?.response?.data?.message || "Upload failed");
       } finally {
@@ -225,6 +303,13 @@ export default function DocumentCheckList() {
           generalMode: true,
           documentOnlyFlow: true,
           reuploadedDocumentLabels: [...reuploadedLabels],
+          reuploadedDocuments: documents
+            .filter((d: any) => reuploadedLabels.has(d.label))
+            .map((d: any) => ({
+              label: d.label,
+              text: d.text,
+              fileName: d.upload?.originalFileName,
+            })),
         },
       });
       return;
@@ -238,6 +323,13 @@ export default function DocumentCheckList() {
           generalMode: true,
           generalFullFlow: true,
           reuploadedDocumentLabels: [...reuploadedLabels],
+          reuploadedDocuments: documents
+            .filter((d: any) => !hasRequiredDocFixes || reuploadedLabels.has(d.label))
+            .map((d: any) => ({
+              label: d.label,
+              text: d.text,
+              fileName: d.upload?.originalFileName,
+            })),
         },
       });
       return;
@@ -317,6 +409,8 @@ export default function DocumentCheckList() {
         const isUploading = uploadDoc.isPending && uploadDoc.variables?.documentLabel === doc.label;
         const flagged = isFlaggedDoc(doc.label);
         const reuploaded = reuploadedLabels.has(doc.label);
+        const showUpload =
+          isNewGrievanceFlow || documentOnlyConcernMode || generalConcernMode;
 
         return (
           <div
@@ -329,18 +423,21 @@ export default function DocumentCheckList() {
               <div className="w-7 h-7 rounded-full dark:bg-[#1A1A1A] dark:text-white bg-[#F1F1F1] text-black text-xs font-medium flex items-center justify-center flex-shrink-0">
                 {String.fromCharCode(65 + index)}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 {flagged && (
                   <span className="text-[10px] font-semibold text-warning bg-warning/15 px-2 py-0.5 rounded-full inline-block mb-1">
                     {t("officerFlagged")}
                   </span>
                 )}
-                <p className="text-sm text-foreground leading-relaxed">
-                  {getField(doc, "text")}
-                  {(doc.isMandatory || isRequiredReupload(doc.label)) && (
-                    <span className="text-destructive font-bold ml-1">*</span>
-                  )}
-                </p>
+                <p className="text-sm font-semibold text-primary">{doc.label}</p>
+                {getField(doc, "text") && getField(doc, "text") !== doc.label && (
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    {getField(doc, "text")}
+                  </p>
+                )}
+                {(doc.isMandatory || isRequiredReupload(doc.label)) && (
+                  <span className="text-destructive font-bold text-xs ml-0.5">*</span>
+                )}
               </div>
             </div>
 
@@ -401,6 +498,7 @@ export default function DocumentCheckList() {
               </a>
             )}
 
+            {showUpload && (
             <label
               className={`flex items-center justify-center gap-4 w-full border-2 border-dashed border-[#2952A3] rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/5 transition-colors ${
                 isUploading ? "opacity-50 pointer-events-none" : ""
@@ -411,17 +509,17 @@ export default function DocumentCheckList() {
               ) : (
                 <UploadCloud className="w-8 h-8 text-[#4F81FF]" />
               )}
-              <div>
+              <div className="min-w-0 text-left">
                 <p className="text-sm font-semibold text-foreground">
                   {isUploading
                     ? t("uploading")
                     : useGrievanceUpload
                       ? reuploaded
                         ? t("uploadAgain")
-                        : t("uploadCorrected")
+                        : `${t("uploadCorrected")} — ${doc.label}`
                       : upload
                         ? t("replaceDocument")
-                        : t("uploadDocument")}
+                        : `${t("uploadDocument")} — ${doc.label}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">{t("jpgPngPdf")}</p>
               </div>
@@ -433,6 +531,7 @@ export default function DocumentCheckList() {
                 className="hidden"
               />
             </label>
+            )}
           </div>
         );
       }) : (
