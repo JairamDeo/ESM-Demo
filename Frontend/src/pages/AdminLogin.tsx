@@ -103,7 +103,7 @@ const AdminLogin = memo(() => {
           </button>
 
           <p className="text-xs text-center text-muted-foreground">
-            Test: <span className="font-mono text-foreground">test-st1-l1@esm.in</span> / <span className="font-mono text-foreground">Jairam@123</span>
+            Test: <span className="font-mono text-foreground">admin</span> / <span className="font-mono text-foreground">Jairam@123</span>
           </p>
         </div>
 

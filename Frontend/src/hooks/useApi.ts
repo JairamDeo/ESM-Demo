@@ -29,6 +29,50 @@ export const useDashboard = (period = "all") =>
     refetchInterval: 120_000,
   });
 
+export const useDashboardLayout = () =>
+  useQuery({
+    queryKey: ["dashboard-layout"],
+    queryFn: async () => {
+      const { data } = await api.get("/dashboard/layout");
+      return data;
+    },
+    staleTime: 300_000,
+  });
+
+export const useSaveDashboardLayout = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { widgets: any[]; dashboardName?: string }) => {
+      const { data } = await api.put("/dashboard/layout", payload);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dashboard-layout"] });
+      toast.success("Dashboard layout saved");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to save dashboard layout");
+    },
+  });
+};
+
+export const useResetDashboardLayout = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.delete("/dashboard/layout");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dashboard-layout"] });
+      toast.success("Dashboard layout reset to default");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to reset dashboard layout");
+    },
+  });
+};
+
 // ─── Grievances ───────────────────────────────────────────────────────────────
 export interface GrievanceParams {
   page?: number;

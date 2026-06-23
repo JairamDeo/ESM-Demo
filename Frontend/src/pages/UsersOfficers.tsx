@@ -484,6 +484,7 @@ export default memo(function UsersOfficers() {
       role: o.role,
       level: o.level || "",
       stateId: o.stateId || "",
+      filterStateId: o.stateId || "",
       hqId: o.hqId || "",
       stationId: o.station?._id || o.station || "",
       assignName,

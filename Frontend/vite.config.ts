@@ -5,7 +5,13 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: { 
+      "@": path.resolve(__dirname, "./src"),
+      "process/browser": "process/browser.js"
+    },
+  },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
   },
   build: {
     target: "es2020",
@@ -20,6 +26,7 @@ export default defineConfig({
           "vendor-charts": ["recharts"],
           "vendor-qr": ["react-qr-code"],
           "vendor-ui": ["lucide-react", "sonner", "axios"],
+          "vendor-rgl": ["react-grid-layout", "react-resizable"],
         },
       },
     },
@@ -41,6 +48,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "react-router-dom", "@tanstack/react-query", "axios", "recharts"],
+    include: ["react", "react-dom", "react-router-dom", "@tanstack/react-query", "axios", "recharts", "react-grid-layout", "react-resizable"],
   },
 });
