@@ -1,0 +1,278 @@
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Responsive, WidthProvider, Layout } from "react-grid-layout/legacy";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
+import { Save, RefreshCw, LayoutTemplate, Plus, Settings2 } from "lucide-react";
+import { toast } from "sonner";
+import { WidgetShell } from "./WidgetShell";
+import { WidgetRenderer } from "./WidgetRenderer";
+import { DashboardDataProvider } from "./DashboardDataContext";
+import {
+  DashboardWidgetConfig,
+  WIDGET_CATALOG,
+  FRONTEND_LAYOUT_DEFAULTS,
+  ChartType,
+  WidgetKey
+} from "./config/dashboardLayoutDefaults";
+import {
+  useDashboardLayout,
+  useSaveDashboardLayout,
+  useResetDashboardLayout,
+} from "@/hooks/useApi";
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
+interface DynamicDashboardProps {
+  data: any;
+  isLoading: boolean;
+  period: string;
+}
+
+export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardProps) {
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [widgets, setWidgets] = useState<DashboardWidgetConfig[]>([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  const { data: layoutData, isLoading: isLayoutLoading } = useDashboardLayout();
+  const saveLayout = useSaveDashboardLayout();
+  const resetLayout = useResetDashboardLayout();
+
+  useEffect(() => {
+    if (layoutData?.layout) {
+      const gsWidget = layoutData.layout.find(
+        (w: DashboardWidgetConfig) => w.widgetKey === "grievance-stats"
+      );
+
+      if (gsWidget && gsWidget.y === 0 && gsWidget.h >= 3) {
+        // Layout is fully correct — use as-is, only enforce min height
+        const fixedLayout = layoutData.layout.map((w: DashboardWidgetConfig) => {
+          if (w.widgetKey === "grievance-stats") {
+            return { ...w, h: Math.max(w.h, 3), minH: 3 };
+          }
+          return w;
+        });
+        setWidgets(fixedLayout);
+      } else {
+        // Old / corrupted layout — rebuild positions from defaults but keep saved chart types
+        const savedChartTypes: Record<string, string> = {};
+        layoutData.layout.forEach((w: DashboardWidgetConfig) => {
+          savedChartTypes[w.widgetKey] = w.chartType;
+        });
+        const fixedLayout = FRONTEND_LAYOUT_DEFAULTS.map((defaultWidget) => ({
+          ...defaultWidget,
+          chartType: (savedChartTypes[defaultWidget.widgetKey] as any) ?? defaultWidget.chartType,
+        }));
+        setWidgets(fixedLayout);
+      }
+      setHasUnsavedChanges(false);
+    } else if (!isLayoutLoading) {
+      setWidgets(FRONTEND_LAYOUT_DEFAULTS);
+    }
+  }, [layoutData, isLayoutLoading]);
+
+  const onLayoutChange = useCallback((layout: Layout) => {
+    if (!isEditMode) return;
+    
+    setWidgets((prev) => {
+      const updated = prev.map((w) => {
+        const l = layout.find((item) => item.i === w.id);
+        if (l) {
+          return { ...w, x: l.x, y: l.y, w: l.w, h: l.h };
+        }
+        return w;
+      });
+      // Check if actually changed
+      const changed = JSON.stringify(prev) !== JSON.stringify(updated);
+      if (changed) setHasUnsavedChanges(true);
+      return updated;
+    });
+  }, [isEditMode]);
+
+  const handleChartTypeChange = useCallback((id: string, newType: ChartType) => {
+    setWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, chartType: newType } : w)));
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const handleRemoveWidget = useCallback((id: string) => {
+    setWidgets((prev) => prev.filter((w) => w.id !== id));
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const handleAddWidget = useCallback((widgetKey: WidgetKey) => {
+    const catalogItem = WIDGET_CATALOG.find((i) => i.widgetKey === widgetKey);
+    if (!catalogItem) return;
+
+    // Check if already exists (we only allow 1 instance of each widget for now)
+    if (widgets.some((w) => w.widgetKey === widgetKey)) {
+      toast.error("Widget already exists on dashboard");
+      return;
+    }
+
+    const newWidget: DashboardWidgetConfig = {
+      id: `${widgetKey}-${Date.now()}`,
+      widgetKey,
+      chartType: catalogItem.defaultChart,
+      x: 0,
+      y: Infinity, // puts it at the bottom
+      w: catalogItem.defaultW,
+      h: catalogItem.defaultH,
+      minW: catalogItem.minW,
+      minH: catalogItem.minH,
+    };
+
+    setWidgets((prev) => [...prev, newWidget]);
+    setHasUnsavedChanges(true);
+  }, [widgets]);
+
+  const handleSave = () => {
+    saveLayout.mutate({ widgets }, {
+      onSuccess: () => setHasUnsavedChanges(false)
+    });
+  };
+
+  const handleReset = () => {
+    if (confirm("Are you sure you want to reset your dashboard to the default layout?")) {
+      resetLayout.mutate(undefined, {
+        onSuccess: () => {
+          // Always use frontend defaults here in case backend hasn't restarted with new defaults
+          setWidgets(FRONTEND_LAYOUT_DEFAULTS);
+          setHasUnsavedChanges(false);
+        }
+      });
+    }
+  };
+
+  // Build grid layout format
+  const layout = useMemo(() => {
+    return widgets.map((w) => ({
+      i: w.id,
+      x: w.x,
+      y: w.y,
+      w: w.w,
+      h: w.h,
+      minW: w.minW,
+      minH: w.minH,
+      static: !isEditMode,
+    }));
+  }, [widgets, isEditMode]);
+
+  const availableWidgetsToAdd = WIDGET_CATALOG.filter(
+    (item) => !widgets.some((w) => w.widgetKey === item.widgetKey)
+  );
+
+  if (isLayoutLoading) {
+    return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading dashboard layout...</div>;
+  }
+
+  return (
+    <DashboardDataProvider data={data} isLoading={isLoading} period={period}>
+      <div className="space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border shadow-sm">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                isEditMode
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              <Settings2 className="w-4 h-4" />
+              {isEditMode ? "Finish Editing" : "Customize Dashboard"}
+            </button>
+            
+            {isEditMode && hasUnsavedChanges && (
+              <span className="text-xs text-warning font-medium flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                Unsaved changes
+              </span>
+            )}
+          </div>
+
+          {isEditMode && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+              {availableWidgetsToAdd.length > 0 && (
+                <div className="relative group mr-2">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Add Widget
+                  </button>
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1">
+                    {availableWidgetsToAdd.map((item) => (
+                      <button
+                        key={item.widgetKey}
+                        type="button"
+                        onClick={() => handleAddWidget(item.widgetKey)}
+                        className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors flex items-center gap-2"
+                      >
+                        <LayoutTemplate className="w-4 h-4 text-muted-foreground" />
+                        {item.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={resetLayout.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${resetLayout.isPending ? "animate-spin" : ""}`} />
+                Reset
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!hasUnsavedChanges || saveLayout.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                Save Layout
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Grid Layout */}
+        <div className="dashboard-grid-container -mx-4 sm:mx-0">
+          <ResponsiveGridLayout
+            className="layout je-dashboard-grid"
+            layouts={{ lg: layout, md: layout, sm: layout }}
+            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+            cols={{ lg: 12, md: 12, sm: 12, xs: 1, xxs: 1 }}
+            rowHeight={50}
+            containerPadding={[16, 16]}
+            margin={[16, 16]}
+            isDraggable={isEditMode}
+            isResizable={isEditMode}
+            draggableHandle=".je-widget-drag-zone"
+            onLayoutChange={onLayoutChange}
+            useCSSTransforms={true}
+          >
+            {widgets.map((w) => (
+              <div key={w.id} className="relative z-0 bg-transparent flex flex-col">
+                <WidgetShell
+                  id={w.id}
+                  widgetKey={w.widgetKey}
+                  chartType={w.chartType}
+                  isEditMode={isEditMode}
+                  onChartTypeChange={handleChartTypeChange}
+                  onRemove={handleRemoveWidget}
+                >
+                  <WidgetRenderer widgetKey={w.widgetKey} chartType={w.chartType} />
+                </WidgetShell>
+              </div>
+            ))}
+          </ResponsiveGridLayout>
+        </div>
+      </div>
+    </DashboardDataProvider>
+  );
+}

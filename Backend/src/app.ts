@@ -17,6 +17,7 @@ import {
 import { rbacRouter } from "./routes/rbac";
 import { veteranDocumentsRouter } from "./routes/veteranDocuments";
 import { errorHandler, notFound } from "./middleware/errorHandler";
+import dashboardLayoutRoutes from "./routes/dashboardLayout";
 
 const app: Application = express();
 
@@ -100,6 +101,7 @@ app.use("/api/announcements", announcementRouter);
 app.use("/api/rbac",          rbacRouter);
 app.use("/api/veteran/required-documents", veteranDocumentsRouter);
 app.use("/api/translate",     translateRouter);
+app.use("/api/dashboard/layout", dashboardLayoutRoutes);
 
 // ─── 404 + Error handler ──────────────────────────────────────────────────────
 app.use(notFound);

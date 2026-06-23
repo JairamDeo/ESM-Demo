@@ -248,3 +248,37 @@
     appearance: textfield;
   }
 }
+
+/* React Grid Layout Overrides */
+.react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary)) !important;
+  opacity: 0.15 !important;
+  border-radius: var(--radius) !important;
+  border: 2px dashed hsl(var(--primary)) !important;
+}
+
+.je-dashboard-grid .react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, background-color, box-shadow;
+}
+
+.je-dashboard-grid .react-grid-item.cssTransforms {
+  transition-property: transform, background-color, box-shadow;
+}
+
+.je-dashboard-grid .react-grid-item.resizing {
+  z-index: 100;
+  will-change: width, height;
+}
+
+.je-dashboard-grid .react-grid-item.react-draggable-dragging {
+  transition: none !important;
+  z-index: 100;
+  will-change: transform;
+  cursor: grabbing !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.je-widget-drag-zone {
+  touch-action: none;
+}
