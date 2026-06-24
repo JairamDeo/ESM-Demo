@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { WidgetShell } from "./WidgetShell";
 import { WidgetRenderer } from "./WidgetRenderer";
 import { DashboardDataProvider } from "./DashboardDataContext";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   DashboardWidgetConfig,
   WIDGET_CATALOG,
@@ -32,6 +33,18 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
   const [isEditMode, setIsEditMode] = useState(false);
   const [widgets, setWidgets] = useState<DashboardWidgetConfig[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isWidgetMenuOpen, setIsWidgetMenuOpen] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as Element).closest('.widget-dropdown-container')) {
+        setIsWidgetMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const { data: layoutData, isLoading: isLayoutLoading } = useDashboardLayout();
   const saveLayout = useSaveDashboardLayout();
@@ -131,15 +144,18 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
   };
 
   const handleReset = () => {
-    if (confirm("Are you sure you want to reset your dashboard to the default layout?")) {
-      resetLayout.mutate(undefined, {
-        onSuccess: () => {
-          // Always use frontend defaults here in case backend hasn't restarted with new defaults
-          setWidgets(FRONTEND_LAYOUT_DEFAULTS);
-          setHasUnsavedChanges(false);
-        }
-      });
-    }
+    setIsResetDialogOpen(true);
+  };
+
+  const confirmReset = () => {
+    resetLayout.mutate(undefined, {
+      onSuccess: () => {
+        // Always use frontend defaults here in case backend hasn't restarted with new defaults
+        setWidgets(FRONTEND_LAYOUT_DEFAULTS);
+        setHasUnsavedChanges(false);
+        setIsResetDialogOpen(false);
+      }
+    });
   };
 
   // Build grid layout format
@@ -192,30 +208,41 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
           </div>
 
           {isEditMode && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-              {availableWidgetsToAdd.length > 0 && (
-                <div className="relative group mr-2">
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" /> Add Widget
-                  </button>
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1">
-                    {availableWidgetsToAdd.map((item) => (
-                      <button
-                        key={item.widgetKey}
-                        type="button"
-                        onClick={() => handleAddWidget(item.widgetKey)}
-                        className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors flex items-center gap-2"
-                      >
-                        <LayoutTemplate className="w-4 h-4 text-muted-foreground" />
-                        {item.title}
-                      </button>
-                    ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative mr-2 widget-dropdown-container">
+                <button
+                  type="button"
+                  onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)}
+                  disabled={availableWidgetsToAdd.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="w-4 h-4" /> Add Widget
+                </button>
+                {isWidgetMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-xl shadow-lg transition-all z-50 py-1">
+                    {availableWidgetsToAdd.length > 0 ? (
+                      availableWidgetsToAdd.map((item) => (
+                        <button
+                          key={item.widgetKey}
+                          type="button"
+                          onClick={() => {
+                            handleAddWidget(item.widgetKey);
+                            setIsWidgetMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors flex items-center gap-2"
+                        >
+                          <LayoutTemplate className="w-4 h-4 text-muted-foreground" />
+                          {item.title}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-muted-foreground text-center">
+                        All widgets added
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               <button
                 type="button"
@@ -266,13 +293,24 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
                   onChartTypeChange={handleChartTypeChange}
                   onRemove={handleRemoveWidget}
                 >
-                  <WidgetRenderer widgetKey={w.widgetKey} chartType={w.chartType} />
+                  <WidgetRenderer widgetKey={w.widgetKey} chartType={w.chartType} isEditMode={isEditMode} />
                 </WidgetShell>
               </div>
             ))}
           </ResponsiveGridLayout>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={isResetDialogOpen}
+        title="Reset Dashboard"
+        message="Are you sure you want to reset your dashboard to the default layout? All custom positioning and sizing will be lost."
+        confirmLabel="Reset"
+        variant="danger"
+        loading={resetLayout.isPending}
+        onConfirm={confirmReset}
+        onClose={() => setIsResetDialogOpen(false)}
+      />
     </DashboardDataProvider>
   );
 }
