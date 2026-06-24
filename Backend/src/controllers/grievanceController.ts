@@ -803,7 +803,7 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
         commentOriginalText    = noteText;
         commentTranslatedText  = xlat.translatedText;
         commentLanguage        = "en";
-        commentTranslationFailed = xlat.failed;
+        commentTranslationFailed = xlat.translationFailed;
       }
     }
 
@@ -1079,6 +1079,55 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       { $limit: 5 },
     ]);
 
+    const byPriority = await Grievance.aggregate([
+      { $match: { ...baseFilter } },
+      { $group: { _id: "$priority", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+
+    const avgResolutionTimeQuery = await Grievance.aggregate([
+      { $match: { ...baseFilter, status: "resolved", resolvedAt: { $exists: true } } },
+      {
+        $group: {
+          _id: null,
+          avgMs: { $avg: { $subtract: ["$resolvedAt", "$createdAt"] } },
+        },
+      },
+    ]);
+    const avgResolutionHours = avgResolutionTimeQuery[0]?.avgMs ? Math.round(avgResolutionTimeQuery[0].avgMs / (1000 * 60 * 60)) : 0;
+
+    const bySubmissionSource = await Grievance.aggregate([
+      { $match: { ...baseFilter } },
+      { $group: { _id: "$submissionSource", count: { $sum: 1 } } }
+    ]);
+
+    const now = new Date();
+    const slaStatsRaw = await Grievance.aggregate([
+      { $match: { ...baseFilter, slaDeadline: { $exists: true } } },
+      {
+        $project: {
+          status: 1,
+          isOverdue: {
+            $cond: [
+              { $in: ["$status", ["resolved", "closed"]] },
+              { $gt: ["$resolvedAt", "$slaDeadline"] },
+              { $gt: [now, "$slaDeadline"] }
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$isOverdue",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    const slaStats = {
+      overdue: slaStatsRaw.find(s => s._id === true)?.count || 0,
+      withinSla: slaStatsRaw.find(s => s._id === false)?.count || 0
+    };
+
     const recent = await Grievance.find(baseFilter)
       .sort({ createdAt: -1 })
       .limit(5)
@@ -1104,6 +1153,10 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
         })),
         byType: byType.map((t) => ({ name: t._id, value: t.count })),
         byStation: byStation.map((s) => ({ name: s._id.replace(" Station HQ", "").replace(" HQ", ""), cases: s.count })),
+        byPriority: byPriority.map((p) => ({ name: p._id || "Unassigned", value: p.count })),
+        bySubmissionSource: bySubmissionSource.map((s) => ({ name: s._id || "unknown", value: s.count })),
+        slaStats,
+        avgResolutionHours,
         recent,
       },
     });

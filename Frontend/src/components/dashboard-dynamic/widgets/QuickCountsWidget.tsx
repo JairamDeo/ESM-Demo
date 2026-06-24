@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Building2, Users, QrCode, GripVertical } from "lucide-react";
 import { useDashboardData } from "../DashboardDataContext";
 
-export function QuickCountsWidget({ chartType }: { chartType: string }) {
+export function QuickCountsWidget({ chartType, isEditMode = false }: { chartType: string; isEditMode?: boolean }) {
   const { data, isLoading } = useDashboardData();
   const counts = useMemo(() => data?.counts || { stations: 0, officers: 0, activeQR: 0 }, [data]);
 
@@ -16,6 +16,7 @@ export function QuickCountsWidget({ chartType }: { chartType: string }) {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
+    if (!isEditMode) return;
     setDraggedItem(id);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -26,7 +27,7 @@ export function QuickCountsWidget({ chartType }: { chartType: string }) {
 
   const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
-    if (!draggedItem || draggedItem === id) return;
+    if (!isEditMode || !draggedItem || draggedItem === id) return;
 
     const currentOrder = [...order];
     const draggedIndex = currentOrder.indexOf(draggedItem);
@@ -56,17 +57,21 @@ export function QuickCountsWidget({ chartType }: { chartType: string }) {
         return (
           <div
             key={row.id}
-            draggable
+            draggable={isEditMode}
             onDragStart={(e) => handleDragStart(e, row.id)}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(e, row.id)}
-            className={`group flex items-center gap-3 rounded-xl border border-border bg-secondary/10 hover:bg-secondary/30 px-3 py-3 flex-1 min-h-[70px] cursor-grab active:cursor-grabbing transition-colors ${
+            className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/10 hover:bg-secondary/30 px-3 py-3 flex-1 min-h-[70px] transition-colors ${
+              isEditMode ? "group cursor-grab active:cursor-grabbing" : "cursor-default"
+            } ${
               draggedItem === row.id ? "opacity-40 border-dashed" : "opacity-100"
             }`}
           >
-            <div className="shrink-0 flex items-center justify-center text-muted-foreground/30 group-hover:text-muted-foreground/70 transition-colors">
-              <GripVertical className="w-5 h-5" />
-            </div>
+            {isEditMode && (
+              <div className="shrink-0 flex items-center justify-center text-muted-foreground/30 group-hover:text-muted-foreground/70 transition-colors">
+                <GripVertical className="w-5 h-5" />
+              </div>
+            )}
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${row.cls}`}>
               <row.icon className="w-5 h-5" />
             </div>

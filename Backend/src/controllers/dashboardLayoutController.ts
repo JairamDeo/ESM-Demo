@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import DashboardLayout from "../models/DashboardLayout";
-import { jeDashboardLayoutDefaults } from "../utils/admin/jeDashboardLayoutDefaults";
+import { jeDashboardLayoutDefaults } from "../utils/admin/DashboardLayoutDefaults";
 
 // Shared with frontend defaults conceptually
 export const dashboardLayoutDefaults = jeDashboardLayoutDefaults;
