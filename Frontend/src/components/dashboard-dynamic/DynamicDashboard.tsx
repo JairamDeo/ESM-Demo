@@ -50,19 +50,31 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
   const saveLayout = useSaveDashboardLayout();
   const resetLayout = useResetDashboardLayout();
 
+  // Widgets whose default was changed to "bar". Force "bar" over any old saved "donut"/"pie" values.
+  const MIGRATED_BAR_WIDGETS = new Set(["status-breakdown", "by-submission-source", "by-priority"]);
+
   useEffect(() => {
     if (layoutData?.layout) {
       const gsWidget = layoutData.layout.find(
         (w: DashboardWidgetConfig) => w.widgetKey === "grievance-stats"
       );
 
+      const migrateChartType = (w: DashboardWidgetConfig): DashboardWidgetConfig => {
+        // Force "bar" for these widgets if they still have an old "donut" or "pie" saved value
+        if (MIGRATED_BAR_WIDGETS.has(w.widgetKey) && (w.chartType === "donut" || w.chartType === "pie")) {
+          return { ...w, chartType: "bar" };
+        }
+        return w;
+      };
+
       if (gsWidget && gsWidget.y === 0 && gsWidget.h >= 3) {
-        // Layout is fully correct — use as-is, only enforce min height
+        // Layout is fully correct — use as-is, only enforce min height + migrate chart types
         const fixedLayout = layoutData.layout.map((w: DashboardWidgetConfig) => {
-          if (w.widgetKey === "grievance-stats") {
-            return { ...w, h: Math.max(w.h, 3), minH: 3 };
+          const migrated = migrateChartType(w);
+          if (migrated.widgetKey === "grievance-stats") {
+            return { ...migrated, h: Math.max(migrated.h, 3), minH: 3 };
           }
-          return w;
+          return migrated;
         });
         setWidgets(fixedLayout);
       } else {
@@ -71,10 +83,14 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
         layoutData.layout.forEach((w: DashboardWidgetConfig) => {
           savedChartTypes[w.widgetKey] = w.chartType;
         });
-        const fixedLayout = FRONTEND_LAYOUT_DEFAULTS.map((defaultWidget) => ({
-          ...defaultWidget,
-          chartType: (savedChartTypes[defaultWidget.widgetKey] as any) ?? defaultWidget.chartType,
-        }));
+        const fixedLayout = FRONTEND_LAYOUT_DEFAULTS.map((defaultWidget) => {
+          const savedType = (savedChartTypes[defaultWidget.widgetKey] as ChartType) ?? defaultWidget.chartType;
+          // Migrate old "donut" or "pie" saves to "bar" for affected widgets
+          const chartType = MIGRATED_BAR_WIDGETS.has(defaultWidget.widgetKey) && (savedType === "donut" || savedType === "pie")
+            ? "bar"
+            : savedType;
+          return { ...defaultWidget, chartType };
+        });
         setWidgets(fixedLayout);
       }
       setHasUnsavedChanges(false);
@@ -82,6 +98,7 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
       setWidgets(FRONTEND_LAYOUT_DEFAULTS);
     }
   }, [layoutData, isLayoutLoading]);
+
 
   const onLayoutChange = useCallback((layout: Layout) => {
     if (!isEditMode) return;
