@@ -107,7 +107,7 @@ export default function DocumentRequiredInfo() {
         </div>
         <div className="space-y-4">
           {documents.length > 0 ? (
-            documents.map((doc: any, index: number) => {
+            documents.map((doc: { label: string; text?: string; textHi?: string; isMandatory?: boolean; templateUrl?: string | null; templateFileName?: string | null }, index: number) => {
               const templateUrl = resolveUploadUrl(doc.templateUrl);
               return (
                 <div key={`${doc.label}-${index}`} className="flex gap-3 items-start">

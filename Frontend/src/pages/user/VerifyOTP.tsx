@@ -21,7 +21,7 @@ export default memo(function VerifyOTP() {
   const location = useLocation();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { sendOtp, verifyOtp } = useAuth();
-  const phone = (location.state as any)?.phone || "";
+  const phone = (location.state as { phone?: string })?.phone || "";
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default memo(function VerifyOTP() {
       navigate("/user/login");
       return;
     }
-    const state = location.state as any;
+    const state = location.state as { expiresIn?: number; resendAfter?: number; devOtp?: string };
     if (state?.expiresIn) setExpiryTimer(state.expiresIn);
     if (state?.resendAfter) setResendTimer(state.resendAfter);
     if (state?.devOtp) setDevOtp(state.devOtp);
@@ -77,8 +77,8 @@ export default memo(function VerifyOTP() {
       } else {
         navigate("/user");
       }
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Invalid OTP. Please try again.");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Invalid OTP. Please try again.");
       setOtp(["", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
@@ -97,10 +97,11 @@ export default memo(function VerifyOTP() {
       inputRefs.current[0]?.focus();
       if (result.devOtp) setDevOtp(result.devOtp);
       toast.success(result.smsSent ? "New OTP sent to your mobile" : "New OTP generated");
-    } catch (err: any) {
-      const retry = err?.response?.data?.retryAfter;
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { retryAfter?: number; message?: string } } };
+      const retry = error?.response?.data?.retryAfter;
       toast.error(
-        err?.response?.data?.message ||
+        error?.response?.data?.message ||
           (retry ? `Please wait ${retry}s before resending` : "Failed to resend OTP")
       );
       if (retry) setResendTimer(retry);

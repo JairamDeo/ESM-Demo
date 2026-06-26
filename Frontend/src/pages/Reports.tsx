@@ -156,7 +156,7 @@ export default memo(function Reports() {
               <LineChart data={sla}>
                 <XAxis dataKey="month" stroke="hsl(240 3% 40%)" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="hsl(240 3% 40%)" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
-                <Tooltip contentStyle={TT} formatter={(v: any) => [`${v}%`, "SLA"]} />
+                <Tooltip contentStyle={TT} formatter={(v: number | string) => [`${v}%`, "SLA"]} />
                 <Line type="monotone" dataKey="sla" stroke="hsl(255 60% 69%)" strokeWidth={2.5} dot={{ fill: "hsl(255 60% 69%)", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -180,7 +180,7 @@ export default memo(function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {stationPerf.map((s: any) => (
+                {stationPerf.map((s: Record<string, unknown> & { station: string; total: number; resolved: number; pending: number; rate: number }) => (
                   <tr key={s.station} className="border-b border-border/50 hover:bg-secondary/30">
                     <td className="py-3 px-3 text-sm font-medium text-foreground">{s.station}</td>
                     <td className="py-3 px-4 text-sm text-foreground">{s.total}</td>

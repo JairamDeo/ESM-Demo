@@ -15,6 +15,16 @@ import { useTranslation } from "react-i18next";
 
 type StatusFilter = "all" | "unread" | "read";
 
+interface Notification {
+  _id: string;
+  type: string;
+  title?: string;
+  message?: string;
+  isRead: boolean;
+  createdAt: string;
+  grievanceCode?: string;
+}
+
 const typeConfig: Record<string, { icon: typeof Bell; accent: string; bg: string }> = {
   grievance_update: { icon: FileText, accent: "text-[#4F81FF]", bg: "bg-[#4F81FF]/15" },
   escalation: { icon: AlertTriangle, accent: "text-amber-500", bg: "bg-amber-500/15" },
@@ -58,15 +68,15 @@ function timeAgo(dateStr: string): string {
   });
 }
 
-function groupByPeriod(items: any[]) {
+function groupByPeriod(items: Notification[]) {
   const todayStart = startOfDay();
   const weekStart = daysAgo(7);
   const monthStart = daysAgo(30);
 
-  const today: any[] = [];
-  const thisWeek: any[] = [];
-  const thisMonth: any[] = [];
-  const older: any[] = [];
+  const today: Notification[] = [];
+  const thisWeek: Notification[] = [];
+  const thisMonth: Notification[] = [];
+  const older: Notification[] = [];
 
   for (const n of items) {
     const date = new Date(n.createdAt);
@@ -101,15 +111,15 @@ export default memo(function Notifications() {
   const { data, isLoading } = useNotifications(false);
   const markRead = useMarkNotificationRead();
 
-  const allNotifications = data?.data || [];
+  const allNotifications = useMemo(() => data?.data || [], [data?.data]);
   const unreadCount = data?.unreadCount || 0;
 
   const filtered = useMemo(() => {
-    return allNotifications.filter((n: any) => {
+    return allNotifications.filter((n: Notification) => {
       if (status === "unread" && n.isRead) return false;
       if (status === "read" && !n.isRead) return false;
       return true;
-    });
+    }) as Notification[];
   }, [allNotifications, status]);
 
   const sections = useMemo(() => groupByPeriod(filtered), [filtered]);
@@ -119,7 +129,7 @@ export default memo(function Notifications() {
   }, [markRead]);
 
   const handleOpen = useCallback(
-    (n: any) => {
+    (n: Notification) => {
       if (!n.isRead) markRead.mutate(n._id);
       if (n.grievanceCode) {
         navigate(isAdminPortal ? "/grievances" : "/user/track-case", {
@@ -130,7 +140,7 @@ export default memo(function Notifications() {
     [markRead, navigate, isAdminPortal]
   );
 
-  const renderCard = (n: any) => {
+  const renderCard = (n: Notification) => {
     const cfg = typeConfig[n.type] || typeConfig.system;
     const Icon = cfg.icon;
     return (

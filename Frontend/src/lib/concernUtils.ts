@@ -7,10 +7,36 @@ export interface ConcernDocumentRef {
   uploadId?: string;
 }
 
-export function getConcernDocuments(concern: any): ConcernDocumentRef[] {
+interface RawConcernDocument {
+  documentLabel: string;
+  documentText?: string;
+  documentUploadId?: string;
+}
+
+interface ConcernLike extends Partial<RawConcernDocument> {
+  concernDocuments?: RawConcernDocument[];
+}
+
+interface TimelineEvent {
+  eventType: string;
+  updatedAt?: string;
+}
+
+interface Comment {
+  authorRole: string;
+  createdAt: string;
+}
+
+interface GrievanceLike {
+  concernStatus?: string;
+  comments?: Comment[];
+  timeline?: TimelineEvent[];
+}
+
+export function getConcernDocuments(concern: ConcernLike | null | undefined): ConcernDocumentRef[] {
   if (!concern) return [];
   if (concern.concernDocuments?.length) {
-    return concern.concernDocuments.map((d: any) => ({
+    return concern.concernDocuments.map((d: RawConcernDocument) => ({
       documentLabel: d.documentLabel,
       documentText: d.documentText,
       documentUploadId: d.documentUploadId,
@@ -67,7 +93,7 @@ export function veteranResponseLabel(scope?: string, docs?: ConcernDocumentRef[]
 export type ConcernStatusValue = "none" | "awaiting_veteran" | "awaiting_officer";
 
 /** Match backend deriveConcernStatus — respects concern_resolved timeline events. */
-export function deriveConcernStatus(comments: any[] = [], timeline: any[] = []): ConcernStatusValue {
+export function deriveConcernStatus(comments: Comment[] = [], timeline: TimelineEvent[] = []): ConcernStatusValue {
   const lastResolved = [...timeline].reverse().find((t) => t.eventType === "concern_resolved");
   const resolvedAt = lastResolved?.updatedAt ? new Date(lastResolved.updatedAt).getTime() : 0;
   const openComments = comments.filter(
@@ -78,7 +104,7 @@ export function deriveConcernStatus(comments: any[] = [], timeline: any[] = []):
   return last.authorRole === "user" ? "awaiting_officer" : "awaiting_veteran";
 }
 
-export function getEffectiveConcernStatus(g: any): ConcernStatusValue {
+export function getEffectiveConcernStatus(g: GrievanceLike | null | undefined): ConcernStatusValue {
   const stored = g?.concernStatus as ConcernStatusValue | undefined;
   if (stored === "none") return "none";
   if (stored === "awaiting_veteran" || stored === "awaiting_officer") return stored;

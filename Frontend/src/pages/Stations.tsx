@@ -4,12 +4,26 @@ import { Building2, MapPin, Users, FileText, QrCode, CheckCircle2, X, Search, Pl
 import { useStations, useCreateStation, useDeleteStation, useHQs, useStates } from "@/hooks/useApi";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
+type StationData = Record<string, unknown> & {
+  _id: string;
+  name: string;
+  totalCases: number;
+  resolvedCases: number;
+  activeCases?: number;
+  city?: string;
+  state?: string | { name?: string };
+  stateName?: string;
+  hqName?: string;
+  hqId?: string | { name?: string };
+  qrActive?: boolean;
+  officerCount?: number;
+};
 export default memo(function Stations() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterState, setFilterState] = useState("");
   const [form, setForm] = useState({ name: "", city: "", state: "Maharashtra", officers: "4", address: "", hqId: "", hqName: ""   });
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StationData | null>(null);
 
   const { data, isLoading } = useStations({ search, state: filterState || undefined });
   const createStation = useCreateStation();
@@ -36,7 +50,7 @@ export default memo(function Stations() {
     setOpen(false);
   }, [form, createStation]);
 
-  const handleDelete = useCallback((station: any) => {
+  const handleDelete = useCallback((station: StationData) => {
     setDeleteTarget(station);
   }, []);
 
@@ -69,7 +83,7 @@ export default memo(function Stations() {
         <div className="relative">
           <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="appearance-none bg-secondary/50 border border-border rounded-lg px-4 py-2 pr-10 text-sm outline-none cursor-pointer text-secondary-foreground hover:bg-secondary/80">
             <option value="">All States</option>
-            {statesList.map((s: any) => (<option key={s._id} value={s.name}>{s.name}</option>))}
+            {statesList.map((s: Record<string, unknown> & { _id: string; name: string }) => (<option key={s._id} value={s.name}>{s.name}</option>))}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground pointer-events-none" />
         </div>
@@ -158,7 +172,7 @@ export default memo(function Stations() {
               className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
             >
               <option value="">Select State</option>
-              {statesList.map((s: any) => <option key={s._id} value={s.name}>{s.name}</option>)}
+              {statesList.map((s: Record<string, unknown> & { _id: string; name: string }) => <option key={s._id} value={s.name}>{s.name}</option>)}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
           </div>
@@ -227,7 +241,7 @@ export default memo(function Stations() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {stations.map((s: any) => {
+          {stations.map((s: StationData) => {
             const resRate = s.totalCases > 0 ? Math.round((s.resolvedCases / s.totalCases) * 100) : 0;
             const isDeleting = deleteTarget?._id === s._id && deleteStation.isPending;
             return (
@@ -243,7 +257,7 @@ export default memo(function Stations() {
                       <h3 className="font-semibold text-foreground">{s.name}</h3>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                         <MapPin className="w-3 h-3 shrink-0" />
-                        {s.hqName || s.hqId?.name || "—"} · {s.stateName || s.state?.name || s.state}
+                        {s.hqName || (typeof s.hqId === "object" ? s.hqId?.name : s.hqId) || "—"} · {s.stateName || (typeof s.state === "object" ? s.state?.name : s.state)}
                       </div>
                     </div>
                   </div>
@@ -281,7 +295,7 @@ export default memo(function Stations() {
                   ].map(({ icon: Icon, val, label, color }) => (
                     <div key={label} className="text-center p-2 rounded-lg bg-secondary/50">
                       <Icon className={`w-4 h-4 ${color} mx-auto mb-1`} />
-                      <p className="text-sm font-bold text-foreground">{val}</p>
+                      <p className="text-sm font-bold text-foreground">{String(val)}</p>
                       <p className="text-xs text-muted-foreground">{label}</p>
                     </div>
                   ))}

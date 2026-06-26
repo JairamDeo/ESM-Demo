@@ -130,8 +130,8 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
     setSaving(true);
     try {
       await updateRolePermission(role, permKey, !currentVal);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to update permission");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to update permission");
     } finally {
       setSaving(false);
     }
@@ -145,8 +145,8 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
     try {
       await resetRole(confirmResetRoleState.role);
       toast.success(`${confirmResetRoleState.label} permissions reset`);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to reset role");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to reset role");
     } finally {
       setSaving(false);
       setConfirmResetRoleState(null);
@@ -310,8 +310,8 @@ export default function SettingsPage() {
     try {
       await resetAll();
       toast.success("All role permissions reset to defaults");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to reset permissions");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to reset permissions");
     } finally {
       setConfirmResetAllState(false);
     }

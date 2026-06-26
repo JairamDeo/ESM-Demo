@@ -164,7 +164,7 @@ export default memo(function Announcements() {
                   ) : stations.length === 0 ? (
                     <p className="text-xs text-muted-foreground p-2 text-center">No stations found.</p>
                   ) : (
-                    stations.map((s: any) => (
+                    stations.map((s: Record<string, unknown> & { _id: string; name?: string; city?: string; stateName?: string; state?: string }) => (
                       <label
                         key={s._id}
                         onClick={() => handleToggleStation(s._id)}
@@ -293,7 +293,7 @@ export default memo(function Announcements() {
                 <p className="text-xs mt-1 opacity-60">Announcements you send will appear here</p>
               </div>
             ) : (
-              announcements.map((ann: any) => (
+              announcements.map((ann: Record<string, unknown> & { _id: string; title?: string; message?: string; createdAt: string; targetStations?: string[] }) => (
                 <div key={ann._id} className="bg-secondary/20 border border-border rounded-lg p-4 hover:border-primary/20 transition-colors">
 
                   {/* Title + Date */}

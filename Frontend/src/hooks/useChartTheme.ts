@@ -30,7 +30,7 @@ export const PIE_COLORS = [
   "hsl(210 40% 55%)",
 ];
 
-export const getTooltipProps = (chart: any) => ({
+export const getTooltipProps = (chart: ReturnType<typeof useChartTheme>) => ({
   contentStyle: {
     background: chart.tooltip.background,
     border: `1px solid ${chart.tooltip.border}`,

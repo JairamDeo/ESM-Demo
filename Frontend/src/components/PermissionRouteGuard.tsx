@@ -17,6 +17,7 @@ const ADMIN_ROUTE_PERMS: Array<{ path: string; perm: keyof Permission }> = [
   { path: "/settings", perm: "viewSettings" },
 ];
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function firstAllowedAdminPath(permissions: Permission): string | null {
   for (const { path, perm } of ADMIN_ROUTE_PERMS) {
     if (permissions[perm]) return path;

@@ -27,6 +27,8 @@ import {
   useCreateStation,
 } from "@/hooks/useApi";
 
+type OrgEntity = Record<string, unknown> & { _id?: string; name?: string; code?: string; city?: string; stateId?: string; stateName?: string; state?: string; hqId?: string | { _id: string }; hqName?: string; address?: string; };
+
 const STEPS = [
   { n: 1, label: "Area", icon: MapIcon, color: "text-primary", bg: "bg-primary/10" },
   { n: 2, label: "Headquarters", icon: Building, color: "text-info", bg: "bg-info/10" },
@@ -126,7 +128,7 @@ export default memo(function Organization() {
   const { data: states = [] } = useStates();
   const { data: hqs = [] } = useHQs();
   const { data: stationsRes } = useStations({ limit: 200 });
-  const stations = stationsRes?.data || [];
+  const stations = useMemo(() => stationsRes?.data || [], [stationsRes]);
 
   const createState = useCreateState();
   const createHQ = useCreateHQ();
@@ -167,11 +169,11 @@ export default memo(function Organization() {
 
   const filteredHqsForStation = useMemo(() => {
     if (!stationForm.stateId) return hqs;
-    return hqs.filter((h: any) => String(h.stateId) === String(stationForm.stateId));
+    return hqs.filter((h: OrgEntity) => String(h.stateId) === String(stationForm.stateId));
   }, [hqs, stationForm.stateId]);
 
   const filteredStates = useMemo(() => {
-    let list = states as any[];
+    let list = states as OrgEntity[];
     const q = areaSearch.trim().toLowerCase();
     if (q) {
       list = list.filter(
@@ -184,12 +186,12 @@ export default memo(function Organization() {
   }, [states, areaSearch, areaSort]);
 
   const filteredHqs = useMemo(() => {
-    let list = hqs as any[];
+    let list = hqs as OrgEntity[];
     if (hqAreaFilter) {
       list = list.filter(
         (h) =>
           String(h.stateId) === hqAreaFilter ||
-          h.stateName === states.find((s: any) => s._id === hqAreaFilter)?.name
+          h.stateName === states.find((s: OrgEntity) => s._id === hqAreaFilter)?.name
       );
     }
     const q = hqSearch.trim().toLowerCase();
@@ -205,9 +207,9 @@ export default memo(function Organization() {
   }, [hqs, hqSearch, hqSort, hqAreaFilter, states]);
 
   const filteredStations = useMemo(() => {
-    let list = stations as any[];
+    let list = stations as OrgEntity[];
     if (stationAreaFilter) {
-      const areaName = states.find((s: any) => s._id === stationAreaFilter)?.name;
+      const areaName = states.find((s: OrgEntity) => s._id === stationAreaFilter)?.name;
       list = list.filter(
         (s) =>
           s.stateName === areaName ||
@@ -215,9 +217,9 @@ export default memo(function Organization() {
       );
     }
     if (stationHqFilter) {
-      const hq = hqs.find((h: any) => String(h._id) === String(stationHqFilter));
+      const hq = hqs.find((h: OrgEntity) => String(h._id) === String(stationHqFilter));
       const hqName = hq?.name;
-      list = list.filter((s: any) => {
+      list = list.filter((s: OrgEntity) => {
         const stationHqId = typeof s.hqId === "object" && s.hqId ? s.hqId._id : s.hqId;
         return (
           String(stationHqId || "") === String(stationHqFilter) ||
@@ -240,7 +242,7 @@ export default memo(function Organization() {
 
   const hqCountByArea = useMemo(() => {
     const map = new Map<string, number>();
-    for (const h of hqs as any[]) {
+    for (const h of hqs as OrgEntity[]) {
       const key = h.stateName || h.state || "—";
       map.set(key, (map.get(key) || 0) + 1);
     }
@@ -249,7 +251,7 @@ export default memo(function Organization() {
 
   const stationCountByHq = useMemo(() => {
     const map = new Map<string, number>();
-    for (const s of stations as any[]) {
+    for (const s of stations as OrgEntity[]) {
       const key = s.hqName || "—";
       map.set(key, (map.get(key) || 0) + 1);
     }
@@ -416,7 +418,7 @@ export default memo(function Organization() {
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {filteredStates.map((s: any) => (
+                {filteredStates.map((s: OrgEntity) => (
                   <div
                     key={s._id}
                     className="flex items-center justify-between gap-2 px-4 py-3 rounded-lg bg-secondary/40 border border-border/60 hover:border-primary/30 hover:bg-secondary/60 transition-colors"
@@ -488,7 +490,7 @@ export default memo(function Organization() {
               filterLabel="All areas"
               filterValue={hqAreaFilter}
               onFilter={setHqAreaFilter}
-              filterOptions={states.map((s: any) => ({ value: s._id, label: s.name }))}
+              filterOptions={states.map((s: OrgEntity) => ({ value: s._id, label: s.name }))}
             />
             {filteredHqs.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center rounded-lg bg-secondary/30 border border-dashed border-border">
@@ -498,7 +500,7 @@ export default memo(function Organization() {
               </p>
             ) : (
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {filteredHqs.map((h: any) => (
+                {filteredHqs.map((h: OrgEntity) => (
                   <div
                     key={h._id}
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 px-4 py-3 rounded-lg bg-secondary/40 border border-border/60 hover:border-info/30 transition-colors"
@@ -582,7 +584,7 @@ export default memo(function Organization() {
                   setStationAreaFilter(v);
                   setStationHqFilter("");
                 }}
-                filterOptions={states.map((s: any) => ({ value: s._id, label: s.name }))}
+                filterOptions={states.map((s: OrgEntity) => ({ value: s._id, label: s.name }))}
               />
               <div className="relative shrink-0 sm:min-w-[180px]">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -593,9 +595,9 @@ export default memo(function Organization() {
                 >
                   <option value="">All headquarters</option>
                   {(stationAreaFilter
-                    ? hqs.filter((h: any) => String(h.stateId) === stationAreaFilter)
+                    ? hqs.filter((h: OrgEntity) => String(h.stateId) === stationAreaFilter)
                     : hqs
-                  ).map((h: any) => (
+                  ).map((h: OrgEntity) => (
                     <option key={h._id} value={h._id}>
                       {h.name}
                     </option>
@@ -612,7 +614,7 @@ export default memo(function Organization() {
               </p>
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                {filteredStations.map((s: any) => (
+                {filteredStations.map((s: OrgEntity) => (
                   <div
                     key={s._id}
                     className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 px-4 py-3 rounded-lg bg-secondary/40 border border-border/60 hover:border-warning/30 transition-colors"
@@ -726,7 +728,7 @@ export default memo(function Organization() {
               label="Area *"
               value={hqForm.stateId}
               onChange={(v) => setHqForm({ ...hqForm, stateId: v })}
-              options={states.map((s: any) => ({ value: s._id, label: s.name }))}
+              options={states.map((s: OrgEntity) => ({ value: s._id, label: s.name }))}
             />
           )}
           {isArea && user?.stateName && (
@@ -779,7 +781,7 @@ export default memo(function Organization() {
                 label="Area *"
                 value={stationForm.stateId}
                 onChange={(v) => {
-                  const st = states.find((s: any) => s._id === v);
+                  const st = states.find((s: OrgEntity) => s._id === v);
                   setStationForm({
                     ...stationForm,
                     stateId: v,
@@ -788,16 +790,16 @@ export default memo(function Organization() {
                     hqName: "",
                   });
                 }}
-                options={states.map((s: any) => ({ value: s._id, label: s.name }))}
+                options={states.map((s: OrgEntity) => ({ value: s._id, label: s.name }))}
               />
               <SelectField
                 label="Headquarters *"
                 value={stationForm.hqId}
                 onChange={(v) => {
-                  const h = hqs.find((x: any) => x._id === v);
+                  const h = hqs.find((x: OrgEntity) => x._id === v);
                   setStationForm({ ...stationForm, hqId: v, hqName: h?.name || "" });
                 }}
-                options={filteredHqsForStation.map((h: any) => ({ value: h._id, label: h.name }))}
+                options={filteredHqsForStation.map((h: OrgEntity) => ({ value: h._id, label: h.name }))}
                 disabled={!stationForm.stateId && isSuperAdmin}
               />
             </>

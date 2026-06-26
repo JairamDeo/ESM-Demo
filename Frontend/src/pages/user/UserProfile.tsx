@@ -113,7 +113,7 @@ export default memo(function UserProfile() {
         email: user.email || prev.email,
       }));
     }
-  }, [userMe, user?.name, user?.email]);
+  }, [userMe, user?.name, user?.email, user]);
 
   const displayName = form.name?.trim() || user?.name?.trim() || (phone ? "Veteran" : "Veteran");
   const initials = (form.name?.trim() || user?.name?.trim() || phone || "V")[0].toUpperCase();

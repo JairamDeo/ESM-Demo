@@ -29,7 +29,7 @@ const STEP_LABELS: Record<string, string> = {
   concern_resolved: "Concern Resolved",
 };
 
-function timelineStepLabel(step: any) {
+function timelineStepLabel(step: { eventType?: string; status?: string; concernScope?: string; documentLabel?: string; documentText?: string; documentUploadId?: string; concernDocuments?: { documentLabel: string; documentText?: string; documentUploadId?: string }[] }) {
   const docs = getConcernDocuments(step);
   if (step.eventType === "concern_resolved") return "Concern Resolved";
   if (step.eventType === "concern") {
@@ -69,7 +69,7 @@ function Accordion({ title, defaultOpen = false, children }: { title: string; de
   );
 }
 
-function getDisplayText(item: any, fallback: string, currentLang: string) {
+function getDisplayText(item: Record<string, unknown> & { originalText?: string; translatedText?: string; translationFailed?: boolean; language?: string }, fallback: string, currentLang: string) {
   if (!item || (!item.originalText && !item.translatedText)) return fallback;
   if (item.translationFailed) return item.originalText || fallback;
 
@@ -84,7 +84,7 @@ function getDisplayText(item: any, fallback: string, currentLang: string) {
 export default memo(function TrackCase() {
   const location = useLocation();
   const navigate = useNavigate();
-  const initialComplaint = (location.state as any)?.complaint;
+  const initialComplaint = (location.state as { complaint?: Record<string, unknown> & { _id?: string; id?: string } })?.complaint;
   const grievanceId = initialComplaint?._id || initialComplaint?.id || "";
 
   const { data: liveData } = useTrackGrievance(grievanceId);
@@ -103,7 +103,7 @@ export default memo(function TrackCase() {
   const needsGeneral = concernNeedsGeneral(activeQuery?.concernScope);
   const needsDocuments = concernNeedsDocuments(activeQuery?.concernScope);
   const flaggedDocumentLabels = flaggedDocs.map((d) => d.documentLabel);
-  const submittedDocs: any[] = complaint.submittedDocuments || [];
+  const submittedDocs: Record<string, unknown>[] = complaint.submittedDocuments || [];
   const submittedResponse = awaitingOfficerReview && comments.length > 0 && comments[comments.length - 1].authorRole === "user"
     ? comments[comments.length - 1] : null;
   const previousQuery = submittedResponse && comments.length > 1
@@ -172,7 +172,7 @@ export default memo(function TrackCase() {
   const timeline = (complaint.timeline?.length > 0 ? complaint.timeline : [
     { status: "pending", note: "Grievance submitted via portal", updatedAt: complaint.createdAt || new Date().toISOString(), eventType: "status" },
   ]).slice().sort(
-    (a: any, b: any) => new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime()
+    (a: Record<string, unknown> & { updatedAt?: string }, b: Record<string, unknown> & { updatedAt?: string }) => new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime()
   );
 
   const resolveFileUrl = (url: string) =>
@@ -440,7 +440,7 @@ export default memo(function TrackCase() {
       <Accordion title={t("uploadedDocuments")} defaultOpen={true}>
         {submittedDocs.length > 0 ? (
           <div className="space-y-2">
-            {submittedDocs.map((doc: any) => {
+            {submittedDocs.map((doc: Record<string, unknown> & { uploadId: string; fileUrl: string; documentLabel: string; originalFileName: string }) => {
               const fullUrl = resolveFileUrl(doc.fileUrl);
               return (
                 <div key={doc.uploadId} className="flex items-center justify-between dark:bg-[#1d1c1c] bg-secondary/20 border border-border rounded-xl p-3">
@@ -492,7 +492,7 @@ export default memo(function TrackCase() {
       {/* Tracking History */}
       <Accordion title={t("trackingHistory")} defaultOpen={true}>
         <div className="space-y-0 pt-1">
-          {timeline.map((step: any, i: number) => {
+          {timeline.map((step: { eventType?: string; status?: string; note?: string; concernScope?: string; documentLabel?: string; documentText?: string; documentUploadId?: string; concernDocuments?: { documentLabel: string }[]; attachments?: string[]; updatedAt?: string }, i: number) => {
             const isLast = i === timeline.length - 1;
             const isConcern = step.eventType === "concern";
             const isConcernResolved = step.eventType === "concern_resolved";
@@ -521,7 +521,7 @@ export default memo(function TrackCase() {
                     )}
                     {step.concernDocuments?.length > 0 ? (
                       <div className="text-[10px] text-primary mt-1 space-y-0.5">
-                        {step.concernDocuments.map((d: any, di: number) => (
+                        {step.concernDocuments.map((d: Record<string, unknown> & { documentLabel?: string }, di: number) => (
                           <p key={di}>Document: {d.documentLabel}</p>
                         ))}
                       </div>
@@ -550,13 +550,13 @@ export default memo(function TrackCase() {
                   <div className="text-right">
                     <p className="text-[10px] text-muted-foreground leading-relaxed">
                       {step.updatedAt
-                        ? new Date(step.updatedAt).toLocaleDateString("en-IN", {
+                        ? new Date(step.updatedAt as string).toLocaleDateString("en-IN", {
                             day: "2-digit", month: "long", year: "numeric",
                           })
                         : "—"}
                       <br />
                       {step.updatedAt
-                        ? new Date(step.updatedAt).toLocaleTimeString("en-IN", {
+                        ? new Date(step.updatedAt as string).toLocaleTimeString("en-IN", {
                             hour: "2-digit", minute: "2-digit",
                           })
                         : ""}

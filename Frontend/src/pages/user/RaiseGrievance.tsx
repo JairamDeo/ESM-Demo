@@ -12,7 +12,7 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 const normalizeCategory = (v: string) =>
   String(v || "").trim().toLowerCase().replace("idenity", "identity");
 
-const SelectRow = ({ label, value, onChange, children, required = false, disabled = false }: any) => (
+const SelectRow = ({ label, value, onChange, children, required = false, disabled = false }: { label: string; value: string; onChange: (val: string) => void; children: React.ReactNode; required?: boolean; disabled?: boolean }) => (
   <div className="space-y-1.5">
     <label className="block text-sm font-medium text-foreground">
       {label}{required && <span className="text-red-500"> *</span>}
@@ -39,7 +39,7 @@ const SelectRow = ({ label, value, onChange, children, required = false, disable
   </div>
 );
 
-const InputRow = ({ label, value, onChange, placeholder, required = false }: any) => (
+const InputRow = ({ label, value, onChange, placeholder, required = false }: { label: string; value: string; onChange: (val: string) => void; placeholder: string; required?: boolean }) => (
   <div className="space-y-1.5">
     <label className="block text-sm font-medium text-foreground">
       {label}{required && <span className="text-red-500"> *</span>}
@@ -67,12 +67,12 @@ export default memo(function RaiseGrievance() {
   const stationHQsList = stationsData?.data || [];
 
   const urlParams = new URLSearchParams(window.location.search);
-  const routeState = (location.state as any) || {};
+  const routeState = (location.state as Record<string, unknown> & { form?: Record<string, string>; generalConcernMode?: boolean; hasDocumentFixes?: boolean; flaggedDocumentLabels?: string[]; flaggedDocuments?: { documentLabel: string }[]; complaint?: Record<string, unknown> & { _id?: string; id?: string; type?: string; caseTypeId?: string; status?: string; description?: string; veteranArmyNo?: string; veteranRank?: string; stationName?: string }; concernMessage?: string; grievanceId?: string; station?: string; caseType?: string; caseTypeId?: string; freshGrievanceFlow?: boolean }) || {};
   const savedForm = routeState.form || {};
   const generalConcernMode = routeState.generalConcernMode === true;
   const hasDocumentFixes = routeState.hasDocumentFixes === true;
-  const flaggedDocumentLabels: string[] = routeState.flaggedDocumentLabels || [];
-  const concernComplaint = routeState.complaint || {};
+  const flaggedDocumentLabels: string[] = useMemo(() => routeState.flaggedDocumentLabels || [], [routeState.flaggedDocumentLabels]);
+  const concernComplaint = useMemo(() => routeState.complaint || {}, [routeState.complaint]);
   const concernMessage = routeState.concernMessage || "";
   const concernGrievanceId = routeState.grievanceId || concernComplaint._id || concernComplaint.id;
   const stationFromQR = urlParams.get("station") || routeState.station || savedForm.stationHQ || "";
@@ -96,8 +96,8 @@ export default memo(function RaiseGrievance() {
 
   // ── Build category lookup map ─────────────────────────────────────────
   const catById = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const cat of (categories as any[])) {
+    const map = new Map<string, Record<string, unknown>>();
+    for (const cat of (categories as (Record<string, unknown> & { _id: string; name: string })[])) {
       map.set(String(cat._id), cat);
       map.set(normalizeCategory(cat.name), cat);
     }
@@ -106,9 +106,9 @@ export default memo(function RaiseGrievance() {
 
   // ── Group case types by category (fully dynamic) ───────────────────────
   const groupedCategories = useMemo(() => {
-    const list = Array.isArray(caseTypesList) ? (caseTypesList as any[]) : [];
+    const list = Array.isArray(caseTypesList) ? (caseTypesList as (Record<string, unknown> & { categoryName?: string; categoryId?: string; categoryNameHi?: string; categoryIconUrl?: string })[]) : [];
 
-    const byCategory = new Map<string, { catObj: any; items: any[] }>();
+    const byCategory = new Map<string, { catObj: Record<string, unknown>; items: Record<string, unknown>[] }>();
     for (const ct of list) {
       // Get English category name as stable key
       const catName = (ct.categoryName || "Other").trim();
@@ -133,12 +133,12 @@ export default memo(function RaiseGrievance() {
       return {
         key: catName,          // English name — stable identifier for open/close
         displayName,           // Translated name shown to user
-        iconUrl: catObj.iconUrl || null,
+        iconUrl: (catObj.iconUrl as string | null | undefined) || null,
         title: catName,
         items,
       };
     });
-  }, [caseTypesList, catById, getField, currentLang]);
+  }, [caseTypesList, catById, getField]);
 
   // ── Sync openCategory + caseTypeId when case types load ─────────────────────
   useEffect(() => {
@@ -156,11 +156,11 @@ export default memo(function RaiseGrievance() {
   }, [generalConcernMode, concernComplaint]);
 
   useEffect(() => {
-    if (!(caseTypesList as any[]).length) return;
+    if (!(caseTypesList as Record<string, unknown>[]).length) return;
 
     const activeName = form.caseType;
     if (activeName) {
-      const ct = (caseTypesList as any[]).find((c: any) => c.name === activeName);
+      const ct = (caseTypesList as (Record<string, unknown> & { _id: string; name: string; categoryName?: string })[]).find((c) => c.name === activeName);
       if (ct && String(form.caseTypeId) !== String(ct._id)) {
         setForm((prev) => ({ ...prev, caseTypeId: ct._id }));
       }
@@ -175,7 +175,7 @@ export default memo(function RaiseGrievance() {
 
   // Resolve display name of selected case type (for the toggle button)
   const selectedCaseTypeObj = useMemo(
-    () => (caseTypesList as any[]).find((ct: any) => ct.name === form.caseType),
+    () => (caseTypesList as (Record<string, unknown> & { name: string })[]).find((ct) => ct.name === form.caseType),
     [caseTypesList, form.caseType]
   );
   const selectedCaseTypeDisplay = selectedCaseTypeObj
@@ -207,7 +207,7 @@ export default memo(function RaiseGrievance() {
     navigate("/user/document-checklist", {
       state: { form, isFromQR, freshGrievanceFlow },
     });
-  }, [form, navigate, isFromQR, freshGrievanceFlow, generalConcernMode, hasDocumentFixes, flaggedDocumentLabels, concernGrievanceId, concernMessage, concernComplaint]);
+  }, [form, navigate, isFromQR, freshGrievanceFlow, generalConcernMode, hasDocumentFixes, flaggedDocumentLabels, concernGrievanceId, concernMessage, concernComplaint, routeState.flaggedDocuments, t]);
 
   return (
     <div className="bg-background min-h-full">
@@ -282,7 +282,7 @@ export default memo(function RaiseGrievance() {
             <div className="border border-border rounded-xl overflow-hidden bg-card">
               {groupedCategories.map((cat) => {
                 const isOpen = openCategory === cat.key;
-                const isSelected = cat.items.some((i: any) => i.name === form.caseType);
+                const isSelected = cat.items.some((i: Record<string, unknown> & { name?: string }) => i.name === form.caseType);
                 return (
                   <div key={cat.key} className="border-b border-border last:border-none">
 
@@ -306,7 +306,7 @@ export default memo(function RaiseGrievance() {
                     {/* Case type items */}
                     {isOpen && (
                       <div className="px-3 pb-2 space-y-1 bg-secondary/20">
-                        {cat.items.map((item: any) => {
+                        {cat.items.map((item: Record<string, unknown> & { _id: string; name: string }) => {
                           const isItemSelected = form.caseType === item.name;
                           const itemDisplayName = getField(item, "name");
                           return (
@@ -357,7 +357,7 @@ export default memo(function RaiseGrievance() {
           disabled={isFromQR}
         >
           <option value="" disabled hidden>{t("selectStationHQ")}</option>
-          {stationHQsList.map((s: any) => (
+          {stationHQsList.map((s: Record<string, unknown> & { _id?: string; name: string }) => (
             <option key={s._id || s.name} value={s.name}>{s.name}</option>
           ))}
         </SelectRow>
@@ -368,6 +368,7 @@ export default memo(function RaiseGrievance() {
           value={form.rank}
           onChange={(v: string) => setForm((prev) => ({ ...prev, rank: v }))}
           placeholder={t("enterRank")}
+          required={generalConcernMode}
         />
 
         {/* Army No */}

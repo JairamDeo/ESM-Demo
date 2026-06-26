@@ -24,8 +24,8 @@ const AdminLogin = memo(() => {
       await adminLogin(username.trim(), password.trim());
       toast.success("Login successful");
       navigate("/");
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Invalid credentials");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }

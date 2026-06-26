@@ -42,7 +42,7 @@ export default memo(function CaseTypes() {
     setAddOpen(false);
   }, [form, createCaseType]);
 
-  const handleToggleActive = useCallback((ct: any) => {
+  const handleToggleActive = useCallback((ct: Record<string, unknown> & { _id: string; name?: string; isActive?: boolean }) => {
     setConfirmState({
       id: ct._id,
       name: ct.name,
@@ -64,7 +64,7 @@ export default memo(function CaseTypes() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Case Types</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {caseTypes.length} case types · {caseTypes.filter((ct: any) => ct.isActive).length} active
+            {caseTypes.length} case types · {caseTypes.filter((ct: Record<string, unknown> & { isActive?: boolean }) => ct.isActive).length} active
           </p>
         </div>
 
@@ -200,7 +200,7 @@ export default memo(function CaseTypes() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading ? Array(16).fill(0).map((_, i) => (
           <div key={i} className="h-44 bg-card rounded-xl border border-border animate-pulse" />
-        )) : caseTypes.map((ct: any, idx: number) => {
+        )) : caseTypes.map((ct: Record<string, unknown> & { _id: string; id?: string; name?: string; description?: string; desc?: string; isActive?: boolean; totalCases?: number; pendingCases?: number; resolvedCases?: number }, idx: number) => {
           const Icon = ICON_LIST[idx % ICON_LIST.length] || FileText;
           const isActive = ct.isActive !== false; // default true if not set
           const displayN = getDisplayNumber(ct.id) ?? (idx + 1);

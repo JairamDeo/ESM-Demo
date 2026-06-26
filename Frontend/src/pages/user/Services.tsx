@@ -28,7 +28,7 @@ const categorySortIndex = (name: string) => {
   return idx === -1 ? 999 : idx;
 };
 
-const getCaseTypeCategoryLabel = (ct: any) =>
+const getCaseTypeCategoryLabel = (ct: Record<string, unknown> & { categoryName?: string; category?: string | { name?: string } }) =>
   ct?.categoryName ??
   (typeof ct?.category === "object" && ct?.category?.name ? ct.category.name : null) ??
   (typeof ct?.category === "string" ? ct.category : "Other");
@@ -59,7 +59,7 @@ export default function Services() {
     const list = Array.isArray(caseTypes) ? caseTypes : [];
 
     const filtered = q
-      ? list.filter((ct: any) => {
+      ? list.filter((ct: Record<string, unknown> & { categoryName?: string; category?: string | { name?: string } }) => {
           const name = getField(ct, "name").toLowerCase();
           const desc = getField(ct, "description").toLowerCase();
           
@@ -73,7 +73,7 @@ export default function Services() {
         })
       : list;
 
-    const byCategory = new Map<string, { items: any[]; categoryId?: string; iconUrl?: string | null; nameHi?: string }>();
+    const byCategory = new Map<string, { items: Record<string, unknown>[]; categoryId?: string; iconUrl?: string | null; nameHi?: string }>();
     for (const ct of filtered) {
       let ctCategoryLabel = "Other";
       let ctCategoryNameHi = "";
@@ -110,14 +110,14 @@ export default function Services() {
           title: (currentLang === "hi" && group.nameHi) ? group.nameHi : categoryName,
           iconUrl,
           bg: fallback.bg,
-          items: group.items.map((ct: any) => ({
+          items: group.items.map((ct: Record<string, unknown> & { _id?: string; id?: string; name?: string }) => ({
             id: String(ct._id ?? ct.id ?? ct.name),
             label: getField(ct, "name"),
             description: getField(ct, "description"),
           })),
         };
       });
-  }, [caseTypes, searchQuery, categoryIconMap, currentLang]);
+  }, [caseTypes, searchQuery, categoryIconMap, currentLang, getField]);
 
   const effectiveOpen = searchQuery.trim()
     ? groupedCategories.map((c) => c.key)
@@ -188,7 +188,7 @@ export default function Services() {
         <div className="text-center py-10 bg-card border border-border rounded-2xl space-y-2">
           <p className="text-sm text-destructive">{t("couldNotLoadServices")}</p>
           <p className="text-xs text-muted-foreground">
-            {(error as any)?.response?.data?.message || (error as Error)?.message}
+            {(error as { response?: { data?: { message?: string } } })?.response?.data?.message || (error as Error)?.message}
           </p>
         </div>
       )}
