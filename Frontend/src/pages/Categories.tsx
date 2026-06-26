@@ -26,7 +26,7 @@ export default memo(function Categories() {
   const [addIconPreview, setAddIconPreview] = useState<string | null>(null);
   const addIconInputRef = useRef<HTMLInputElement>(null);
 
-  const [editOpen, setEditOpen] = useState<any>(null);
+  const [editOpen, setEditOpen] = useState<(Record<string, unknown> & { _id: string; name?: string; isActive?: boolean }) | null>(null);
   const [editForm, setEditForm] = useState({ name: "", icon: null as File | null, removeIcon: false });
   const [editIconPreview, setEditIconPreview] = useState<string | null>(null);
   const editIconInputRef = useRef<HTMLInputElement>(null);
@@ -65,8 +65,8 @@ export default memo(function Categories() {
 
   const [confirmState, setConfirmState] = useState<null | { id: string; name: string; nextIsActive: boolean }>(null);
 
-  const [viewCategory, setViewCategory] = useState<any>(null);
-  const [confirmRemoveCaseType, setConfirmRemoveCaseType] = useState<any>(null);
+  const [viewCategory, setViewCategory] = useState<(Record<string, unknown> & { _id: string; name?: string }) | null>(null);
+  const [confirmRemoveCaseType, setConfirmRemoveCaseType] = useState<(Record<string, unknown> & { _id: string; name?: string }) | null>(null);
 
   const handleAdd = useCallback(async () => {
     if (!form.name.trim()) return;
@@ -95,10 +95,10 @@ export default memo(function Categories() {
   }, [editForm, editOpen, updateCategory, removeCategoryIcon, uploadCategoryIcon, resetEditForm]);
 
   const editingCategory = editOpen
-    ? categories.find((c: any) => c._id === editOpen._id) ?? editOpen
+    ? categories.find((c: Record<string, unknown> & { _id: string }) => c._id === editOpen._id) ?? editOpen
     : null;
 
-  const handleToggleActive = useCallback((cat: any) => {
+  const handleToggleActive = useCallback((cat: Record<string, unknown> & { _id: string; name?: string; isActive?: boolean }) => {
     setConfirmState({
       id: cat._id,
       name: cat.name,
@@ -125,7 +125,7 @@ export default memo(function Categories() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Categories Master</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {categories.length} categories · {categories.filter((cat: any) => cat.isActive !== false).length} active
+            {categories.length} categories · {categories.filter((cat: Record<string, unknown> & { isActive?: boolean }) => cat.isActive !== false).length} active
           </p>
         </div>
 
@@ -247,7 +247,7 @@ export default memo(function Categories() {
                       <CategoryIcon name={editForm.name} size="lg" />
                     ) : editingCategory?.iconUrl ? (
                       <img
-                        src={getCategoryDisplayIcon(editingCategory.iconUrl) || undefined}
+                        src={getCategoryDisplayIcon(editingCategory.iconUrl as string) || undefined}
                         alt=""
                         className="w-10 h-10 object-contain"
                       />
@@ -357,7 +357,7 @@ export default memo(function Categories() {
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Case Types for {viewCategory.name}</h2>
-                <p className="text-sm text-muted-foreground">{Array.isArray(caseTypes) ? caseTypes.filter((ct: any) => ct.categoryId === viewCategory._id).length : 0} case types in this category</p>
+                <p className="text-sm text-muted-foreground">{Array.isArray(caseTypes) ? caseTypes.filter((ct: Record<string, unknown> & { categoryId?: string }) => ct.categoryId === viewCategory._id).length : 0} case types in this category</p>
               </div>
               <button onClick={() => setViewCategory(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
                 <X className="w-5 h-5" />
@@ -365,11 +365,11 @@ export default memo(function Categories() {
             </div>
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {(() => {
-                const related = Array.isArray(caseTypes) ? caseTypes.filter((ct: any) => ct.categoryId === viewCategory._id) : [];
+                const related = Array.isArray(caseTypes) ? caseTypes.filter((ct: Record<string, unknown> & { categoryId?: string }) => ct.categoryId === viewCategory._id) : [];
                 if (related.length === 0) {
                   return <p className="text-center text-sm text-muted-foreground py-8">No case types found in this category.</p>;
                 }
-                return related.map((ct: any) => (
+                return related.map((ct: Record<string, unknown> & { _id: string; name?: string; description?: string }) => (
                   <div key={ct._id} className="flex items-center justify-between p-4 border border-border rounded-lg bg-secondary/30">
                     <div>
                       <p className="font-medium text-sm text-foreground">{ct.name}</p>
@@ -437,9 +437,9 @@ export default memo(function Categories() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading ? Array(8).fill(0).map((_, i) => (
           <div key={i} className="h-40 bg-card rounded-xl border border-border animate-pulse" />
-        )) : categories.map((cat: any) => {
+        )) : categories.map((cat: Record<string, unknown> & { _id: string; name?: string; isActive?: boolean; iconUrl?: string }) => {
           const isActive = cat.isActive !== false; // default true if not set
-          const relatedCaseTypes = Array.isArray(caseTypes) ? caseTypes.filter((ct: any) => ct.categoryId === cat._id) : [];
+          const relatedCaseTypes = Array.isArray(caseTypes) ? caseTypes.filter((ct: Record<string, unknown> & { categoryId?: string }) => ct.categoryId === cat._id) : [];
           return (
             <div
               key={cat._id}

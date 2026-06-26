@@ -86,7 +86,7 @@ const AdminGuard = memo(() => {
 const UserRoutes = memo(() => {
   const { isAuthenticated, user } = useAuth();
   const rbacPerms = useRBACStore.getState().permissions;
-  const role = user?.role as any;
+  const role = user?.role as string;
   const canAccessVeteranPortal = role === "user" || (isAuthenticated && rbacPerms[role]?.loginAsVeteran);
   const hasToken = !!localStorage.getItem("vitric_user_token");
 

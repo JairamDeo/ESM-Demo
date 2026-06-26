@@ -60,6 +60,20 @@ function concernStatusText(status?: string): string {
   return "";
 }
 
+interface SubmittedDoc { uploadId?: string; documentLabel?: string; documentText?: string; originalFileName?: string; fileUrl: string; mimeType?: string; }
+interface TimelineEntry { eventType: string; status?: string; note?: string; concernScope?: string; documentLabel?: string; documentText?: string; documentUploadId?: string; concernDocuments?: { documentLabel: string; documentText?: string; documentUploadId?: string }[]; attachments?: string[]; updatedAt?: string; updatedBy?: string; language?: string; translationFailed?: boolean; originalText?: string; translatedText?: string; fromLevel?: string; toLevel?: string; }
+type GrievanceData = Record<string, unknown> & {
+  _id?: string; id?: string; grievanceId?: string; type?: string; status?: string; priority?: string;
+  veteranName?: string; veteran?: string; veteranPhone?: string; veteranArmyNo?: string; veteranRank?: string;
+  stationName?: string; station?: string; stationId?: string;
+  officerName?: string; officer?: string; officerId?: string;
+  hqId?: string; assignedLevel?: string; assignedOrgTier?: string;
+  createdAt?: string; date?: string; description?: string;
+  timeline?: TimelineEntry[]; submittedDocuments?: SubmittedDoc[]; attachments?: string[];
+  pendingEscalationRequest?: { status?: string; reason?: string };
+  _originalOfficer?: string;
+};
+
 interface FilterState { priority:string; station:string; officer:string; caseType:string; dateFrom:string; dateTo:string; }
 
 function Modal({ open, onClose, title, children, wide=false }: { open:boolean; onClose:()=>void; title:string; children:React.ReactNode; wide?:boolean }) {
@@ -312,7 +326,7 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
       (data?.caseTypeOverrides || []).map((o) => [String(o.caseTypeId), o])
     );
     setCaseTypeRows(
-      caseTypes.map((ct: any) => {
+      caseTypes.map((ct: Record<string, unknown> & { _id?: string; id?: string; name?: string }) => {
         const id = String(ct._id || ct.id);
         const ov = overrideMap.get(id);
         const customEnabled = Boolean(ov?.enabled);
@@ -717,7 +731,7 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
   );
 }
 
-function EscalateGrievanceModal({ grievance, onClose }: { grievance: any; onClose: () => void }) {
+function EscalateGrievanceModal({ grievance, onClose }: { grievance: GrievanceData; onClose: () => void }) {
   const [escalationType, setEscalationType] = useState<"no_response" | "concern_pending">("no_response");
   const [note, setNote] = useState("");
   const grievanceId = grievance._id || grievance.id;
@@ -805,7 +819,7 @@ function EscalateGrievanceModal({ grievance, onClose }: { grievance: any; onClos
   );
 }
 
-function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:any; onClose:()=>void }) {
+function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance: GrievanceData; onClose:()=>void }) {
   const [note, setNote] = useState("");
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [includeGeneral, setIncludeGeneral] = useState(true);
@@ -828,8 +842,8 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
 
   const { data: liveGrievance, isLoading: detailLoading } = useGrievance(initialGrievance._id || "");
   const grievance = liveGrievance || initialGrievance;
-  const submittedDocs: any[] = grievance.submittedDocuments || [];
-  const concernStatus: string = getEffectiveConcernStatus(grievance);
+  const submittedDocs: SubmittedDoc[] = useMemo(() => (grievance.submittedDocuments as SubmittedDoc[] | undefined) || [], [grievance.submittedDocuments]);
+  const concernStatus: string = getEffectiveConcernStatus(grievance as unknown as Record<string, unknown>);
   const concernBlocking = isConcernBlocking(concernStatus);
   const awaitingVeteran = concernStatus === "awaiting_veteran";
   const awaitingOfficer = concernStatus === "awaiting_officer";
@@ -867,7 +881,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         String(grievance.officerId) === String(user?.id)));
 
   const selectedDocs = useMemo(
-    () => submittedDocs.filter((d: any) => selectedUploadIds.includes(d.uploadId)),
+    () => submittedDocs.filter((d: SubmittedDoc) => selectedUploadIds.includes(d.uploadId || "")),
     [submittedDocs, selectedUploadIds]
   );
 
@@ -916,7 +930,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         formData.append("includeGeneral", String(includeGeneral));
         formData.append("documentUploadIds", JSON.stringify(selectedUploadIds));
         noteFiles.forEach((file) => formData.append("attachments", file));
-        await addComment.mutateAsync(formData as any);
+        await addComment.mutateAsync(formData as unknown as Record<string, unknown>);
       } else {
         await addComment.mutateAsync(payload);
       }
@@ -939,7 +953,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   const sortedTimeline = useMemo(
     () =>
       [...(grievance.timeline || [])].sort(
-        (a: any, b: any) =>
+        (a: TimelineEntry, b: TimelineEntry) =>
           new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime()
       ),
     [grievance.timeline]
@@ -950,7 +964,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
     return url.startsWith("http") ? url : `${baseUrl}${url}`;
   };
 
-  const timelineEventLabel = (t: any) => {
+  const timelineEventLabel = (t: TimelineEntry) => {
     const docs = getConcernDocuments(t);
     if (t.eventType === "concern") {
       return timelineConcernLabel(t.concernScope, docs);
@@ -964,7 +978,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
     return t.status?.replace("-", " ") || "Update";
   };
 
-  const timelineEventBadge = (t: any) => {
+  const timelineEventBadge = (t: TimelineEntry) => {
     if (t.eventType === "concern") return "bg-warning/15 text-warning";
     if (t.eventType === "concern_resolved") return "bg-success/15 text-success";
     if (t.eventType === "veteran_response") return "bg-success/15 text-success";
@@ -1192,7 +1206,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
             count={submittedDocs.length}
           >
             <div className="space-y-2">
-              {submittedDocs.map((doc: any) => {
+              {submittedDocs.map((doc: SubmittedDoc) => {
                 const fullUrl = resolveFileUrl(doc.fileUrl);
                 const isPdf = doc.mimeType === "application/pdf" || doc.fileUrl.toLowerCase().includes(".pdf");
                 return (
@@ -1252,7 +1266,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               <p className="text-xs text-muted-foreground italic">No activity yet.</p>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {sortedTimeline.map((t: any, i: number) => (
+                {sortedTimeline.map((t: TimelineEntry, i: number) => (
                   <div key={i} className="bg-secondary/30 rounded-lg p-2.5 border border-border/50">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${timelineEventBadge(t)}`}>
@@ -1264,7 +1278,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                     )}
                     {t.concernDocuments?.length > 0 && (
                       <div className="text-[11px] text-primary font-medium mb-1 space-y-0.5">
-                        {t.concernDocuments.map((d: any, di: number) => (
+                        {t.concernDocuments.map((d: { documentLabel: string }, di: number) => (
                           <p key={di}>Document: {d.documentLabel}</p>
                         ))}
                       </div>
@@ -1360,7 +1374,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                   Documents with issues {selectedUploadIds.length > 0 && `(${selectedUploadIds.length} selected)`}
                 </p>
                 <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-lg border border-border p-2 bg-secondary/10">
-                  {submittedDocs.map((doc: any) => {
+                  {submittedDocs.map((doc: SubmittedDoc) => {
                     const checked = selectedUploadIds.includes(doc.uploadId);
                     return (
                       <label
@@ -1395,7 +1409,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                   {selectedDocs.length} document{selectedDocs.length > 1 ? "s" : ""} flagged
                 </p>
                 <p className="text-muted-foreground">
-                  {selectedDocs.map((d: any) => d.documentLabel).join(" · ")}
+                  {selectedDocs.map((d: SubmittedDoc) => d.documentLabel).join(" · ")}
                 </p>
               </div>
             )}
@@ -1495,7 +1509,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   const createGrievance = useCreateGrievance();
   const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
   const { data: stationsData } = useStations({ limit: 100 });
-  const stations = stationsData?.data || [];
+  const stations = useMemo(() => stationsData?.data || [], [stationsData]);
 
   const [form, setForm] = useState({
     type: "", veteran: "", rank: "", armyNo: "", contact: "",
@@ -1509,21 +1523,21 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     limit: 100,
     station: form.station || undefined,
   });
-  const officers = officersData?.data || [];
+  const officers = useMemo(() => officersData?.data || [], [officersData]);
 
   // ── Auto-select first case type ──────────────────────────────────────────
   useEffect(() => {
     if (caseTypesList.length && !form.type) {
       setForm((f) => ({ ...f, type: caseTypesList[0].name }));
     }
-  }, [caseTypesList]);
+  }, [caseTypesList, form.type]);
 
   // ── Auto-select first station ────────────────────────────────────────────
   useEffect(() => {
     if (stations.length && !form.station) {
       setForm((f) => ({ ...f, station: stations[0].name }));
     }
-  }, [stations]);
+  }, [stations, form.station]);
 
   // ── When station changes → reset officer and auto-select first ───────────
   useEffect(() => {
@@ -1532,9 +1546,9 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     } else {
       setForm((f) => ({ ...f, officer: "" }));
     }
-  }, [form.station, officers.length]);
+  }, [form.station, officers]);
 
-  const set = (k: string, v: string) => {
+  const set = (k: string, v: string | File[]) => {
     setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => { const n = {...e}; delete n[k]; return n; });
   };
@@ -1568,7 +1582,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 
           <FormField label="Case Type *">
             <SelectField value={form.type} onChange={(v) => set("type", v)}>
-              {caseTypesList.map((t: any) => (
+              {caseTypesList.map((t: Record<string, unknown> & { _id?: string; name?: string }) => (
                 <option key={t._id || t.name} value={t.name}>{t.name}</option>
               ))}
             </SelectField>
@@ -1602,7 +1616,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
           <FormField label="Station HQ *">
             <SelectField value={form.station} onChange={(v) => set("station", v)}>
               <option value="">Select Station</option>
-              {stations.map((s: any) => (
+              {stations.map((s: Record<string, unknown> & { _id?: string; name?: string }) => (
                 <option key={s._id || s.name} value={s.name}>{s.name}</option>
               ))}
             </SelectField>
@@ -1618,7 +1632,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
                   ? "No officers found"
                   : "Select Officer"}
               </option>
-              {officers.map((o: any) => (
+              {officers.map((o: Record<string, unknown> & { _id?: string; name?: string }) => (
                 <option key={o._id || o.name} value={o.name}>{o.name}</option>
               ))}
             </SelectField>
@@ -1656,7 +1670,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
                   const okSize = f.size <= 5 * 1024 * 1024;
                   return okType && okSize;
                 });
-                set("attachments", [...form.attachments, ...valid].slice(0, 3) as any);
+                set("attachments", [...form.attachments, ...valid].slice(0, 3));
                 e.target.value = "";
               }}
             />
@@ -1674,7 +1688,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
                     <p className="text-xs text-muted-foreground shrink-0">{(file.size / 1024).toFixed(0)}KB</p>
                   </div>
                   <button
-                    onClick={() => set("attachments", form.attachments.filter((_: any, idx: number) => idx !== i) as any)}
+                    onClick={() => set("attachments", form.attachments.filter((_: File, idx: number) => idx !== i))}
                     className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
                   >
                     <X className="w-3 h-3" />
@@ -1706,7 +1720,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   );
 }
 
-function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }: any) {
+function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }: { grievance: GrievanceData; onView: () => void; onStatusChange: (s: string) => void; onEscalate: () => void; onAssign: () => void }) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -1714,7 +1728,7 @@ function ActionsMenu({ grievance, onView, onStatusChange, onEscalate, onAssign }
   const perms = usePermissions();
   const { user } = useAuth();
   const canAct = canActOnGrievance(user, grievance);
-  const openConcern = isConcernBlocking(getEffectiveConcernStatus(grievance));
+  const openConcern = isConcernBlocking(getEffectiveConcernStatus(grievance as unknown as Record<string, unknown>));
 
   const actions = [
     { label:"View Details", icon:Eye, onClick:()=>{onView();setOpen(false);} },
@@ -1841,7 +1855,7 @@ function FilterPills({ filters, onRemove }: { filters:FilterState; onRemove:(k:k
   );
 }
 
-function toCSV(data: any[]) {
+  function toCSV(data: GrievanceData[]) {
   const headers = ["ID","Type","Veteran","Station","Officer","Priority","Status","Date"];
   const rows = data.map((g)=>[g.grievanceId||g.id,g.type,g.veteranName||g.veteran,g.stationName||g.station,g.officerName||g.officer,g.priority,g.status,g.createdAt?new Date(g.createdAt).toLocaleDateString("en-IN"):g.date]);
   return [headers,...rows].map((r)=>r.map((c)=>`"${c||""}"`).join(",")).join("\n");
@@ -1854,12 +1868,12 @@ export default memo(function Grievances() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 8;
   const [filters, setFilters] = useState<FilterState>({ priority:"",station:"",officer:"",caseType:"",dateFrom:"",dateTo:"" });
-  const [viewGrievance, setViewGrievance] = useState<any>(null);
+  const [viewGrievance, setViewGrievance] = useState<GrievanceData | null>(null);
   const [showNewGrievance, setShowNewGrievance] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [escalateGrievance, setEscalateGrievance] = useState<any>(null);
-  const [reassignGrievance, setReassignGrievance] = useState<any>(null);
-  const [statusConfirm, setStatusConfirm] = useState<{ grievance: any; status: string } | null>(null);
+  const [escalateGrievance, setEscalateGrievance] = useState<GrievanceData | null>(null);
+  const [reassignGrievance, setReassignGrievance] = useState<GrievanceData | null>(null);
+  const [statusConfirm, setStatusConfirm] = useState<{ grievance: GrievanceData; status: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [showSlaSettings, setShowSlaSettings] = useState(false);
 
@@ -1890,7 +1904,7 @@ export default memo(function Grievances() {
   const grievances = useMemo(() => data?.data || [], [data]);
   const pagination = useMemo(() => data?.pagination || { total:0, totalPages:1 }, [data]);
 
-  const handleStatusChange = useCallback((g: any, status: string) => {
+  const handleStatusChange = useCallback((g: GrievanceData, status: string) => {
     if (!g._id) return;
     setStatusConfirm({ grievance: g, status });
   }, []);
@@ -1907,7 +1921,7 @@ export default memo(function Grievances() {
     );
   }, [statusConfirm, updateStatus, user]);
 
-  const handleReassign = useCallback((g: any, officerName: string) => {
+  const handleReassign = useCallback((g: GrievanceData, officerName: string) => {
     if (!g._id) return;
     const isNew = g._originalOfficer === "Unassigned" || !g._originalOfficer;
     assignOfficer.mutate({ id: g._id, officerName, isNew });
@@ -1924,10 +1938,10 @@ export default memo(function Grievances() {
     return (
       <Modal open  onClose={()=>setShowFilter(false)} title="Advanced Filters">
         <div className="space-y-4">
-          <FormField label="Case Type"><SelectField value={local.caseType} onChange={(v)=>setLocal((f)=>({...f,caseType:v}))}><option value="">All Case Types</option>{caseTypesList.map((t: any)=><option key={t._id || t.name} value={t.name}>{t.name}</option>)}</SelectField></FormField>
+          <FormField label="Case Type"><SelectField value={local.caseType} onChange={(v)=>setLocal((f)=>({...f,caseType:v}))}><option value="">All Case Types</option>{caseTypesList.map((t: Record<string, unknown> & { _id?: string; name?: string })=><option key={t._id as string || t.name as string} value={t.name as string}>{t.name as string}</option>)}</SelectField></FormField>
           <FormField label="Priority"><SelectField value={local.priority} onChange={(v)=>setLocal((f)=>({...f,priority:v}))}><option value="">All Priorities</option>{["low","medium","high","critical"].map((p)=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}</SelectField></FormField>
-          <FormField label="Station HQ"><SelectField value={local.station} onChange={(v)=>setLocal((f)=>({...f,station:v}))}><option value="">All Stations</option>{stations.map((s: any)=><option key={s._id || s.name} value={s.name}>{s.name}</option>)}</SelectField></FormField>
-          <FormField label="Assigned Officer"><SelectField value={local.officer} onChange={(v)=>setLocal((f)=>({...f,officer:v}))}><option value="">All Officers</option>{officers.map((o: any)=><option key={o._id || o.name} value={o.name}>{o.name}</option>)}</SelectField></FormField>
+          <FormField label="Station HQ"><SelectField value={local.station} onChange={(v)=>setLocal((f)=>({...f,station:v}))}><option value="">All Stations</option>{stations.map((s: Record<string, unknown> & { _id?: string; name?: string })=><option key={s._id as string || s.name as string} value={s.name as string}>{s.name as string}</option>)}</SelectField></FormField>
+          <FormField label="Assigned Officer"><SelectField value={local.officer} onChange={(v)=>setLocal((f)=>({...f,officer:v}))}><option value="">All Officers</option>{officers.map((o: Record<string, unknown> & { _id?: string; name?: string })=><option key={o._id as string || o.name as string} value={o.name as string}>{o.name as string}</option>)}</SelectField></FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Date From"><InputField value={local.dateFrom} onChange={(v)=>setLocal((f)=>({...f,dateFrom:v}))} type="date" /></FormField>
             <FormField label="Date To"><InputField value={local.dateTo} onChange={(v)=>setLocal((f)=>({...f,dateTo:v}))} type="date" /></FormField>
@@ -2028,7 +2042,7 @@ export default memo(function Grievances() {
                 <tr key={i} className="border-b border-border/50"><td colSpan={9} className="py-3 px-3"><div className="h-8 bg-secondary/50 rounded animate-pulse"/></td></tr>
               )) : grievances.length===0 ? (
                 <tr><td colSpan={9} className="py-12 text-center text-sm text-muted-foreground">No grievances found.</td></tr>
-              ) : grievances.map((g: any)=>(
+              ) : grievances.map((g: GrievanceData)=>(
                 <tr key={g._id||g.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                   <td className="py-3 px-3 text-sm font-mono text-primary">{g.grievanceId||g.id}</td>
                   <td className="py-3 px-3 text-sm text-foreground max-w-[140px] truncate">{g.type}</td>
@@ -2093,9 +2107,9 @@ export default memo(function Grievances() {
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">Currently: <span className="text-foreground font-medium">{reassignGrievance._originalOfficer}</span></p>
         <FormField label={isUnassigned ? "Assign Officer" : "New Assigned Officer"}>
-          <SelectField value={reassignGrievance.officerName === "Unassigned" ? "" : reassignGrievance.officerName||""} onChange={(v)=>setReassignGrievance((g: any)=>({...g,officerName:v}))}>
+          <SelectField value={reassignGrievance.officerName === "Unassigned" ? "" : reassignGrievance.officerName||""} onChange={(v)=>setReassignGrievance((g: GrievanceData)=>({...g,officerName:v}))}>
             <option value="">Select Officer</option>
-            {officers.map((o: any)=><option key={o._id || o.name} value={o.name}>{o.name}</option>)}
+            {officers.map((o: Record<string, unknown> & { _id?: string; name?: string })=><option key={o._id as string || o.name as string} value={o.name as string}>{o.name as string}</option>)}
           </SelectField>
         </FormField>
         <div className="flex justify-end gap-2 pt-2">

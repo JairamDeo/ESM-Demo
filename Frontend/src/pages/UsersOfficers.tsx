@@ -11,11 +11,33 @@ import { Users, Shield, UserPlus, Search, MoreVertical, X, ChevronDown, Edit2, T
 import { useOfficers, useCreateOfficer, useUpdateOfficer, useToggleOfficerStatus, useDeleteOfficer, useStations, useHQs, useStates } from "@/hooks/useApi";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
+export type OfficerData = Record<string, unknown> & {
+  _id: string;
+  name?: string;
+  role?: OfficerJobRole | string;
+  level?: "" | "L1" | "L2" | "L3" | string;
+  status?: string;
+  assignmentLabel?: string;
+  stateName?: string;
+  hqName?: string;
+  stationName?: string;
+  hqId?: string;
+  stateId?: string;
+  stationId?: string;
+  email?: string;
+  username?: string;
+  rank?: string;
+  canLogin?: boolean;
+  activeCases?: number;
+  auditHistory?: { action: string; [key: string]: unknown }[];
+  createdBy?: Record<string, unknown> & { name?: string; role?: string; email?: string; at?: string | Date };
+};
+
 type PendingConfirm =
   | { kind: "add" }
   | { kind: "update" }
-  | { kind: "toggle"; officer: any }
-  | { kind: "delete"; officer: any };
+  | { kind: "toggle"; officer: OfficerData }
+  | { kind: "delete"; officer: OfficerData };
 
 const ALL_ROLES: OfficerJobRole[] = [
   "Super Admin", "Area Officer", "Headquarter Officer", "Station HQ Officer",
@@ -36,7 +58,7 @@ const roleBadge: Record<string, string> = {
   "Station HQ Officer":  "bg-warning/15 text-warning",
 };
 
-function assignmentLabel(o: any): string {
+function assignmentLabel(o: OfficerData): string {
   if (o.assignmentLabel) return o.assignmentLabel;
   if (o.role === "Area Officer") return o.stateName || "—";
   if (o.role === "Headquarter Officer") return o.hqName || "—";
@@ -48,7 +70,7 @@ function assignmentLabel(o: any): string {
 }
 
 function ActionsMenu({ officer, onEdit, onToggle, onDelete, canManage }: {
-  officer: any; onEdit: () => void; onToggle: () => void;
+  officer: OfficerData; onEdit: () => void; onToggle: () => void;
   onDelete: () => void; canManage: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -104,15 +126,15 @@ const OfficerModal = ({
 }: {
   isEdit?: boolean;
   onClose: () => void;
-  form: any;
-  setForm: any;
+  form: Record<string, unknown> & { role?: string; filterStateId?: string; rank?: string; name?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; email?: string; canLogin?: boolean; username?: string; password?: string };
+  setForm: (val: unknown) => void;
   handleAdd: () => void;
   handleUpdate: () => void;
-  createOfficer: any;
-  updateOfficer: any;
-  statesData: any[];
-  hqData: any[];
-  stations: any[];
+  createOfficer: Record<string, unknown> & { isPending?: boolean; mutateAsync: (data: unknown) => Promise<unknown> };
+  updateOfficer: Record<string, unknown> & { isPending?: boolean; mutateAsync: (data: unknown) => Promise<unknown> };
+  statesData: (Record<string, unknown> & { _id: string; name?: string })[];
+  hqData: (Record<string, unknown> & { _id: string; name?: string; stateId?: string; stateName?: string })[];
+  stations: (Record<string, unknown> & { _id: string; name?: string; hqName?: string; hqId?: string })[];
   creatableRoles: OfficerJobRole[];
   isSuperAdmin: boolean;
 }) => {
@@ -121,7 +143,7 @@ const OfficerModal = ({
 
   const filteredHqs = useMemo(() => {
     if (form.filterStateId) {
-      return hqData.filter((h: any) => String(h.stateId) === String(form.filterStateId));
+      return hqData.filter((h: Record<string, unknown> & { stateId?: string }) => String(h.stateId) === String(form.filterStateId));
     }
     return hqData;
   }, [hqData, form.filterStateId]);
@@ -132,7 +154,7 @@ const OfficerModal = ({
     }
     if (form.role === "Area Officer") {
       return {
-        dropdownOptions: statesData.map((s: any) => ({ _id: s._id, name: s.name })),
+        dropdownOptions: statesData.map((s: Record<string, unknown> & { _id: string; name?: string }) => ({ _id: s._id, name: s.name })),
         dropdownLabel: "Area *",
         assignField: "stateId" as const,
         needsAssignment: true,
@@ -140,14 +162,14 @@ const OfficerModal = ({
     }
     if (form.role === "Headquarter Officer") {
       return {
-        dropdownOptions: filteredHqs.map((h: any) => ({ _id: h._id, name: h.name, sub: h.stateName })),
+        dropdownOptions: filteredHqs.map((h: Record<string, unknown> & { _id: string; name?: string; stateName?: string }) => ({ _id: h._id, name: h.name, sub: h.stateName })),
         dropdownLabel: "Headquarters *",
         assignField: "hqId" as const,
         needsAssignment: true,
       };
     }
     return {
-      dropdownOptions: stations.map((s: any) => ({ _id: s._id, name: s.name, sub: s.hqName })),
+      dropdownOptions: stations.map((s: Record<string, unknown> & { _id: string; name?: string; hqName?: string }) => ({ _id: s._id, name: s.name, sub: s.hqName })),
       dropdownLabel: "Station HQ *",
       assignField: "stationId" as const,
       needsAssignment: true,
@@ -176,7 +198,7 @@ const OfficerModal = ({
               {!isEdit && (
                 <select
                   value={form.rank}
-                  onChange={(e) => setForm((p: any) => ({ ...p, rank: e.target.value }))}
+                  onChange={(e) => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({ ...p, rank: e.target.value }))}
                   className="w-24 px-2 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
                 >
                   {RANKS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -184,7 +206,7 @@ const OfficerModal = ({
               )}
               <input
                 value={form.name}
-                onChange={(e) => setForm((p: any) => ({ ...p, name: e.target.value }))}
+                onChange={(e) => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({ ...p, name: e.target.value }))}
                 placeholder="Full name"
                 className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground"
               />
@@ -202,7 +224,7 @@ const OfficerModal = ({
                 <button
                   key={lv}
                   type="button"
-                  onClick={() => setForm((p: any) => ({ ...p, level: lv }))}
+                  onClick={() => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({ ...p, level: lv }))}
                   className={`px-4 py-1.5 rounded-lg text-xs font-semibold border transition-all
                     ${form.level === lv
                       ? "bg-primary text-primary-foreground border-primary"
@@ -223,7 +245,7 @@ const OfficerModal = ({
                 <button
                   key={r}
                   type="button"
-                  onClick={() => setForm((p: any) => ({
+                  onClick={() => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({
                     ...p,
                     role: r,
                     stateId: "",
@@ -250,8 +272,8 @@ const OfficerModal = ({
               <select
                 value={form.filterStateId || ""}
                 onChange={(e) => {
-                  const st = statesData.find((s: any) => s._id === e.target.value);
-                  setForm((p: any) => ({
+                  const st = statesData.find((s: Record<string, unknown> & { _id?: string }) => s._id === e.target.value);
+                  setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({
                     ...p,
                     filterStateId: e.target.value,
                     hqId: "",
@@ -261,7 +283,7 @@ const OfficerModal = ({
                 className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
               >
                 <option value="">All areas</option>
-                {statesData.map((s: any) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                {statesData.map((s: Record<string, unknown> & { _id?: string; name?: string }) => <option key={s._id} value={s._id}>{s.name}</option>)}
               </select>
             </div>
           )}
@@ -273,8 +295,8 @@ const OfficerModal = ({
               <select
                 value={assignName}
                 onChange={(e) => {
-                  const selected = dropdownOptions.find((o: any) => o.name === e.target.value);
-                  setForm((p: any) => ({
+                  const selected = dropdownOptions.find((o: Record<string, unknown> & { name?: string; _id?: string }) => o.name === e.target.value);
+                  setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({
                     ...p,
                     assignName: e.target.value,
                     stateId: assignField === "stateId" ? (selected?._id || "") : p.stateId,
@@ -287,7 +309,7 @@ const OfficerModal = ({
                 <option value="">
                   {dropdownOptions.length === 0 ? "No options available" : "Select…"}
                 </option>
-                {dropdownOptions.map((opt: any) => (
+                {dropdownOptions.map((opt: Record<string, unknown> & { _id?: string; name?: string; sub?: string }) => (
                   <option key={opt._id} value={opt.name}>
                     {opt.sub ? `${opt.name} (${opt.sub})` : opt.name}
                   </option>
@@ -303,7 +325,7 @@ const OfficerModal = ({
             <input
               type="email"
               value={form.email}
-              onChange={(e) => setForm((p: any) => ({ ...p, email: e.target.value }))}
+              onChange={(e) => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({ ...p, email: e.target.value }))}
               placeholder="officer@army.in"
               className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground"
             />
@@ -315,7 +337,7 @@ const OfficerModal = ({
                 <input
                   type="checkbox"
                   checked={!!form.canLogin}
-                  onChange={(e) => setForm((p: any) => ({ ...p, canLogin: e.target.checked }))}
+                  onChange={(e) => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({ ...p, canLogin: e.target.checked }))}
                   className="rounded border-border"
                 />
                 Allow admin portal login
@@ -326,7 +348,7 @@ const OfficerModal = ({
                     <label className="text-xs font-medium text-muted-foreground">Username *</label>
                     <input
                       value={form.username}
-                      onChange={(e) => setForm((p: any) => ({ ...p, username: e.target.value }))}
+                      onChange={(e) => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({ ...p, username: e.target.value }))}
                       className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
                     />
                   </div>
@@ -335,7 +357,7 @@ const OfficerModal = ({
                     <input
                       type="password"
                       value={form.password}
-                      onChange={(e) => setForm((p: any) => ({ ...p, password: e.target.value }))}
+                      onChange={(e) => setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({ ...p, password: e.target.value }))}
                       className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
                     />
                   </div>
@@ -385,7 +407,7 @@ export default memo(function UsersOfficers() {
   const [page, setPage] = useState(1);
   const limit = 10;
   const [addOpen, setAddOpen] = useState(false);
-  const [editOfficer, setEditOfficer] = useState<any>(null);
+  const [editOfficer, setEditOfficer] = useState<OfficerData | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const [form, setForm] = useState({
@@ -443,20 +465,20 @@ export default memo(function UsersOfficers() {
   }, [summaryData]);
 
   const filteredHqsForFilters = useMemo(() => {
-    if (!areaFilterId) return hqData as any[];
-    return (hqData as any[]).filter((h: any) => String(h.stateId) === String(areaFilterId));
+    if (!areaFilterId) return hqData as (Record<string, unknown> & { stateId?: string })[];
+    return (hqData as (Record<string, unknown> & { stateId?: string })[]).filter((h: Record<string, unknown> & { stateId?: string }) => String(h.stateId) === String(areaFilterId));
   }, [hqData, areaFilterId]);
 
   const filteredStationsForFilters = useMemo(() => {
-    let list = stationsList as any[];
+    let list = stationsList as (Record<string, unknown> & { stateName?: string; state?: string; hqId?: string | (Record<string, unknown> & { _id?: string }) })[];
     if (areaFilterId) {
-      const areaName = (statesData as any[]).find((s: any) => String(s._id) === String(areaFilterId))?.name;
+      const areaName = (statesData as (Record<string, unknown> & { _id?: string; name?: string })[]).find((s: Record<string, unknown> & { _id?: string }) => String(s._id) === String(areaFilterId))?.name;
       if (areaName) {
-        list = list.filter((s: any) => String(s.stateName || s.state) === String(areaName));
+        list = list.filter((s: Record<string, unknown> & { stateName?: string; state?: string }) => String(s.stateName || s.state) === String(areaName));
       }
     }
     if (hqFilterId) {
-      list = list.filter((s: any) => {
+      list = list.filter((s: Record<string, unknown> & { hqId?: string | (Record<string, unknown> & { _id?: string }) }) => {
         const sid = typeof s.hqId === "object" && s.hqId ? s.hqId._id : s.hqId;
         return String(sid || "") === String(hqFilterId);
       });
@@ -474,19 +496,19 @@ export default memo(function UsersOfficers() {
     });
   }, [defaultRole]);
 
-  const openEdit = useCallback((o: any) => {
+  const openEdit = useCallback((o: OfficerData & { station?: Record<string, unknown> & { _id?: string } | string }) => {
     let assignName = o.stationName || "";
     if (o.role === "Area Officer") assignName = o.stateName || "";
     if (o.role === "Headquarter Officer") assignName = o.hqName || "";
     setForm({
       rank: "",
       name: o.name,
-      role: o.role,
-      level: o.level || "",
+      role: o.role as OfficerJobRole,
+      level: (o.level || "") as "" | "L1" | "L2" | "L3",
       stateId: o.stateId || "",
       filterStateId: o.stateId || "",
       hqId: o.hqId || "",
-      stationId: o.station?._id || o.station || "",
+      stationId: (typeof o.station === "object" ? o.station?._id : o.station) || "",
       assignName,
       email: o.email,
       canLogin: false,
@@ -519,11 +541,11 @@ export default memo(function UsersOfficers() {
     setPendingConfirm({ kind: "update" });
   }, [editOfficer, form]);
 
-  const handleToggle = useCallback((o: any) => {
+  const handleToggle = useCallback((o: OfficerData) => {
     setPendingConfirm({ kind: "toggle", officer: o });
   }, []);
 
-  const handleDelete = useCallback((o: any) => {
+  const handleDelete = useCallback((o: OfficerData) => {
     setPendingConfirm({ kind: "delete", officer: o });
   }, []);
 
@@ -692,7 +714,7 @@ export default memo(function UsersOfficers() {
                   className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer"
                 >
                   <option value="">All Areas</option>
-                  {(statesData as any[]).map((s: any) => (
+                  {(statesData as (Record<string, unknown> & { _id?: string; name?: string })[]).map((s: Record<string, unknown> & { _id?: string; name?: string }) => (
                     <option key={s._id} value={s._id}>
                       {s.name}
                     </option>
@@ -713,7 +735,7 @@ export default memo(function UsersOfficers() {
                   className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer min-w-[180px]"
                 >
                   <option value="">All HQs</option>
-                  {filteredHqsForFilters.map((h: any) => (
+                  {filteredHqsForFilters.map((h: Record<string, unknown> & { _id?: string; name?: string }) => (
                     <option key={h._id} value={h._id}>
                       {h.name}
                     </option>
@@ -731,7 +753,7 @@ export default memo(function UsersOfficers() {
                   className="bg-secondary/50 hover:bg-secondary/80 border border-border rounded-lg px-3 py-1.5 pr-9 text-sm text-foreground appearance-none outline-none cursor-pointer min-w-[200px]"
                 >
                   <option value="">All Station HQs</option>
-                  {filteredStationsForFilters.map((s: any) => (
+                  {filteredStationsForFilters.map((s: Record<string, unknown> & { _id?: string; name?: string }) => (
                     <option key={s._id} value={s._id}>
                       {s.name}
                     </option>
@@ -769,7 +791,7 @@ export default memo(function UsersOfficers() {
                     No officers found.
                   </td>
                 </tr>
-              ) : officers.map((o: any) => (
+              ) : officers.map((o: OfficerData & { createdBy?: Record<string, unknown> & { name?: string }; activeCasesCount?: number }) => (
                 <tr key={o._id || o.email} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                   <td className="py-3 px-3">
                     <div className="flex items-center gap-3">
@@ -810,8 +832,8 @@ export default memo(function UsersOfficers() {
                         ?? o.auditHistory?.[0]
                         ?? o.createdBy;
                       return creator?.name ? (
-                        <span title={`${creator.role || ""} · ${creator.email || ""} · ${creator.at ? new Date(creator.at).toLocaleString("en-IN") : ""}`}>
-                          {creator.name}
+                        <span title={`${(creator.role as string) || ""} · ${(creator.email as string) || ""} · ${creator.at ? new Date(creator.at as string | Date).toLocaleString("en-IN") : ""}`}>
+                          {creator.name as string}
                         </span>
                       ) : "—";
                     })()}

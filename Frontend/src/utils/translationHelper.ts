@@ -14,25 +14,25 @@ export function useDynamicTranslation() {
    * Resolves text for static-like dynamic data (e.g. Category, CaseType, Documents)
    * that stores translations in parallel fields like `name` and `nameHi`.
    */
-  const getField = (obj: any, baseField: string): string => {
+  const getField = (obj: Record<string, unknown> | null | undefined, baseField: string): string => {
     if (!obj) return "";
     
     if (currentLang === "hi") {
       const hiField = `${baseField}Hi`;
       if (obj[hiField] && typeof obj[hiField] === "string" && obj[hiField].trim() !== "") {
-        return obj[hiField];
+        return obj[hiField] as string;
       }
     }
     
     // Fallback to the base field (usually English)
-    return obj[baseField] || "";
+    return (obj[baseField] as string) || "";
   };
 
   /**
    * Resolves text for user-submitted data (e.g. Grievance description, Comments)
    * that stores translations in `originalText`, `translatedText`, and `language`.
    */
-  const getUserText = (obj: any): string => {
+  const getUserText = (obj: { originalText?: string; translatedText?: string; language?: string } | null | undefined): string => {
     if (!obj) return "";
 
     const { originalText, translatedText, language } = obj;

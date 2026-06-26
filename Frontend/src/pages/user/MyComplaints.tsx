@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useDynamicTranslation } from "@/utils/translationHelper";
 
 interface Complaint {
+  [key: string]: unknown;
   _id: string;
   id?: string;
   grievanceId?: string;
@@ -17,6 +18,10 @@ interface Complaint {
   station?: string;
   createdAt: string;
   requiresDocument?: boolean;
+  hasConcern?: boolean;
+  hasUnreadUpdates?: boolean;
+  isResolved?: boolean;
+  lastComment?: { createdAt?: string };
 }
 
 const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
@@ -154,7 +159,7 @@ export default memo(function MyComplaints() {
               </Link>
             )}
           </div>
-        ) : filtered.map((c: any) => {
+        ) : filtered.map((c: Complaint) => {
           const config = statusConfig[c.status] || statusConfig.pending;
           return (
             <div key={c._id || c.id} className="bg-card border border-border rounded-2xl overflow-hidden">

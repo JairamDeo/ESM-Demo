@@ -79,16 +79,17 @@ export async function registerPushDeviceOnLogin(): Promise<PushSyncResult> {
 
     await saveSubscriptionToBackend(subscription.toJSON());
     return { ok: true, synced: true };
-  } catch (error: any) {
-    const msg = error?.response?.data?.message || error?.message || "Push registration failed.";
-    const isTimeout = error?.code === "ECONNABORTED" || /timeout/i.test(String(msg));
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string; code?: string };
+    const msg = err?.response?.data?.message || err?.message || "Push registration failed.";
+    const isTimeout = err?.code === "ECONNABORTED" || /timeout/i.test(String(msg));
     if (!isTimeout) {
       console.warn("Push registration skipped:", msg);
     }
     return {
       ok: true,
       synced: false,
-      reason: error?.response?.data?.message || error?.message || "Push registration failed.",
+      reason: msg,
     };
   }
 }

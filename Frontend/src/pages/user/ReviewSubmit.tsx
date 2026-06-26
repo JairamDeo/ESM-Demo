@@ -32,7 +32,7 @@ export default function ReviewSubmit() {
     setPreview(null);
   };
 
-  const handleViewFile = async (upload: any) => {
+  const handleViewFile = async (upload: Record<string, unknown> & { uploadId: string; mimeType?: string; originalFileName?: string; fileSize?: number }) => {
     try {
       setViewingId(upload.uploadId);
       const loaded = await loadVeteranDocumentPreview(upload);
@@ -199,7 +199,7 @@ export default function ReviewSubmit() {
           <h2 className="text-sm font-semibold text-foreground">{t("documentsSummary")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-5">
             {documents.length > 0 ? (
-              documents.map((doc: any, index: number) => {
+              documents.map((doc: Record<string, unknown> & { text?: string; isMandatory?: boolean; upload?: Record<string, unknown> & { uploadId: string; mimeType?: string; originalFileName?: string; fileSize?: number } }, index: number) => {
                 const upload = doc.upload;
                 return (
                   <div

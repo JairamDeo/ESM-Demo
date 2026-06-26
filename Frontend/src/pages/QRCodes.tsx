@@ -5,6 +5,20 @@ import QRCode from "react-qr-code";
 import { useQRCodes, useGenerateQRCode, useRegenerateQRCode, useToggleQRStatus, getQRDownloadUrl } from "@/hooks/useApi";
 import { toast } from "sonner";
 
+type QRCodeData = Record<string, unknown> & {
+  _id?: string;
+  code: string;
+  stationName?: string;
+  station?: string;
+  status?: string;
+  qrData?: string;
+  qrCodeData?: string;
+  totalScans?: number;
+  scans?: number;
+  lastScannedAt?: string | Date;
+  lastScan?: string;
+};
+
 const STATIONS = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Solapur Station HQ","Baroda Station HQ","Rajkot Station HQ","Surat Station HQ"];
 
 export default memo(function QRCodes() {
@@ -14,7 +28,7 @@ export default memo(function QRCodes() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [open, setOpen] = useState(false);
-  const [selectedQR, setSelectedQR] = useState<any>(null);
+  const [selectedQR, setSelectedQR] = useState<QRCodeData | null>(null);
   const [form, setForm] = useState({ station: STATIONS[0], code: "" });
 
   const { data: qrCodes = [], isLoading } = useQRCodes({ search, status: filterStatus || undefined });
@@ -36,7 +50,7 @@ export default memo(function QRCodes() {
     setOpen(false);
   }, [form, autoCode, generate]);
 
-  const handleDownload = useCallback((qr: any) => {
+  const handleDownload = useCallback((qr: QRCodeData) => {
     if (qr._id) {
       window.open(getQRDownloadUrl(qr._id), "_blank");
     } else {
@@ -51,12 +65,12 @@ export default memo(function QRCodes() {
     toast.success("QR Code downloaded!");
   }, []);
 
-  const handleRegenerate = useCallback(async (qr: any) => {
+  const handleRegenerate = useCallback(async (qr: QRCodeData) => {
     if (qr._id) await regenerate.mutateAsync(qr._id);
     else toast.info("QR regenerated (local)");
   }, [regenerate]);
 
-  const handleToggle = useCallback(async (qr: any) => {
+  const handleToggle = useCallback(async (qr: QRCodeData) => {
     if (qr._id) await toggle.mutateAsync(qr._id);
   }, [toggle]);
  
@@ -134,9 +148,9 @@ export default memo(function QRCodes() {
               <button onClick={() => setSelectedQR(null)} className="text-muted-foreground"><X className="w-4 h-4" /></button>
             </div>
             <div className="bg-white p-4 rounded-xl inline-block mb-3">
-              <QRCode value={selectedQR.qrData || selectedQR.code} size={200} />
+              <QRCode value={(selectedQR.qrData || selectedQR.code) as string} size={200} />
             </div>
-            <p className="text-sm font-medium text-foreground">{selectedQR.stationName || selectedQR.station}</p>
+            <p className="text-sm font-medium text-foreground">{(selectedQR.stationName || selectedQR.station) as string}</p>
             <p className="text-xs text-muted-foreground font-mono mt-1">{selectedQR.code}</p>
             <div className="flex gap-2 mt-4">
               <button onClick={() => { handleDownload(selectedQR); setSelectedQR(null); }} className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2">
@@ -155,7 +169,7 @@ export default memo(function QRCodes() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {qrCodes.map((qr: any) => (
+          {qrCodes.map((qr: QRCodeData) => (
             <div key={qr._id || qr.code} className="bg-card rounded-xl border border-border p-5 hover:border-primary/30 transition-all">
               <div className="flex items-center justify-between mb-4">
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${qr.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>{qr.status}</span>
@@ -163,12 +177,12 @@ export default memo(function QRCodes() {
               </div>
               {/* <div className="w-full aspect-square bg-white rounded-lg flex items-center justify-center mb-4 p-3"> */}
               <div className="w-60 h-60 bg-white rounded-lg flex items-center justify-center mb-4 p-2 mx-auto">
-                <QRCode id={`qr-${qr.code}`} value={qr.qrData || qr.code} size={120} />
+                <QRCode id={`qr-${qr.code}`} value={(qr.qrData || qr.code) as string} size={120} />
               </div>
-              <h3 className="font-semibold text-foreground text-sm">{qr.stationName || qr.station}</h3>
+              <h3 className="font-semibold text-foreground text-sm">{(qr.stationName || qr.station) as string}</h3>
               <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                <span>{qr.totalScans ?? qr.scans ?? 0} scans</span>
-                <span>Last: {qr.lastScannedAt ? new Date(qr.lastScannedAt).toLocaleDateString("en-IN") : qr.lastScan || "Never"}</span>
+                <span>{Number(qr.totalScans ?? qr.scans ?? 0)} scans</span>
+                <span>Last: {qr.lastScannedAt ? new Date(qr.lastScannedAt).toLocaleDateString("en-IN") : (qr.lastScan as string) || "Never"}</span>
               </div>
               <div className="flex items-center gap-2 mt-4">
                 <button onClick={() => handleDownload(qr)} className="flex-1 px-3 py-2 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5">

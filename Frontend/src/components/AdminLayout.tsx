@@ -27,7 +27,7 @@ const ALL_NAV = [
   { icon: Settings,        label: "Settings",      path: "/settings",    perm: "viewSettings"    },
 ] as const;
 
-const NavItem = memo(({ item, active, collapsed }: { item: any; active: boolean; collapsed: boolean }) => (
+const NavItem = memo(({ item, active, collapsed }: { item: typeof ALL_NAV[number]; active: boolean; collapsed: boolean }) => (
   <Link
     to={item.path}
     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
@@ -58,15 +58,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     ALL_NAV.filter((item) => {
       return permissions[item.perm as keyof typeof permissions];
     }),
-    [permissions, user]
+    [permissions]
   );
 
   const { data: notifData } = useNotifications();
   const unreadCount = useMemo(() => {
-    const count = (notifData as any)?.unreadCount;
-    if (typeof count === "number") return count;
-    const list: any[] = (notifData as any)?.data ?? [];
-    return Array.isArray(list) ? list.filter((n: any) => !n.isRead).length : 0;
+    const nd = notifData as { unreadCount?: number; data?: { isRead?: boolean }[] } | undefined;
+    if (typeof nd?.unreadCount === "number") return nd.unreadCount;
+    const list = nd?.data ?? [];
+    return Array.isArray(list) ? list.filter((n) => !n.isRead).length : 0;
   }, [notifData]);
 
   const handleLogout = useCallback(() => {

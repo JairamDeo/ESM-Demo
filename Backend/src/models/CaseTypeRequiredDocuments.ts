@@ -14,8 +14,10 @@ export interface ICaseTypeRequiredDocuments extends Document {
   caseType: mongoose.Types.ObjectId;
   caseTypeSlug: string;
   caseTypeName: string;
+  caseTypeNameHi?: string;
   categoryId?: mongoose.Types.ObjectId;
   categoryName?: string;
+  categoryNameHi?: string;
   documents: IDocumentChecklistItem[];
   /** Admin-defined custom text fields (veteran filing). Not pre-seeded. */
   questions: string[];

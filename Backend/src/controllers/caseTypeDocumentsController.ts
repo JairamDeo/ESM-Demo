@@ -210,14 +210,14 @@ export const upsertCaseTypeDocuments = async (req: Request, res: Response): Prom
 
     if (guidelines !== undefined) {
       payload.guidelines = guidelines;
-      payload.guidelinesHi = await Promise.all(guidelines.map(async g => {
+      payload.guidelinesHi = await Promise.all(guidelines.map(async (g: string) => {
         const xlat = await detectAndTranslateToOpposite(g);
         return xlat.translatedText;
       }));
     }
     if (questions !== undefined) {
       payload.questions = questions;
-      payload.questionsHi = await Promise.all(questions.map(async q => {
+      payload.questionsHi = await Promise.all(questions.map(async (q: string) => {
         const xlat = await detectAndTranslateToOpposite(q);
         return xlat.translatedText;
       }));

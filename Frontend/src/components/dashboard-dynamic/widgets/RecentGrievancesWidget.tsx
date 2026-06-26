@@ -29,7 +29,7 @@ export function RecentGrievancesWidget({ chartType }: { chartType: string }) {
           </tr>
         </thead>
         <tbody>
-          {recent.map((g: any) => (
+          {recent.map((g: { grievanceId: string; veteranName: string; type: string; stationName: string; createdAt: string; status: string }) => (
             <tr key={g.grievanceId} className="border-b border-border hover:bg-secondary/20 cursor-pointer" onClick={() => navigate("/grievances")}>
               <td className="px-4 py-3 font-medium text-primary">{g.grievanceId}</td>
               <td className="px-4 py-3 text-foreground">{g.veteranName}</td>
@@ -50,7 +50,7 @@ export function RecentGrievancesWidget({ chartType }: { chartType: string }) {
 
   const renderList = () => (
     <div className="space-y-1 h-full overflow-y-auto pr-2">
-      {recent.map((g: any) => (
+      {recent.map((g: { grievanceId: string; veteranName: string; type: string; stationName: string; createdAt: string; status: string }) => (
         <button
           key={g.grievanceId}
           type="button"

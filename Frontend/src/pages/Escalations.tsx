@@ -17,7 +17,7 @@ export default memo(function Escalations() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [resolveModal, setResolveModal] = useState<any>(null);
+  const [resolveModal, setResolveModal] = useState<(Record<string, unknown> & { _id?: string; escalationId?: string; status?: string; grievanceCode?: string; grievanceType?: string; createdAt?: string; daysOpen?: number; veteranName?: string; type?: string; stationName?: string; reason?: string; escalationReasonType?: string; fromLevel?: string; toLevel?: string; fromOfficerName?: string; escalatedTo?: string; resolvedNote?: string; resolvedAt?: string }) | null>(null);
   const [note, setNote] = useState("");
 
   const { data, isLoading } = useEscalations({ search, status: statusFilter || undefined });
@@ -104,7 +104,7 @@ export default memo(function Escalations() {
           <div key={i} className="p-5 border-b border-border"><div className="h-16 bg-secondary/50 rounded-lg animate-pulse" /></div>
         )) : escalations.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground text-sm">No escalations found.</div>
-        ) : escalations.map((e: any, i: number) => (
+        ) : escalations.map((e: Record<string, unknown> & { _id?: string; escalationId?: string; status?: string; grievanceCode?: string; grievanceType?: string; createdAt?: string; daysOpen?: number; resolvedNote?: string; resolvedAt?: string; veteranName?: string; type?: string; stationName?: string; reason?: string; escalationReasonType?: string; fromLevel?: string; toLevel?: string; fromOfficerName?: string; escalatedTo?: string }, i: number) => (
           <div key={e._id || e.escalationId} className={`p-5 flex items-start justify-between gap-4 ${i < escalations.length - 1 ? "border-b border-border" : ""} hover:bg-secondary/20 transition-colors`}>
             <div className="flex items-start gap-4">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${e.status === "open" ? "bg-destructive/15" : "bg-success/15"}`}>

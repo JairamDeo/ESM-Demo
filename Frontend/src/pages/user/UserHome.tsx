@@ -42,13 +42,12 @@ function formatComplaintDate(iso: string) {
   return `${date} ${time}`;
 }
 
-function getCategoryLabel(complaint: any) {
-  return (
-    complaint?.categoryName ||
-    (typeof complaint?.category === "object" ? complaint?.category?.name : null) ||
-    complaint?.category ||
-    "Identity & Personal"
-  );
+function getCategoryLabel(complaint: Record<string, unknown> & { categoryName?: string; category?: string | { name?: string } } | null): string {
+  if (!complaint) return "Identity & Personal";
+  if (complaint.categoryName) return complaint.categoryName;
+  if (typeof complaint.category === "object" && complaint.category?.name) return complaint.category.name;
+  if (typeof complaint.category === "string") return complaint.category;
+  return "Identity & Personal";
 }
 
 const ViewPill = ({
@@ -76,7 +75,7 @@ const RecentComplaintCard = ({
   complaint,
   progress,
 }: {
-  complaint: any;
+  complaint: Record<string, unknown> & { grievanceId?: string; status: string; type?: string; createdAt?: string; stationName?: string; station?: string } | null;
   progress: number;
 }) => {
   const { t } = useTranslation();
@@ -192,8 +191,8 @@ export default memo(function UserHome() {
 
   // Build popular services dynamically from categories API
   const popularServices = useMemo(() => {
-    const cats = Array.isArray(categoriesData) ? (categoriesData as any[]) : [];
-    return cats.slice(0, 4).map((cat: any) => {
+    const cats = Array.isArray(categoriesData) ? (categoriesData as (Record<string, unknown> & { name: string; iconUrl?: string })[]) : [];
+    return cats.slice(0, 4).map((cat: Record<string, unknown> & { name: string; iconUrl?: string }) => {
       return {
         key: cat.name,                    // English name for navigation state
         label: getField(cat, "name"),     // Translated label

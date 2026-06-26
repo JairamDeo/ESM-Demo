@@ -23,8 +23,13 @@ import {
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
+// Widgets whose default was changed to "bar". Force "bar" over any old saved "donut"/"pie" values.
+const MIGRATED_BAR_WIDGETS = new Set(["status-breakdown", "by-submission-source", "by-priority"]);
+
+import { DashboardData } from "./DashboardDataContext";
+
 interface DynamicDashboardProps {
-  data: any;
+  data: DashboardData | null;
   isLoading: boolean;
   period: string;
 }
@@ -49,9 +54,6 @@ export function DynamicDashboard({ data, isLoading, period }: DynamicDashboardPr
   const { data: layoutData, isLoading: isLayoutLoading } = useDashboardLayout();
   const saveLayout = useSaveDashboardLayout();
   const resetLayout = useResetDashboardLayout();
-
-  // Widgets whose default was changed to "bar". Force "bar" over any old saved "donut"/"pie" values.
-  const MIGRATED_BAR_WIDGETS = new Set(["status-breakdown", "by-submission-source", "by-priority"]);
 
   useEffect(() => {
     if (layoutData?.layout) {

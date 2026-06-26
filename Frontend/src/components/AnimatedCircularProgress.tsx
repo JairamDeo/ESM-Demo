@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useId } from "react";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const grievanceProgressMap: Record<string, number> = {
   pending: 10,
   "in-progress": 80,

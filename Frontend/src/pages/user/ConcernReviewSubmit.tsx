@@ -44,9 +44,9 @@ export default function ConcernReviewSubmit() {
       : [];
 
   const flaggedDocSummary = flaggedLabels.map((label: string) => {
-    const reuploaded = reuploadedDocuments.find((d: any) => d.label === label);
+    const reuploaded = reuploadedDocuments.find((d: { label: string }) => d.label === label);
     if (reuploaded) return reuploaded;
-    const fromConcern = flaggedDocuments.find((d: any) => d.documentLabel === label);
+    const fromConcern = flaggedDocuments.find((d: { documentLabel: string; documentText?: string }) => d.documentLabel === label);
     return {
       label,
       text: fromConcern?.documentText || documentText,
@@ -83,7 +83,7 @@ export default function ConcernReviewSubmit() {
     if ((isDocumentOnly || isGeneralFull) && flaggedLabels.length > 0) {
       const done = reuploadedDocumentLabels.length > 0
         ? reuploadedDocumentLabels
-        : reuploadedDocuments.map((d: any) => d.label);
+        : reuploadedDocuments.map((d: { label: string }) => d.label);
       const missing = flaggedLabels.filter((l) => !done.includes(l));
       if (missing.length > 0) {
         toast.error(`Please re-upload: ${missing.join(", ")}`);
@@ -214,7 +214,7 @@ export default function ConcernReviewSubmit() {
             {flaggedLabels.length > 1 ? t("documentsCorrected") : t("documentCorrected")}
           </h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            {flaggedDocSummary.map((doc: any) => (
+            {flaggedDocSummary.map((doc: { label: string; text?: string; fileName?: string | null }) => (
               <div key={doc.label} className="flex items-start gap-2 text-sm border-b border-border/50 last:border-0 pb-2 last:pb-0">
                 <img src="/icons/check.svg" className="w-4 h-4 mt-0.5 shrink-0" alt="" />
                 <div className="min-w-0">
@@ -236,7 +236,7 @@ export default function ConcernReviewSubmit() {
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-foreground">{t("documentsUpdated")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            {flaggedDocSummary.map((doc: any) => (
+            {flaggedDocSummary.map((doc: { label: string; text?: string; fileName?: string | null }) => (
               <div key={doc.label} className="border-b border-border/50 last:border-0 pb-2 last:pb-0">
                 <p className="text-sm font-semibold text-primary">{doc.label}</p>
                 {doc.text && doc.text !== doc.label && (

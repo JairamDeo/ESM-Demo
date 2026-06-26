@@ -20,6 +20,25 @@ interface DocItem {
   templateFileName?: string;
 }
 
+interface RowData extends Record<string, unknown> {
+  caseTypeId: string;
+  caseTypeName?: string;
+  categoryName?: string;
+  caseTypeSlug?: string;
+  hasChecklist?: boolean;
+  documentCount?: number;
+  description?: string;
+  checklist?: {
+    documents?: DocItem[];
+    questions?: string[];
+    guidelines?: string[];
+    note?: string;
+    acceptedFormats?: string;
+    maxFileSizeMb?: number;
+    isActive?: boolean;
+  };
+}
+
 const CATEGORY_ORDER = [
   "Identity & Personal",
   "Pension & Financial",
@@ -45,7 +64,7 @@ export default memo(function RequiredDocuments() {
   /** null = use default (all collapsed except first category); Set = user toggled */
   const [manualCollapse, setManualCollapse] = useState<Set<string> | null>(null);
   const questionInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [editRow, setEditRow] = useState<any | null>(null);
+  const [editRow, setEditRow] = useState<RowData | null>(null);
   const [form, setForm] = useState<{
     documents: DocItem[];
     customFields: string[];
@@ -60,7 +79,7 @@ export default memo(function RequiredDocuments() {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter(
-      (r: any) =>
+      (r: Record<string, unknown> & { caseTypeName?: string; categoryName?: string; caseTypeSlug?: string }) =>
         r.caseTypeName?.toLowerCase().includes(q) ||
         r.categoryName?.toLowerCase().includes(q) ||
         r.caseTypeSlug?.toLowerCase().includes(q)
@@ -68,7 +87,7 @@ export default memo(function RequiredDocuments() {
   }, [rows, search]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, any[]>();
+    const map = new Map<string, (Record<string, unknown> & { categoryName?: string })[]>();
     for (const row of filtered) {
       const cat = row.categoryName || "Other";
       if (!map.has(cat)) map.set(cat, []);
@@ -98,9 +117,9 @@ export default memo(function RequiredDocuments() {
     });
   };
 
-  const configuredCount = rows.filter((r: any) => r.hasChecklist).length;
+  const configuredCount = rows.filter((r: RowData) => r.hasChecklist).length;
 
-  const openEdit = useCallback((row: any) => {
+  const openEdit = useCallback((row: RowData) => {
     const checklist = row.checklist;
     setEditRow(row);
     setForm({
@@ -284,7 +303,7 @@ export default memo(function RequiredDocuments() {
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {items.length} case type{items.length !== 1 ? "s" : ""} ·{" "}
-                    {items.filter((r: any) => r.hasChecklist).length} configured
+                    {items.filter((r: RowData) => r.hasChecklist).length} configured
                   </p>
                 </div>
                 <ChevronDown
@@ -295,7 +314,7 @@ export default memo(function RequiredDocuments() {
               </button>
               {!collapsed && (
               <div className="flex flex-wrap gap-3 p-4 pt-3 border-t border-border/60">
-                {items.map((row: any) => (
+                {items.map((row: RowData) => (
                   <article
                     key={row.caseTypeId}
                     className="flex flex-col justify-between gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors w-full sm:w-[calc((100%-0.75rem)/2)] lg:w-[calc((100%-1.5rem)/3)] flex-none"
@@ -322,7 +341,7 @@ export default memo(function RequiredDocuments() {
                         )}
                       </div>
                       {row.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-3">{row.description}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-3">{row.description as string}</p>
                       )}
                     </div>
                     <button

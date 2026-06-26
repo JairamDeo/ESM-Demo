@@ -17,8 +17,8 @@ import { useTranslation } from "react-i18next";
 import { useDynamicTranslation } from "@/utils/translationHelper";
 
 function mergeSubmittedDoc(
-  doc: any,
-  submittedDocs: any[],
+  doc: { label: string; upload?: unknown; [key: string]: unknown },
+  submittedDocs: { documentLabel: string; uploadId: string; originalFileName: string; mimeType: string; fileSize: number; fileUrl: string; documentText?: string }[],
   options?: { preferSubmitted?: boolean }
 ) {
   const submitted = submittedDocs.find((s) => s.documentLabel === doc.label);
@@ -36,7 +36,7 @@ function mergeSubmittedDoc(
   };
 }
 
-function submittedToUpload(submitted: any) {
+function submittedToUpload(submitted: { uploadId: string; originalFileName: string; mimeType: string; fileSize: number; fileUrl: string }) {
   return {
     uploadId: submitted.uploadId,
     originalFileName: submitted.originalFileName,
@@ -59,9 +59,9 @@ export default function DocumentCheckList() {
   const freshGrievanceFlow = location.state?.freshGrievanceFlow === true;
   const isNewGrievanceFlow = !concernMode && !generalConcernMode;
   const documentOnlyConcernMode = concernMode && !generalConcernMode;
-  const flaggedDocumentLabels: string[] = location.state?.flaggedDocumentLabels || [];
-  const flaggedDocuments: { documentLabel: string; documentText?: string }[] =
-    location.state?.flaggedDocuments || [];
+  const flaggedDocumentLabels: string[] = useMemo(() => location.state?.flaggedDocumentLabels || [], [location.state?.flaggedDocumentLabels]);
+  const flaggedDocuments: { documentLabel: string; documentText?: string }[] = useMemo(() =>
+    location.state?.flaggedDocuments || [], [location.state?.flaggedDocuments]);
   const flaggedSet = useMemo(() => new Set(flaggedDocumentLabels), [flaggedDocumentLabels]);
   const hasRequiredDocFixes =
     location.state?.hasRequiredDocFixes === true || location.state?.hasDocumentFixes === true;
@@ -115,16 +115,16 @@ export default function DocumentCheckList() {
   const { data: liveGrievance } = useTrackGrievance(
     useGrievanceUpload && grievanceId ? grievanceId : ""
   );
-  const allDocuments = checklistData?.items || [];
-  const submittedDocs: any[] =
+  const allDocuments = useMemo(() => checklistData?.items || [], [checklistData?.items]);
+  const submittedDocs: { documentLabel: string; uploadId: string; originalFileName: string; mimeType: string; fileSize: number; fileUrl: string; documentText?: string }[] = useMemo(() =>
     (useGrievanceUpload ? liveGrievance?.submittedDocuments : null) ||
     complaint.submittedDocuments ||
-    [];
-  const [uploadOverrides, setUploadOverrides] = useState<Record<string, any>>({});
+    [], [useGrievanceUpload, liveGrievance?.submittedDocuments, complaint.submittedDocuments]);
+  const [uploadOverrides, setUploadOverrides] = useState<Record<string, { uploadId: string; originalFileName: string; mimeType: string; fileSize: number; fileUrl: string }>>({});
 
   const documents = useMemo(() => {
-    const applyOverrides = (items: any[]) =>
-      items.map((doc: any) => {
+    const applyOverrides = (items: { label: string; upload?: unknown; [key: string]: unknown }[]) =>
+      items.map((doc) => {
         const override = uploadOverrides[doc.label];
         if (!override) return doc;
         return { ...doc, upload: override };
@@ -133,7 +133,7 @@ export default function DocumentCheckList() {
     const buildFlaggedOnly = () => {
       const labels = [...flaggedSet];
       return labels.map((label) => {
-        const fromChecklist = allDocuments.find((d: any) => d.label === label);
+        const fromChecklist = allDocuments.find((d: { label: string }) => d.label === label);
         const submitted = submittedDocs.find((d) => d.documentLabel === label);
         const fromConcern = flaggedDocuments.find((d) => d.documentLabel === label);
 
@@ -175,7 +175,7 @@ export default function DocumentCheckList() {
     }
     if (generalConcernMode && submittedDocs.length > 0) {
       return applyOverrides(
-        allDocuments.map((doc: any) =>
+        allDocuments.map((doc: { label: string; upload?: unknown; [key: string]: unknown }) =>
           mergeSubmittedDoc(
             useGrievanceUpload ? { ...doc, upload: null } : doc,
             submittedDocs,
@@ -252,8 +252,8 @@ export default function DocumentCheckList() {
         }));
         setReuploadedLabels((prev) => new Set(prev).add(docLabel));
         toast.success(`${docLabel} replaced successfully`);
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || "Upload failed");
+      } catch (err: unknown) {
+        toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Upload failed");
       } finally {
         e.target.value = "";
       }
@@ -263,8 +263,8 @@ export default function DocumentCheckList() {
     try {
       await uploadDoc.mutateAsync({ caseTypeId, documentLabel: docLabel, itemIndex, file });
       toast.success(`${file.name} uploaded successfully!`);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Upload failed");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Upload failed");
     } finally {
       e.target.value = "";
     }
@@ -304,8 +304,8 @@ export default function DocumentCheckList() {
           documentOnlyFlow: true,
           reuploadedDocumentLabels: [...reuploadedLabels],
           reuploadedDocuments: documents
-            .filter((d: any) => reuploadedLabels.has(d.label))
-            .map((d: any) => ({
+            .filter((d: { label: string }) => reuploadedLabels.has(d.label))
+            .map((d: { label: string; text?: string; upload?: { originalFileName: string } }) => ({
               label: d.label,
               text: d.text,
               fileName: d.upload?.originalFileName,
@@ -324,8 +324,8 @@ export default function DocumentCheckList() {
           generalFullFlow: true,
           reuploadedDocumentLabels: [...reuploadedLabels],
           reuploadedDocuments: documents
-            .filter((d: any) => !hasRequiredDocFixes || reuploadedLabels.has(d.label))
-            .map((d: any) => ({
+            .filter((d: { label: string }) => !hasRequiredDocFixes || reuploadedLabels.has(d.label))
+            .map((d: { label: string; text?: string; upload?: { originalFileName: string } }) => ({
               label: d.label,
               text: d.text,
               fileName: d.upload?.originalFileName,
@@ -404,7 +404,7 @@ export default function DocumentCheckList() {
         </div>
       )}
 
-      {documents.length > 0 ? documents.map((doc: any, index: number) => {
+      {documents.length > 0 ? documents.map((doc: { label: string; text?: string; textHi?: string; isMandatory?: boolean; templateUrl?: string | null; templateFileName?: string | null; upload?: { uploadId: string; originalFileName: string; mimeType: string; fileSize: number; fileUrl: string } }, index: number) => {
         const upload = doc.upload;
         const isUploading = uploadDoc.isPending && uploadDoc.variables?.documentLabel === doc.label;
         const flagged = isFlaggedDoc(doc.label);

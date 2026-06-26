@@ -34,8 +34,8 @@ export default memo(function Login() {
           devOtp: result.devOtp,
         },
       });
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to send OTP. Please try again.");
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to send OTP. Please try again.");
     } finally {
       setLoading(false);
     }

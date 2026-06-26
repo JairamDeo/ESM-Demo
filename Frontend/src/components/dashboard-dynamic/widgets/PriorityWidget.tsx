@@ -15,14 +15,14 @@ export function PriorityWidget({ chartType }: { chartType: string }) {
   
   const pieData = useMemo(() => {
     if (!data?.byPriority?.length) return [];
-    return data.byPriority.map((p: any) => ({
+    return data.byPriority.map((p: { name: string; value: number }) => ({
       name: p.name.charAt(0).toUpperCase() + p.name.slice(1),
       value: p.value,
       color: PRIORITY_COLORS[p.name.toLowerCase()] || "hsl(var(--primary))",
     }));
   }, [data]);
 
-  const pieTotal = useMemo(() => pieData.reduce((sum: number, d: any) => sum + d.value, 0), [pieData]);
+  const pieTotal = useMemo(() => pieData.reduce((sum: number, d: { value: number }) => sum + d.value, 0), [pieData]);
 
   if (isLoading) {
     return <div className="h-full flex items-center justify-center text-muted-foreground animate-pulse">Loading...</div>;
@@ -42,7 +42,7 @@ export function PriorityWidget({ chartType }: { chartType: string }) {
             <YAxis stroke={chartTheme.axis} fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip {...getTooltipProps(chartTheme)} />
             <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={30}>
-              {pieData.map((entry: any, index: number) => (
+              {pieData.map((entry: { color: string }, index: number) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
             </Bar>
@@ -69,7 +69,7 @@ export function PriorityWidget({ chartType }: { chartType: string }) {
               paddingAngle={chartType === "donut" ? 3 : 0}
               stroke="transparent"
             >
-              {pieData.map((entry: any, i: number) => (
+              {pieData.map((entry: { color: string }, i: number) => (
                 <Cell key={i} fill={entry.color} />
               ))}
             </Pie>
@@ -84,7 +84,7 @@ export function PriorityWidget({ chartType }: { chartType: string }) {
         )}
       </div>
       <div className="space-y-2 mt-3 pt-3 border-t border-border overflow-y-auto max-h-[100px]">
-        {pieData.map((item: any) => (
+        {pieData.map((item: { name: string; value: number; color: string }) => (
           <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: item.color }} />

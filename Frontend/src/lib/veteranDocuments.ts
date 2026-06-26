@@ -33,7 +33,7 @@ export async function loadVeteranDocumentPreview(upload: {
   const apiPath = upload.previewUrl.replace(/^\/api/, "");
   const res = await api.get(apiPath, { responseType: "blob" });
   const mimeType =
-    upload.mimeType || res.headers["content-type"] || "application/octet-stream";
+    upload.mimeType || (res.headers["content-type"] as string) || "application/octet-stream";
   const blob = new Blob([res.data], { type: mimeType });
   const objectUrl = URL.createObjectURL(blob);
 
@@ -64,7 +64,7 @@ export async function openVeteranDocument(upload: {
   const res = await api.get(apiPath, { responseType: "blob" });
 
   const blob = new Blob([res.data], {
-    type: upload.mimeType || res.headers["content-type"] || "application/octet-stream",
+    type: upload.mimeType || (res.headers["content-type"] as string) || "application/octet-stream",
   });
   const objectUrl = URL.createObjectURL(blob);
   const win = window.open(objectUrl, "_blank", "noopener,noreferrer");
