@@ -134,6 +134,7 @@ export const useTrackGrievance = (id: string) =>
     },
     enabled: !!id && id.length > 3,
     retry: false,
+    refetchOnMount: "always",
   });
 
 export const useCreateGrievance = () => {
@@ -535,7 +536,8 @@ export const useCaseTypes = (params?: { status?: string }) =>
       const { data } = await api.get("/case-types", { params });
       return data.data;
     },
-    staleTime: 300_000,
+    staleTime: params?.status === "active" ? 30_000 : 300_000,
+    refetchOnWindowFocus: params?.status === "active",
   });
 
   export const useCreateCaseType = () => {
@@ -1179,7 +1181,8 @@ export const useCreateHQ = () => {
       const { data } = await api.get("/categories", { params });
       return data.data as { _id: string; name: string; iconUrl?: string | null; isActive?: boolean }[];
     },
-    staleTime: 600_000,
+    staleTime: params?.status === "active" ? 30_000 : 600_000,
+    refetchOnWindowFocus: params?.status === "active",
   });
 
   export const useCreateCategory = () => {

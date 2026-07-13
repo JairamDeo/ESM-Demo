@@ -40,8 +40,9 @@ export function effectiveConcernStatus(grievance: {
   comments?: IComment[];
   timeline?: ITimeline[];
 }): ConcernStatus {
+  const derived = deriveConcernStatus(grievance.comments || [], grievance.timeline || []);
+  if (derived !== "none") return derived;
   const stored = grievance.concernStatus as ConcernStatus | undefined;
-  if (stored === "none") return "none";
   if (stored === "awaiting_veteran" || stored === "awaiting_officer") return stored;
-  return deriveConcernStatus(grievance.comments || [], grievance.timeline || []);
+  return "none";
 }

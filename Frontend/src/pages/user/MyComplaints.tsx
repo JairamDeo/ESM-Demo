@@ -17,8 +17,9 @@ interface Complaint {
   stationName?: string;
   station?: string;
   createdAt: string;
-  requiresDocument?: boolean;
   hasConcern?: boolean;
+  concernStatus?: string;
+  requiresDocument?: boolean;
   hasUnreadUpdates?: boolean;
   isResolved?: boolean;
   lastComment?: { createdAt?: string };
@@ -211,6 +212,17 @@ export default memo(function MyComplaints() {
                     </span>
                   </span>
                 </div>
+
+                {/* Officer concern — action required */}
+                {(c.hasConcern || c.concernStatus === "awaiting_veteran") && (
+                  <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-2.5 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-destructive">{t("actionRequired")}</p>
+                      <p className="text-[10px] text-destructive/80">{t("officerRaisedConcern")}</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Additional document required banner — shown dynamically */}
                 {c.requiresDocument && (

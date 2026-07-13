@@ -105,10 +105,11 @@ export function deriveConcernStatus(comments: Comment[] = [], timeline: Timeline
 }
 
 export function getEffectiveConcernStatus(g: GrievanceLike | null | undefined): ConcernStatusValue {
+  const derived = deriveConcernStatus(g?.comments || [], g?.timeline || []);
+  if (derived !== "none") return derived;
   const stored = g?.concernStatus as ConcernStatusValue | undefined;
-  if (stored === "none") return "none";
   if (stored === "awaiting_veteran" || stored === "awaiting_officer") return stored;
-  return deriveConcernStatus(g?.comments || [], g?.timeline || []);
+  return "none";
 }
 
 export function isConcernBlockingStatus(status?: string): boolean {

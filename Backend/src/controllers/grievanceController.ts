@@ -334,7 +334,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
         });
         return;
       }
-      linkedVeteranUserId = linkedVeteran._id.toString();
+      linkedVeteranUserId = linkedVeteran._id;
       if (!resolvedName || resolvedName === "Veteran") {
         resolvedName = linkedVeteran.name || `${veteranRank || linkedVeteran.rank || ""} ${resolvedPhone}`.trim();
       }
@@ -1216,7 +1216,10 @@ export const getMyGrievances = async (req: Request, res: Response): Promise<void
   try {
     const userId = (req as any).user.id;
     const { status } = req.query;
-    const query: any = { userId, isDeleted: false };
+    const query: any = {
+      userId: mongoose.isValidObjectId(userId) ? new mongoose.Types.ObjectId(userId) : userId,
+      isDeleted: false,
+    };
     if (status) query.status = status;
     const grievances = await Grievance.find(query)
       .populate("caseTypeId", "name nameHi")
@@ -1226,9 +1229,11 @@ export const getMyGrievances = async (req: Request, res: Response): Promise<void
       const obj = g.toObject();
       if (obj.caseTypeId) {
         (obj as any).typeHi = (obj.caseTypeId as any).nameHi || "";
-        // optionally keep caseTypeId as just the ID for backwards compatibility
         obj.caseTypeId = (obj.caseTypeId as any)._id;
       }
+      const concernStatus = effectiveConcernStatus(obj);
+      (obj as any).concernStatus = concernStatus;
+      (obj as any).hasConcern = concernStatus === "awaiting_veteran";
       return obj;
     });
 
