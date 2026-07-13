@@ -175,11 +175,64 @@ function publicIdFromCloudinaryUrl(url: string): string | null {
     const uploadIdx = segments.indexOf("upload");
     if (uploadIdx === -1) return null;
     let rest = segments.slice(uploadIdx + 1);
+    if (rest[0]?.startsWith("s--")) rest = rest.slice(1);
     if (rest[0]?.startsWith("v") && /^v\d+$/.test(rest[0])) rest = rest.slice(1);
     return rest.join("/") || null;
   } catch {
     return null;
   }
+}
+
+export function isCloudinaryUrl(url: string): boolean {
+  return isRemoteStorageUrl(url) && url.includes("cloudinary.com");
+}
+
+function resourceTypeFromCloudinaryUrl(url: string, publicId: string): "image" | "raw" {
+  if (url.includes("/raw/")) return "raw";
+  if (publicId.toLowerCase().endsWith(".pdf")) return "raw";
+  return "image";
+}
+
+function formatFromPublicId(publicId: string, resourceType: "image" | "raw"): string {
+  const ext = publicId.split(".").pop()?.toLowerCase();
+  if (resourceType === "raw") return ext || "pdf";
+  if (ext === "webp" || ext === "png" || ext === "jpg" || ext === "jpeg") return ext;
+  return "webp";
+}
+
+/** Download asset bytes via Cloudinary authenticated API (works when unsigned delivery is restricted). */
+export async function downloadCloudinaryAsset(
+  url: string
+): Promise<{ buffer: Buffer; contentType: string }> {
+  assertCloudinaryConfigured();
+  applyCloudinaryConfig();
+
+  const publicId = publicIdFromCloudinaryUrl(url);
+  if (!publicId) {
+    throw new Error("Invalid Cloudinary URL");
+  }
+
+  const resourceType = resourceTypeFromCloudinaryUrl(url, publicId);
+  const format = formatFromPublicId(publicId, resourceType);
+
+  const downloadUrl = cloudinary.utils.private_download_url(publicId, format, {
+    resource_type: resourceType,
+    type: "upload",
+  });
+
+  const response = await fetch(downloadUrl);
+  if (!response.ok) {
+    throw new Error(`Cloudinary download failed (${response.status})`);
+  }
+
+  const contentType =
+    response.headers.get("content-type") ||
+    (resourceType === "raw" && format === "pdf" ? "application/pdf" : "application/octet-stream");
+
+  return {
+    buffer: Buffer.from(await response.arrayBuffer()),
+    contentType,
+  };
 }
 
 /** Delete asset by Cloudinary URL or public_id. No-op for legacy local paths. */

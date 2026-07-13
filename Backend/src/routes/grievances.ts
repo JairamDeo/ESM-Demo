@@ -6,6 +6,8 @@ import {
   getDashboardStats, deleteAllGrievances,
   requestEscalationTakeover, approveEscalationRequest, rejectEscalationRequest,
   getEscalationPreview, manualEscalateGrievance, requestEscalateToUpperTier,
+  lookupVeteranByPhone,
+  previewGrievanceDocument,
 } from "../controllers/grievanceController";
 import { getSlaSettings, updateSlaSettings } from "../controllers/slaController";
 import { protect, restrictTo, adminOnly } from "../middleware/auth";
@@ -28,13 +30,27 @@ router.get("/track/:id", trackGrievance);
 router.get("/my", protect, restrictTo("user"), getMyGrievances);
 
 // ─── User: submit grievance ───────────────────────────────────────────────────
-router.post("/", protect, upload.array("attachments", 3), createGrievance);
+router.post(
+  "/",
+  protect,
+  upload.fields([
+    { name: "attachments", maxCount: 3 },
+    { name: "requiredDocuments", maxCount: 20 },
+  ]),
+  createGrievance
+);
 
 // ─── Admin: list all ─────────────────────────────────────────────────────────
 router.get("/", protect, adminOnly, getGrievances);
 
+// ─── Admin: lookup veteran by mobile ───────────────────────────────────────────
+router.get("/veteran-lookup", protect, adminOnly, lookupVeteranByPhone);
+
 // ─── Admin: delete all grievances ────────────────────────────────────────────
 router.delete("/delete-all", protect, restrictTo("super_admin"), deleteAllGrievances);
+
+// ─── Admin: preview submitted document ───────────────────────────────────────
+router.get("/:id/documents/:uploadId/preview", protect, adminOnly, previewGrievanceDocument);
 
 // ─── Admin: single ───────────────────────────────────────────────────────────
 router.get("/:id", protect, adminOnly, getGrievanceById);

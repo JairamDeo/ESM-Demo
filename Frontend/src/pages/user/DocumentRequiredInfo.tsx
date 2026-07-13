@@ -1,7 +1,8 @@
 import { useLocation, Link } from "react-router-dom";
 import { ChevronLeft, FileText, Folder, AlertCircle, Download } from "lucide-react";
 import { useRequiredDocumentsForCaseType } from "@/hooks/useApi";
-import { resolveUploadUrl } from "@/lib/apiBase";
+import { downloadChecklistTemplate } from "@/lib/veteranDocuments";
+import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useDynamicTranslation } from "@/utils/translationHelper";
 
@@ -49,6 +50,26 @@ export default function DocumentRequiredInfo() {
         ];
 
   const note = getField(requiredDocsData, "note").trim() || DEFAULT_NOTE;
+
+  const handleTemplateDownload = async (
+    doc: { label: string; templateFileName?: string | null },
+    index: number
+  ) => {
+    if (!resolvedCaseTypeId) {
+      toast.error("Case type not found");
+      return;
+    }
+    try {
+      await downloadChecklistTemplate({
+        caseTypeId: resolvedCaseTypeId,
+        documentLabel: doc.label,
+        itemIndex: index,
+        fileName: doc.templateFileName || "template.pdf",
+      });
+    } catch {
+      toast.error("Could not download template");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -108,7 +129,6 @@ export default function DocumentRequiredInfo() {
         <div className="space-y-4">
           {documents.length > 0 ? (
             documents.map((doc: { label: string; text?: string; textHi?: string; isMandatory?: boolean; templateUrl?: string | null; templateFileName?: string | null }, index: number) => {
-              const templateUrl = resolveUploadUrl(doc.templateUrl);
               return (
                 <div key={`${doc.label}-${index}`} className="flex gap-3 items-start">
                   <div className="w-7 h-7 rounded-full dark:bg-[#1A1A1A] dark:text-[#FFFFFF] bg-[#F1F1F1] text-[#000000] text-xs font-medium flex items-center justify-center flex-shrink-0 uppercase">
@@ -121,16 +141,15 @@ export default function DocumentRequiredInfo() {
                         <span className="text-destructive font-bold ml-1">*</span>
                       )}
                     </p>
-                    {templateUrl && (
-                      <a
-                        href={templateUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                    {doc.templateUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handleTemplateDownload(doc, index)}
                         className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-[#826CF3] hover:underline"
                       >
                         <Download className="w-3.5 h-3.5" />
                         {doc.templateFileName || "Download format"}
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>

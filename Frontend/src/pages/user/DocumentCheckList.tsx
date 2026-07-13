@@ -11,7 +11,7 @@ import {
   clearVeteranDraftUploads,
 } from "@/hooks/useApi";
 import { useQueryClient } from "@tanstack/react-query";
-import { resolveUploadUrl, getApiBaseUrl } from "@/lib/apiBase";
+import { downloadChecklistTemplate } from "@/lib/veteranDocuments";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useDynamicTranslation } from "@/utils/translationHelper";
@@ -43,6 +43,7 @@ function submittedToUpload(submitted: { uploadId: string; originalFileName: stri
     mimeType: submitted.mimeType,
     fileSize: submitted.fileSize,
     fileUrl: submitted.fileUrl,
+    previewUrl: `/api/veteran/required-documents/uploads/${submitted.uploadId}/preview`,
   };
 }
 
@@ -120,7 +121,7 @@ export default function DocumentCheckList() {
     (useGrievanceUpload ? liveGrievance?.submittedDocuments : null) ||
     complaint.submittedDocuments ||
     [], [useGrievanceUpload, liveGrievance?.submittedDocuments, complaint.submittedDocuments]);
-  const [uploadOverrides, setUploadOverrides] = useState<Record<string, { uploadId: string; originalFileName: string; mimeType: string; fileSize: number; fileUrl: string }>>({});
+  const [uploadOverrides, setUploadOverrides] = useState<Record<string, { uploadId: string; originalFileName: string; mimeType: string; fileSize: number; fileUrl: string; previewUrl?: string }>>({});
 
   const documents = useMemo(() => {
     const applyOverrides = (items: { label: string; upload?: unknown; [key: string]: unknown }[]) =>
@@ -203,10 +204,6 @@ export default function DocumentCheckList() {
     () => new Set((location.state?.reuploadedDocumentLabels as string[]) || [])
   );
 
-  const apiBase = getApiBaseUrl().replace("/api", "");
-  const resolveFileUrl = (url: string) =>
-    url?.startsWith("http") ? url : `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
-
   const isFlaggedDoc = (label: string) => flaggedSet.has(label);
   const isRequiredReupload = (label: string) =>
     documentOnlyConcernMode || (generalConcernMode && isFlaggedDoc(label));
@@ -214,6 +211,19 @@ export default function DocumentCheckList() {
   const allRequiredReuploaded =
     !hasRequiredDocFixes ||
     [...flaggedSet].every((label) => reuploadedLabels.has(label));
+
+  // Documents the admin marked mandatory (red *) that are not yet uploaded.
+  const missingMandatoryDocs = useMemo(() => {
+    if (!isNewGrievanceFlow) return [];
+    return documents
+      .filter(
+        (doc: { isMandatory?: boolean; upload?: unknown }) =>
+          doc.isMandatory === true && !doc.upload
+      )
+      .map((doc: { label: string; text?: string }) => doc.text || doc.label);
+  }, [isNewGrievanceFlow, documents]);
+
+  const hasMissingMandatory = missingMandatoryDocs.length > 0;
 
   const handleFileChange = async (docLabel: string, itemIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -248,6 +258,7 @@ export default function DocumentCheckList() {
             mimeType: result.mimeType,
             fileSize: result.fileSize,
             fileUrl: result.fileUrl,
+            previewUrl: result.previewUrl,
           },
         }));
         setReuploadedLabels((prev) => new Set(prev).add(docLabel));
@@ -295,6 +306,11 @@ export default function DocumentCheckList() {
       return;
     }
 
+    if (isNewGrievanceFlow && hasMissingMandatory) {
+      toast.error(`Please upload mandatory document(s): ${missingMandatoryDocs.join(", ")}`);
+      return;
+    }
+
     if (documentOnlyConcernMode) {
       navigate("/user/concern-review-submit", {
         state: {
@@ -336,8 +352,28 @@ export default function DocumentCheckList() {
     }
 
     navigate("/user/review-submit", {
-      state: { form: formState, isFromQR, documents: allDocuments },
+      state: { form: formState, isFromQR, documents },
     });
+  };
+
+  const handleTemplateDownload = async (
+    doc: { label: string; templateFileName?: string | null },
+    index: number
+  ) => {
+    if (!caseTypeId) {
+      toast.error("Case type not found");
+      return;
+    }
+    try {
+      await downloadChecklistTemplate({
+        caseTypeId,
+        documentLabel: doc.label,
+        itemIndex: index,
+        fileName: doc.templateFileName || "template.pdf",
+      });
+    } catch {
+      toast.error("Could not download template");
+    }
   };
 
   const handleBack = () => {
@@ -483,11 +519,9 @@ export default function DocumentCheckList() {
             )}
 
             {doc.templateUrl && (
-              <a
-                href={resolveUploadUrl(doc.templateUrl) ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                download={doc.templateFileName || undefined}
+              <button
+                type="button"
+                onClick={() => handleTemplateDownload(doc, index)}
                 className="w-full flex items-center justify-between dark:bg-secondary bg-[#E2EBFF] border border-border rounded-md px-4 py-3 hover:border-[#6b98f2] transition-colors"
               >
                 <div className="flex items-center gap-3">
@@ -495,7 +529,7 @@ export default function DocumentCheckList() {
                   <span className="text-sm font-medium text-foreground">{t("downloadFormat")}</span>
                 </div>
                 <Download className="w-8 h-8 text-[#F0C902] invert dark:invert-0" />
-              </a>
+              </button>
             )}
 
             {showUpload && (
@@ -544,7 +578,10 @@ export default function DocumentCheckList() {
       {(documents.length > 0 || generalConcernMode) && (
         <button
           onClick={handleContinue}
-          disabled={hasRequiredDocFixes && !allRequiredReuploaded}
+          disabled={
+            (hasRequiredDocFixes && !allRequiredReuploaded) ||
+            (isNewGrievanceFlow && hasMissingMandatory)
+          }
           className="w-full flex items-center justify-center bg-[#826CF3] text-white font-bold py-4 mt-4 rounded-xl hover:opacity-90 shadow-[0_4px_16px_rgba(130,108,243,0.35)] disabled:opacity-50"
         >
           {generalConcernMode || documentOnlyConcernMode ? t("continueToReview") : t("continue")}

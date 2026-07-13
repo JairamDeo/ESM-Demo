@@ -6,6 +6,13 @@ import {
 } from "lucide-react";
 import { useTrackGrievance } from "@/hooks/useApi";
 import { getApiBaseUrl } from "@/lib/apiBase";
+import {
+  loadVeteranDocumentPreview,
+  loadAttachmentPreview,
+  type VeteranUploadPreview,
+} from "@/lib/veteranDocuments";
+import { DocumentPreviewModal } from "@/components/DocumentPreviewModal";
+import { toast } from "sonner";
 import { Icon } from "@iconify/react";
 import { AnimatedCircularProgress, grievanceProgressMap } from "@/components/AnimatedCircularProgress";
 import { useTranslation } from "react-i18next";
@@ -108,6 +115,29 @@ export default memo(function TrackCase() {
     ? comments[comments.length - 1] : null;
   const previousQuery = submittedResponse && comments.length > 1
     ? comments[comments.length - 2] : null;
+
+  const [docPreview, setDocPreview] = useState<VeteranUploadPreview | null>(null);
+  const [viewingDocKey, setViewingDocKey] = useState<string | null>(null);
+
+  const closeDocPreview = () => {
+    docPreview?.revoke?.();
+    setDocPreview(null);
+  };
+
+  const handleViewDocument = async (
+    key: string,
+    loader: () => Promise<VeteranUploadPreview>
+  ) => {
+    try {
+      setViewingDocKey(key);
+      const loaded = await loader();
+      setDocPreview(loaded);
+    } catch {
+      toast.error("Could not load document preview.");
+    } finally {
+      setViewingDocKey(null);
+    }
+  };
 
   const goRespond = () => {
     const baseState = {
@@ -395,15 +425,20 @@ export default memo(function TrackCase() {
                     </div>
                     </div>
 
-                      <a href={submittedResponse.attachments[0].startsWith("http")
-                          ? submittedResponse.attachments[0]
-                          : `${apiBase}${submittedResponse.attachments[0]}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-5 py-2 mx-1 bg-[#0051AE] text-white text-xs font-semibold rounded-md hover:opacity-90"
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleViewDocument("response-attachment", () =>
+                            loadAttachmentPreview(submittedResponse.attachments[0], {
+                              fileName: submittedResponse.attachments[0].split("/").pop(),
+                            })
+                          )
+                        }
+                        disabled={viewingDocKey === "response-attachment"}
+                        className="px-5 py-2 mx-1 bg-[#0051AE] text-white text-xs font-semibold rounded-md hover:opacity-90 disabled:opacity-50"
                       >
-                        {t("viewBtn")}
-                      </a>
+                        {viewingDocKey === "response-attachment" ? "Loading…" : t("viewBtn")}
+                      </button>
                     </div>
                   </div>
                 )}
@@ -440,8 +475,8 @@ export default memo(function TrackCase() {
       <Accordion title={t("uploadedDocuments")} defaultOpen={true}>
         {submittedDocs.length > 0 ? (
           <div className="space-y-2">
-            {submittedDocs.map((doc: Record<string, unknown> & { uploadId: string; fileUrl: string; documentLabel: string; originalFileName: string }) => {
-              const fullUrl = resolveFileUrl(doc.fileUrl);
+            {submittedDocs.map((doc: Record<string, unknown> & { uploadId: string; fileUrl: string; documentLabel: string; originalFileName: string; mimeType?: string }) => {
+              const viewKey = `doc-${doc.uploadId}`;
               return (
                 <div key={doc.uploadId} className="flex items-center justify-between dark:bg-[#1d1c1c] bg-secondary/20 border border-border rounded-xl p-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -451,9 +486,16 @@ export default memo(function TrackCase() {
                       <p className="text-[10px] text-foreground truncate">{doc.originalFileName}</p>
                     </div>
                   </div>
-                  <a href={fullUrl} target="_blank" rel="noreferrer" className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0">
-                    View
-                  </a>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleViewDocument(viewKey, () => loadVeteranDocumentPreview(doc))
+                    }
+                    disabled={viewingDocKey === viewKey}
+                    className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0 disabled:opacity-50"
+                  >
+                    {viewingDocKey === viewKey ? "Loading…" : "View"}
+                  </button>
                 </div>
               );
             })}
@@ -464,7 +506,7 @@ export default memo(function TrackCase() {
           <div className="space-y-2">
             {complaint.attachments.map((url: string, i: number) => {
               const filename = url.split("/").pop() || "Document.pdf";
-              const fullUrl = url.startsWith("http") ? url : `${apiBase}${url}`;
+              const viewKey = `attachment-${i}`;
               return (
                 <div key={i} className="flex items-center justify-between dark:bg-[#1d1c1c] bg-secondary/20 border border-border rounded-xl p-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -475,13 +517,18 @@ export default memo(function TrackCase() {
                     </div>
                   </div>
 
-                  <a href={fullUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleViewDocument(viewKey, () =>
+                        loadAttachmentPreview(url, { fileName: filename })
+                      )
+                    }
+                    disabled={viewingDocKey === viewKey}
+                    className="px-4 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0 disabled:opacity-50"
                   >
-                    {t("viewBtn")}
-                  </a>
+                    {viewingDocKey === viewKey ? "Loading…" : t("viewBtn")}
+                  </button>
                 </div>
               );
             })}
@@ -569,6 +616,7 @@ export default memo(function TrackCase() {
         </div>
       </Accordion>
 
+      <DocumentPreviewModal preview={docPreview} onClose={closeDocPreview} />
     </div>
   );
 });

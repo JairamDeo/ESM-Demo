@@ -4,12 +4,19 @@ import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   UserCheck, Printer, ChevronDown, Building2,
-  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon,
+  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon, UploadCloud,
 } from "lucide-react";
-import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useResolveConcern, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, useSlaSettings, useUpdateSlaSettings, useRequestEscalationTakeover, useApproveEscalationRequest, useRejectEscalationRequest, useEscalationPreview, useManualEscalateGrievance, useRequestEscalateToUpperTier, type GrievanceParams } from "@/hooks/useApi";
+import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useResolveConcern, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, useRequiredDocumentsForCaseType, useLookupVeteranByPhone, useSlaSettings, useUpdateSlaSettings, useRequestEscalationTakeover, useApproveEscalationRequest, useRejectEscalationRequest, useEscalationPreview, useManualEscalateGrievance, useRequestEscalateToUpperTier, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
 import { getApiBaseUrl } from "@/lib/apiBase";
+import {
+  loadGrievanceDocumentPreview,
+  loadAttachmentPreview,
+  downloadGrievanceDocument,
+  type VeteranUploadPreview,
+} from "@/lib/veteranDocuments";
+import { DocumentPreviewModal } from "@/components/DocumentPreviewModal";
 import { toast } from "sonner";
 import { getConcernDocuments, timelineConcernLabel, veteranResponseLabel, getEffectiveConcernStatus, isConcernBlockingStatus } from "@/lib/concernUtils";
 
@@ -122,8 +129,8 @@ function TranslationBadge({ language, failed }: { language?: string; failed?: bo
   );
 }
 
-function InputField({ value, onChange, placeholder, type="text" }: { value:string; onChange:(v:string)=>void; placeholder?:string; type?:string }) {
-  return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />;
+function InputField({ value, onChange, onBlur, placeholder, type="text" }: { value:string; onChange:(v:string)=>void; onBlur?:()=>void; placeholder?:string; type?:string }) {
+  return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur} placeholder={placeholder} className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground" />;
 }
 
 function CollapsiblePanel({
@@ -828,6 +835,9 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const [concernOpen, setConcernOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [docPreview, setDocPreview] = useState<VeteranUploadPreview | null>(null);
+  const [viewingDocKey, setViewingDocKey] = useState<string | null>(null);
+  const [downloadingDocKey, setDownloadingDocKey] = useState<string | null>(null);
   const [statusConfirm, setStatusConfirm] = useState<{ status: string; label: string } | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const updateStatus = useUpdateGrievanceStatus();
@@ -962,6 +972,40 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   const resolveFileUrl = (url: string) => {
     const baseUrl = getApiBaseUrl().replace("/api", "");
     return url.startsWith("http") ? url : `${baseUrl}${url}`;
+  };
+
+  const closeDocPreview = () => {
+    docPreview?.revoke?.();
+    setDocPreview(null);
+  };
+
+  const handleViewDocument = async (
+    key: string,
+    loader: () => Promise<VeteranUploadPreview>
+  ) => {
+    try {
+      setViewingDocKey(key);
+      const loaded = await loader();
+      setDocPreview(loaded);
+    } catch {
+      toast.error("Could not load document preview.");
+    } finally {
+      setViewingDocKey(null);
+    }
+  };
+
+  const handleDownloadDocument = async (
+    key: string,
+    loader: () => Promise<void>
+  ) => {
+    try {
+      setDownloadingDocKey(key);
+      await loader();
+    } catch {
+      toast.error("Could not download document.");
+    } finally {
+      setDownloadingDocKey(null);
+    }
   };
 
   const timelineEventLabel = (t: TimelineEntry) => {
@@ -1207,25 +1251,60 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
           >
             <div className="space-y-2">
               {submittedDocs.map((doc: SubmittedDoc) => {
-                const fullUrl = resolveFileUrl(doc.fileUrl);
                 const isPdf = doc.mimeType === "application/pdf" || doc.fileUrl.toLowerCase().includes(".pdf");
+                const isImage = doc.mimeType?.startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(doc.fileUrl);
+                const viewKey = `submitted-${doc.uploadId}`;
+                const downloadKey = `download-${doc.uploadId}`;
                 return (
-                  <div key={doc.uploadId} className="flex items-start gap-3 bg-secondary/40 border border-border rounded-lg p-3">
-                    <div className="flex-shrink-0">
+                  <div
+                    key={doc.uploadId}
+                    className="flex items-center gap-2.5 bg-secondary/40 border border-border rounded-lg p-2.5 min-w-0"
+                  >
+                    <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-md bg-secondary border border-border">
                       {isPdf ? (
-                        <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-16 h-16 bg-secondary rounded-lg border border-border">
-                          <img src="/icons/pdf2.svg" className="w-8 h-8" alt="" />
-                        </a>
+                        <img src="/icons/pdf2.svg" className="w-5 h-5" alt="" />
+                      ) : isImage ? (
+                        <ImageIcon className="w-5 h-5 text-primary" />
                       ) : (
-                        <img src={fullUrl} alt="" onClick={() => setPreviewImage(fullUrl)} className="w-16 h-16 object-cover rounded-lg border border-border cursor-pointer hover:border-primary" />
+                        <FileText className="w-5 h-5 text-muted-foreground" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-primary">{doc.documentLabel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.documentText}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1 truncate">{doc.originalFileName}</p>
+                      <p className="text-xs font-semibold text-primary truncate">{doc.documentLabel}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{doc.originalFileName}</p>
+                      {doc.documentText && doc.documentText !== doc.documentLabel && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{doc.documentText}</p>
+                      )}
                     </div>
-                    <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline shrink-0">View</a>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleViewDocument(viewKey, () =>
+                            loadGrievanceDocumentPreview(grievance._id as string, doc)
+                          )
+                        }
+                        disabled={viewingDocKey === viewKey}
+                        className="text-[11px] px-2 py-1 rounded-md text-primary hover:bg-primary/10 disabled:opacity-50"
+                      >
+                        {viewingDocKey === viewKey ? "…" : "View"}
+                      </button>
+                      {isPdf && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDownloadDocument(downloadKey, () =>
+                              downloadGrievanceDocument(grievance._id as string, doc)
+                            )
+                          }
+                          disabled={downloadingDocKey === downloadKey}
+                          className="text-[11px] px-2 py-1 rounded-md text-foreground hover:bg-secondary disabled:opacity-50 inline-flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3" />
+                          {downloadingDocKey === downloadKey ? "…" : "Download"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -1238,13 +1317,34 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               {grievance.attachments.map((url: string, idx: number) => {
                 const isPdf = url.toLowerCase().endsWith(".pdf");
                 const fullUrl = resolveFileUrl(url);
+                const viewKey = `attachment-${idx}`;
                 return isPdf ? (
-                  <a key={idx} href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-24 h-24 bg-secondary rounded-lg border border-border hover:border-primary transition-colors text-primary flex-col gap-2">
-                    <img src="/icons/pdf2.svg" className="w-12 h-12" />
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() =>
+                      handleViewDocument(viewKey, () =>
+                        loadAttachmentPreview(url, { fileName: url.split("/").pop() })
+                      )
+                    }
+                    className="flex items-center justify-center w-24 h-24 bg-secondary rounded-lg border border-border hover:border-primary transition-colors text-primary flex-col gap-2"
+                  >
+                    <img src="/icons/pdf2.svg" className="w-12 h-12" alt="" />
                     <span className="text-xs font-medium text-[#ffff] invert dark:invert-0">PDF Document</span>
-                  </a>
+                  </button>
                 ) : (
-                  <img key={idx} src={fullUrl} alt={`Attachment ${idx + 1}`} onClick={() => setPreviewImage(fullUrl)} className="w-24 h-24 object-cover rounded-lg border border-border cursor-pointer hover:border-primary transition-all hover:scale-105 shadow-sm" />
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() =>
+                      handleViewDocument(viewKey, () =>
+                        loadAttachmentPreview(url, { fileName: url.split("/").pop() })
+                      )
+                    }
+                    className="block"
+                  >
+                    <img src={fullUrl} alt={`Attachment ${idx + 1}`} className="w-24 h-24 object-cover rounded-lg border border-border cursor-pointer hover:border-primary transition-all hover:scale-105 shadow-sm" />
+                  </button>
                 );
               })}
             </div>
@@ -1307,14 +1407,34 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                     {t.attachments?.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {t.attachments.map((url: string, idx: number) => {
-                          const fullUrl = resolveFileUrl(url);
                           const isPdf = url.toLowerCase().includes(".pdf");
+                          const viewKey = `timeline-${i}-${idx}`;
                           return isPdf ? (
-                            <a key={idx} href={fullUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-2 py-1.5 bg-secondary rounded-lg border border-border text-xs text-primary">
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() =>
+                                handleViewDocument(viewKey, () =>
+                                  loadAttachmentPreview(url, { fileName: url.split("/").pop() })
+                                )
+                              }
+                              className="flex items-center gap-1.5 px-2 py-1.5 bg-secondary rounded-lg border border-border text-xs text-primary"
+                            >
                               <FileText className="w-3.5 h-3.5" /> PDF
-                            </a>
+                            </button>
                           ) : (
-                            <img key={idx} src={fullUrl} alt="" onClick={() => setPreviewImage(fullUrl)} className="w-16 h-16 object-cover rounded-lg border border-border cursor-pointer hover:border-primary" />
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() =>
+                                handleViewDocument(viewKey, () =>
+                                  loadAttachmentPreview(url, { fileName: url.split("/").pop() })
+                                )
+                              }
+                              className="block"
+                            >
+                              <img src={resolveFileUrl(url)} alt="" className="w-16 h-16 object-cover rounded-lg border border-border cursor-pointer hover:border-primary" />
+                            </button>
                           );
                         })}
                       </div>
@@ -1490,6 +1610,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
           </div>
         </div>
       )}
+      <DocumentPreviewModal preview={docPreview} onClose={closeDocPreview} />
     </Modal>
     {statusConfirm && (
       <StatusConfirmModal
@@ -1508,72 +1629,171 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
 function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   const createGrievance = useCreateGrievance();
   const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
-  const { data: stationsData } = useStations({ limit: 100 });
+  const { data: stationsData, isLoading: stationsLoading } = useStations();
   const stations = useMemo(() => stationsData?.data || [], [stationsData]);
 
   const [form, setForm] = useState({
     type: "", veteran: "", rank: "", armyNo: "", contact: "",
-    station: "", officer: "", priority: "medium",
-    description: "", attachments: [] as File[]
+    stationId: "", officer: "", priority: "medium",
+    description: "",
+    requiredDocFiles: {} as Record<string, File>,
   });
   const [errors, setErrors] = useState<Record<string,string>>({});
+  const [lookupPhone, setLookupPhone] = useState("");
 
-  // ── Filter officers by selected station ──────────────────────────────────
-  const { data: officersData } = useOfficers({
+  const selectedCaseType = useMemo(
+    () => caseTypesList.find((t: { name?: string }) => t.name === form.type),
+    [caseTypesList, form.type]
+  );
+  const caseTypeId = selectedCaseType?._id as string | undefined;
+
+  const selectedStation = useMemo(
+    () => stations.find((s: { _id?: string }) => s._id === form.stationId),
+    [stations, form.stationId]
+  );
+
+  const { data: veteranLookup, isFetching: veteranLookupLoading, isError: veteranLookupError } =
+    useLookupVeteranByPhone(lookupPhone, lookupPhone.replace(/\D/g, "").length === 10);
+
+  const { data: checklistConfig } = useRequiredDocumentsForCaseType({
+    caseTypeId,
+    enabled: !!caseTypeId,
+  });
+  const checklistDocs: Array<{
+    label: string;
+    text: string;
+    isMandatory?: boolean;
+    sortOrder?: number;
+  }> = checklistConfig?.documents || [];
+
+  const { data: officersData, isFetching: officersLoading } = useOfficers({
     limit: 100,
-    station: form.station || undefined,
+    stationId: form.stationId || undefined,
+    role: "Station HQ Officer",
+    enabled: !!form.stationId,
   });
   const officers = useMemo(() => officersData?.data || [], [officersData]);
 
-  // ── Auto-select first case type ──────────────────────────────────────────
   useEffect(() => {
     if (caseTypesList.length && !form.type) {
       setForm((f) => ({ ...f, type: caseTypesList[0].name }));
     }
   }, [caseTypesList, form.type]);
 
-  // ── Auto-select first station ────────────────────────────────────────────
   useEffect(() => {
-    if (stations.length && !form.station) {
-      setForm((f) => ({ ...f, station: stations[0].name }));
+    if (stations.length === 1 && !form.stationId) {
+      setForm((f) => ({ ...f, stationId: stations[0]._id }));
     }
-  }, [stations, form.station]);
+  }, [stations, form.stationId]);
 
-  // ── When station changes → reset officer and auto-select first ───────────
   useEffect(() => {
+    if (!form.stationId) {
+      setForm((f) => (f.officer ? { ...f, officer: "" } : f));
+      return;
+    }
     if (officers.length) {
       setForm((f) => ({ ...f, officer: officers[0].name }));
     } else {
       setForm((f) => ({ ...f, officer: "" }));
     }
-  }, [form.station, officers]);
+  }, [form.stationId, officers]);
 
-  const set = (k: string, v: string | File[]) => {
+  useEffect(() => {
+    if (!veteranLookup) return;
+    setForm((f) => ({
+      ...f,
+      veteran: veteranLookup.name || f.veteran,
+      rank: veteranLookup.rank || f.rank,
+      armyNo: veteranLookup.armyNumber || f.armyNo,
+      stationId: f.stationId || stations.find((s: { name?: string }) => s.name === veteranLookup.stationHQ)?._id || f.stationId,
+    }));
+  }, [veteranLookup, stations]);
+
+  const set = (k: string, v: string | File[] | Record<string, File>) => {
     setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => { const n = {...e}; delete n[k]; return n; });
   };
 
+  const handleContactBlur = () => {
+    const digits = form.contact.replace(/\D/g, "").slice(-10);
+    if (digits.length === 10) setLookupPhone(digits);
+  };
+
+  const handleCaseTypeChange = (typeName: string) => {
+    setForm((f) => ({ ...f, type: typeName, requiredDocFiles: {} }));
+    setErrors((e) => { const n = {...e}; delete n.documents; return n; });
+  };
+
+  const handleStationChange = (stationId: string) => {
+    setForm((f) => ({ ...f, stationId, officer: "" }));
+    setErrors((e) => { const n = {...e}; delete n.stationId; delete n.officer; return n; });
+  };
+
+  const handleRequiredDocChange = (label: string, file: File | null) => {
+    setForm((f) => {
+      const next = { ...f.requiredDocFiles };
+      if (file) next[label] = file;
+      else delete next[label];
+      return { ...f, requiredDocFiles: next };
+    });
+    setErrors((e) => { const n = {...e}; delete n.documents; return n; });
+  };
+
+  // Only admin-marked mandatory docs (red *) block submission; optional ones are allowed.
+  const missingMandatoryDocs = useMemo(() => {
+    return checklistDocs
+      .filter((doc) => doc.isMandatory === true && !form.requiredDocFiles[doc.label])
+      .map((doc) => doc.text || doc.label);
+  }, [checklistDocs, form.requiredDocFiles]);
+
   const submit = useCallback(async () => {
     const e: Record<string,string> = {};
+    const contactDigits = form.contact.replace(/\D/g, "").slice(-10);
     if (!form.veteran.trim()) e.veteran = "Required";
     if (!form.rank.trim())    e.rank    = "Required";
     if (!form.armyNo.trim())  e.armyNo  = "Required";
-    if (Object.keys(e).length) { setErrors(e); return; }
+    if (!contactDigits) e.contact = "Required";
+    else if (contactDigits.length !== 10) e.contact = "Enter valid 10-digit mobile";
+    if (!form.stationId) e.stationId = "Select Station HQ";
+    else if (!form.officer.trim()) e.officer = "Select an officer for the selected Station HQ";
+    if (missingMandatoryDocs.length > 0) {
+      e.documents = `Upload mandatory document(s): ${missingMandatoryDocs.join(", ")}`;
+    }
+    if (Object.keys(e).length) {
+      setErrors(e);
+      if (e.documents) toast.error(e.documents);
+      return;
+    }
 
-    await createGrievance.mutateAsync({
-      type:             form.type || (caseTypesList[0]?.name || ""),
-      veteranName:      `${form.rank} ${form.veteran}`.trim(),
-      veteranPhone:     form.contact,
-      veteranArmyNo:    form.armyNo,
-      veteranRank:      form.rank,
-      stationName:      form.station || (stations[0]?.name || ""),
-      officerName:      form.officer || "Unassigned",
-      priority:         form.priority,
-      description:      form.description,
-      submissionSource: "manual",
-    });
+    const fd = new FormData();
+    fd.append("type", form.type || (caseTypesList[0]?.name || ""));
+    fd.append("veteranName", `${form.rank} ${form.veteran}`.trim());
+    fd.append("veteranPhone", contactDigits);
+    fd.append("veteranArmyNo", form.armyNo);
+    fd.append("veteranRank", form.rank);
+    if (selectedStation?.name) fd.append("stationName", selectedStation.name);
+    fd.append("stationId", form.stationId);
+    fd.append("officerName", form.officer || "Unassigned");
+    fd.append("priority", form.priority);
+    if (form.description) fd.append("description", form.description);
+    fd.append("submissionSource", "manual");
+    if (caseTypeId) fd.append("caseTypeId", caseTypeId);
+
+    const uploadedLabels: string[] = [];
+    for (const doc of checklistDocs) {
+      const file = form.requiredDocFiles[doc.label];
+      if (file) {
+        uploadedLabels.push(doc.label);
+        fd.append("requiredDocuments", file);
+      }
+    }
+    if (uploadedLabels.length > 0) {
+      fd.append("requiredDocumentLabels", JSON.stringify(uploadedLabels));
+    }
+
+    await createGrievance.mutateAsync(fd);
     onClose();
-  }, [form, createGrievance, onClose, caseTypesList, stations]);
+  }, [form, createGrievance, onClose, caseTypesList, selectedStation, caseTypeId, checklistDocs, missingMandatoryDocs]);
 
   return (
     <Modal open onClose={onClose} title="New Grievance" wide>
@@ -1581,7 +1801,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
         <div className="grid grid-cols-2 gap-4">
 
           <FormField label="Case Type *">
-            <SelectField value={form.type} onChange={(v) => set("type", v)}>
+            <SelectField value={form.type} onChange={handleCaseTypeChange}>
               {caseTypesList.map((t: Record<string, unknown> & { _id?: string; name?: string }) => (
                 <option key={t._id || t.name} value={t.name}>{t.name}</option>
               ))}
@@ -1608,35 +1828,62 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
             <InputField value={form.armyNo} onChange={(v) => set("armyNo", v)} placeholder="e.g. IC-45678" />
           </FormField>
 
-          <FormField label="Contact Number">
-            <InputField value={form.contact} onChange={(v) => set("contact", v)} placeholder="+91 XXXXX XXXXX" />
+          <FormField label={`Contact Number * ${errors.contact || ""}`}>
+            <InputField
+              value={form.contact}
+              onChange={(v) => {
+                set("contact", v);
+                setLookupPhone("");
+              }}
+              onBlur={handleContactBlur}
+              placeholder="10-digit mobile registered in app"
+            />
+            {veteranLookupLoading && (
+              <p className="text-[11px] text-muted-foreground mt-1">Looking up veteran account…</p>
+            )}
+            {veteranLookup && !veteranLookupLoading && (
+              <p className="text-[11px] text-success mt-1">
+                Veteran account found — grievance will appear in their login.
+              </p>
+            )}
+            {veteranLookupError && lookupPhone.length === 10 && !veteranLookupLoading && (
+              <p className="text-[11px] text-destructive mt-1">
+                No veteran account for this number. Ask them to register first.
+              </p>
+            )}
           </FormField>
 
-          {/* Station dropdown */}
-          <FormField label="Station HQ *">
-            <SelectField value={form.station} onChange={(v) => set("station", v)}>
-              <option value="">Select Station</option>
-              {stations.map((s: Record<string, unknown> & { _id?: string; name?: string }) => (
-                <option key={s._id || s.name} value={s.name}>{s.name}</option>
-              ))}
-            </SelectField>
-          </FormField>
-
-          {/* Officer dropdown — filters by selected station */}
-          <FormField label="Assign Officer *">
-            <SelectField value={form.officer} onChange={(v) => set("officer", v)}>
+          <FormField label={`Station HQ * ${errors.stationId || ""}`}>
+            <SelectField value={form.stationId} onChange={handleStationChange}>
               <option value="">
-                {!form.station
-                  ? "Select station first"
-                  : officers.length === 0
-                  ? "No officers found"
-                  : "Select Officer"}
+                {stationsLoading ? "Loading stations…" : "Select Station HQ"}
               </option>
-              {officers.map((o: Record<string, unknown> & { _id?: string; name?: string }) => (
-                <option key={o._id || o.name} value={o.name}>{o.name}</option>
+              {stations.map((s: Record<string, unknown> & { _id?: string; name?: string; hqName?: string; stateName?: string }) => (
+                <option key={s._id || s.name} value={s._id}>
+                  {s.name}
+                  {s.hqName ? ` — ${s.hqName}` : ""}
+                  {s.stateName ? ` (${s.stateName})` : ""}
+                </option>
               ))}
             </SelectField>
           </FormField>
+
+          {form.stationId && (
+            <FormField label={`Assign Officer * ${errors.officer || ""}`}>
+              <SelectField value={form.officer} onChange={(v) => set("officer", v)}>
+                <option value="">
+                  {officersLoading
+                    ? "Loading officers…"
+                    : officers.length === 0
+                    ? "No Station HQ officers found"
+                    : "Select Officer"}
+                </option>
+                {officers.map((o: Record<string, unknown> & { _id?: string; name?: string }) => (
+                  <option key={o._id || o.name} value={o.name}>{o.name}</option>
+                ))}
+              </SelectField>
+            </FormField>
+          )}
 
         </div>
 
@@ -1650,54 +1897,83 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
           />
         </FormField>
 
-        {/* Attachments */}
-        <FormField label="Attachments (optional · max 3 · JPG, PNG, PDF · 5MB each)">
-          <label className={`flex items-center gap-2 w-full bg-secondary/50 border border-dashed border-border rounded-lg px-3 py-2.5 cursor-pointer hover:border-primary/50 transition-colors ${form.attachments.length >= 3 ? "opacity-50 cursor-not-allowed" : ""}`}>
-            <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground">
-              {form.attachments.length > 0
-                ? `${form.attachments.length} file(s) — tap to add more`
-                : "Click to attach documents"}
-            </span>
-            <input
-              type="file" multiple accept=".jpg,.jpeg,.png,.pdf"
-              disabled={form.attachments.length >= 3}
-              className="hidden"
-              onChange={(e) => {
-                const files = Array.from(e.target.files || []);
-                const valid = files.filter((f) => {
-                  const okType = ["image/jpeg","image/png","image/jpg","application/pdf"].includes(f.type);
-                  const okSize = f.size <= 5 * 1024 * 1024;
-                  return okType && okSize;
-                });
-                set("attachments", [...form.attachments, ...valid].slice(0, 3));
-                e.target.value = "";
-              }}
-            />
-          </label>
-          {form.attachments.length > 0 && (
-            <div className="mt-2 space-y-1.5">
-              {form.attachments.map((file: File, i: number) => (
-                <div key={i} className="flex items-center justify-between bg-secondary/30 rounded-lg px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {file.type === "application/pdf"
-                      ? <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                      : <ImageIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-                    }
-                    <p className="text-xs text-foreground truncate">{file.name}</p>
-                    <p className="text-xs text-muted-foreground shrink-0">{(file.size / 1024).toFixed(0)}KB</p>
-                  </div>
-                  <button
-                    onClick={() => set("attachments", form.attachments.filter((_: File, idx: number) => idx !== i))}
-                    className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+        {checklistDocs.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Required Documents</h3>
+              {errors.documents && (
+                <span className="text-xs text-destructive">{errors.documents}</span>
+              )}
             </div>
-          )}
-        </FormField>
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {checklistDocs.map((doc, index) => {
+                const file = form.requiredDocFiles[doc.label];
+                return (
+                  <div key={doc.label} className="bg-secondary/30 border border-border rounded-lg p-3 space-y-2">
+                    <div className="flex gap-2 items-start">
+                      <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
+                        {String.fromCharCode(65 + index)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {doc.text || doc.label}
+                          {doc.isMandatory !== false && <span className="text-destructive ml-1">*</span>}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">{doc.label}</p>
+                      </div>
+                    </div>
+                    {file ? (
+                      <div className="flex items-center justify-between bg-card border border-border rounded-md px-3 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="w-4 h-4 text-primary shrink-0" />
+                          <p className="text-xs text-foreground truncate">{file.name}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRequiredDocChange(doc.label, null)}
+                          className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-3 w-full border border-dashed border-primary/40 rounded-md px-3 py-2.5 cursor-pointer hover:bg-primary/5">
+                        <UploadCloud className="w-5 h-5 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground">Upload — {doc.label}</p>
+                          <p className="text-[11px] text-muted-foreground">JPG, PNG, PDF (max 5 MB)</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const picked = e.target.files?.[0];
+                            if (!picked) return;
+                            const okType = ["image/jpeg", "image/png", "image/jpg", "application/pdf"].includes(picked.type);
+                            const okSize = picked.size <= 5 * 1024 * 1024;
+                            if (!okType) {
+                              toast.error("Only JPG, PNG, PDF allowed");
+                              e.target.value = "";
+                              return;
+                            }
+                            if (!okSize) {
+                              toast.error("File must be under 5 MB");
+                              e.target.value = "";
+                              return;
+                            }
+                            handleRequiredDocChange(doc.label, picked);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors">
@@ -1705,7 +1981,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
           </button>
           <button
             onClick={submit}
-            disabled={createGrievance.isPending}
+            disabled={createGrievance.isPending || missingMandatoryDocs.length > 0}
             className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-60"
           >
             {createGrievance.isPending

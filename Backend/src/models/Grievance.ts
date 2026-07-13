@@ -92,6 +92,8 @@ export interface IGrievance extends Document {
   description?: string;
   attachments?: string[];                 // ← top-level attachments
   createdBy?: string;                     // ← who created this grievance
+  /** Who filed the grievance: veteran self-service vs admin/officer on behalf */
+  submittedBy?: "admin" | "veteran";
   submissionSource: "qr_code" | "portal" | "manual" | "walk_in";
   qrCodeId?: mongoose.Types.ObjectId;
   comments: IComment[];
@@ -196,6 +198,7 @@ const GrievanceSchema = new Schema<IGrievance>(
     description:      { type: String },
     attachments:      { type: [String], default: [] },  // ← attachment URLs
     createdBy:        { type: String, default: "" },     // ← who created this grievance
+    submittedBy:      { type: String, enum: ["admin", "veteran"], default: "veteran" },
     // ── Translation fields ──────────────────────────────────────────────────
     originalText:     { type: String },
     translatedText:   { type: String },

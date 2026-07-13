@@ -367,7 +367,7 @@ export const previewVeteranUpload = async (req: Request, res: Response): Promise
       return;
     }
 
-    serveStoredFile(res, upload.storedPath, {
+    await serveStoredFile(res, upload.storedPath, {
       mimeType: upload.mimeType,
       fileName: upload.originalFileName,
       disposition: "inline",
@@ -403,7 +403,7 @@ export const downloadChecklistTemplate = async (req: Request, res: Response): Pr
       return;
     }
 
-    serveStoredFile(res, docItem.templateUrl, {
+    await serveStoredFile(res, docItem.templateUrl, {
       mimeType: "application/pdf",
       fileName: docItem.templateFileName || "template.pdf",
       disposition: "attachment",

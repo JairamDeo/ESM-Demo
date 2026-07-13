@@ -157,7 +157,11 @@ export const useCreateGrievance = () => {
     onError: (err: any) => {
       const raw = err?.response?.data?.message || "";
       const friendly =
-        raw.includes("type, veteranName, stationName") || raw.includes("service type")
+        raw.includes("veteran account") || raw.includes("mobile number")
+          ? raw
+          : raw.includes("mandatory documents")
+          ? raw
+          : raw.includes("type, veteranName, stationName") || raw.includes("service type")
           ? "Please complete all required fields: service type, station HQ, and your details."
           : raw.includes("Station HQ")
             ? "Please select your Station HQ before submitting."
@@ -268,16 +272,36 @@ export const useDeleteGrievance = () => {
 };
 
 // ─── Stations ─────────────────────────────────────────────────────────────────
-export interface StationParams { search?: string; state?: string; qrActive?: boolean; page?: number; limit?: number; }
+export interface StationParams { search?: string; state?: string; qrActive?: boolean; page?: number; limit?: number; hqId?: string; }
 
 export const useStations = (params: StationParams = {}) =>
   useQuery({
     queryKey: queryKeys.stations.all(params),
     queryFn: async () => {
-      const { data } = await api.get("/stations", { params });
+      const { data } = await api.get("/stations", { params: { limit: 500, ...params } });
       return data;
     },
     staleTime: 60_000,
+  });
+
+export const useLookupVeteranByPhone = (phone: string, enabled = false) =>
+  useQuery({
+    queryKey: ["veteran-lookup", phone],
+    queryFn: async () => {
+      const normalized = phone.replace(/\D/g, "").slice(-10);
+      const { data } = await api.get("/grievances/veteran-lookup", { params: { phone: normalized } });
+      return data.data as {
+        id: string;
+        phone: string;
+        name: string;
+        rank: string;
+        armyNumber: string;
+        stationHQ: string;
+      };
+    },
+    enabled: enabled && phone.replace(/\D/g, "").length === 10,
+    retry: false,
+    staleTime: 30_000,
   });
 
 export const useCreateStation = () => {
@@ -410,17 +434,21 @@ export interface OfficerParams {
   stationId?: string;
   page?: number;
   limit?: number;
+  enabled?: boolean;
 }
 
-export const useOfficers = (params: OfficerParams = {}) =>
-  useQuery({
-    queryKey: queryKeys.officers.all(params),
+export const useOfficers = (params: OfficerParams = {}) => {
+  const { enabled = true, ...queryParams } = params;
+  return useQuery({
+    queryKey: queryKeys.officers.all(queryParams),
     queryFn: async () => {
-      const { data } = await api.get("/officers", { params });
+      const { data } = await api.get("/officers", { params: queryParams });
       return data;
     },
+    enabled,
     staleTime: 60_000,
   });
+};
 
 export const useCreateOfficer = () => {
   const qc = useQueryClient();
