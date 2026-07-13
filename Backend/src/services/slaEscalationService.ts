@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import Grievance, { IGrievance } from "../models/Grievance";
-import Escalation from "../models/Escalation";
 import { OfficerLevel } from "../constants/officerLevels";
 import {
   OrgTier,
@@ -14,6 +13,7 @@ import {
 } from "./grievanceOfficerResolver";
 import { computeDeadlineForOrgTier, getSlaConfigForCaseType } from "./slaConfigService";
 import { notifyOfficer } from "./notificationService";
+import { createEscalationRecord } from "../utils/escalationId";
 
 export type EscalationReasonType =
   | "no_response"
@@ -65,11 +65,6 @@ async function buildOrgFromGrievance(grievance: IGrievance): Promise<StationOrgC
   return org || { stationName: grievance.stationName };
 }
 
-async function nextEscalationId(): Promise<string> {
-  const count = await Escalation.countDocuments();
-  return `ESC-${String(count + 1).padStart(3, "0")}`;
-}
-
 export interface AssignGrievanceOfficerOpts {
   reasonType: EscalationReasonType;
   escalatedBy?: string;
@@ -108,8 +103,7 @@ export async function assignGrievanceOfficer(
   const toOfficerName =
     officer?.name || `${ORG_TIER_LABELS[opts.orgTier]} ${opts.level} (Unassigned)`;
 
-  const escalation = await Escalation.create({
-    escalationId: await nextEscalationId(),
+  const escalation = await createEscalationRecord({
     grievanceId: grievance._id,
     grievanceCode: grievance.grievanceId,
     veteranName: grievance.veteranName,

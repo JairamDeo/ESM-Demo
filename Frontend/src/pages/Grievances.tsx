@@ -1,5 +1,6 @@
 import { useState, useRef, memo, useCallback, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
@@ -19,6 +20,7 @@ import {
 import { DocumentPreviewModal } from "@/components/DocumentPreviewModal";
 import { toast } from "sonner";
 import { getConcernDocuments, timelineConcernLabel, veteranResponseLabel, getEffectiveConcernStatus, isConcernBlockingStatus } from "@/lib/concernUtils";
+import { getSubmittedText, type TranslatableUserText } from "@/utils/translationHelper";
 
 type Status = "pending" | "in-progress" | "escalated" | "resolved";
 type Priority = "low" | "medium" | "high" | "critical";
@@ -110,23 +112,6 @@ function SelectField({ value, onChange, children }: { value:string; onChange:(v:
 
 function FormField({ label, children }: { label:string; children:React.ReactNode }) {
   return <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">{label}</label>{children}</div>;
-}
-
-/** Shows a small badge when grievance description/comment was translated from Hindi. */
-function TranslationBadge({ language, failed }: { language?: string; failed?: boolean }) {
-  if (!language || language === "en") return null;
-  if (failed) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/30 ml-2">
-        ⚠ Translation unavailable
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-info/15 text-info border border-info/30 ml-2">
-      🌐 Translated from Hindi
-    </span>
-  );
 }
 
 function InputField({ value, onChange, onBlur, placeholder, type="text" }: { value:string; onChange:(v:string)=>void; onBlur?:()=>void; placeholder?:string; type?:string }) {
@@ -1215,30 +1200,12 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
             </button>
           </div>
         )}
-        {grievance.description && (
+        {(grievance.description || grievance.originalText) && (
           <div className="bg-secondary/30 rounded-lg p-3">
-            <p className="text-xs text-muted-foreground mb-1 flex items-center flex-wrap gap-1">
-              Description
-              <TranslationBadge
-                language={grievance.language}
-                failed={grievance.translationFailed}
-              />
+            <p className="text-xs text-muted-foreground mb-1">Description</p>
+            <p className="text-sm text-foreground break-words overflow-hidden whitespace-pre-wrap">
+              {getSubmittedText(grievance as TranslatableUserText)}
             </p>
-            {/* Admin sees translatedText (EN) by default; falls back to description */}
-            <p className="text-sm text-foreground break-words overflow-hidden">
-              {grievance.translationFailed
-                ? grievance.originalText || grievance.description
-                : grievance.translatedText || grievance.description}
-            </p>
-            {/* Show original Hindi text if translation succeeded */}
-            {grievance.language && grievance.language !== "en" && !grievance.translationFailed && grievance.originalText && (
-              <details className="mt-2">
-                <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground select-none">
-                  View original (Hindi)
-                </summary>
-                <p className="text-xs text-foreground/70 mt-1 whitespace-pre-wrap">{grievance.originalText}</p>
-              </details>
-            )}
           </div>
         )}
         {submittedDocs.length > 0 ? (
@@ -1383,25 +1350,11 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                         ))}
                       </div>
                     )}
-                    {t.note && (
+                    {(t.note || t.originalText) && (
                       <div className="mt-1">
                         <p className="text-sm text-foreground whitespace-pre-wrap">
-                          {t.translationFailed
-                            ? t.originalText || t.note
-                            : t.translatedText || t.note}
-                          <TranslationBadge
-                            language={t.language}
-                            failed={t.translationFailed}
-                          />
+                          {getSubmittedText(t as TranslatableUserText)}
                         </p>
-                        {t.language && t.language !== "en" && !t.translationFailed && t.originalText && (
-                          <details className="mt-1.5">
-                            <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground select-none">
-                              View original (Hindi)
-                            </summary>
-                            <p className="text-xs text-foreground/70 mt-1 whitespace-pre-wrap">{t.originalText}</p>
-                          </details>
-                        )}
                       </div>
                     )}
                     {t.attachments?.length > 0 && (
@@ -2138,6 +2091,7 @@ function FilterPills({ filters, onRemove }: { filters:FilterState; onRemove:(k:k
 }
 
 export default memo(function Grievances() {
+  const location = useLocation();
   const permissions = usePermissions();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
@@ -2173,12 +2127,24 @@ export default memo(function Grievances() {
   }), [page, search, activeTab, filters]);
 
   const { data, isLoading } = useGrievances(queryParams);
+  const notificationGrievanceId = String(
+    (location.state as { grievanceId?: string; openDetails?: boolean } | null)?.grievanceId || ""
+  );
+  const { data: notificationGrievance } = useGrievance(notificationGrievanceId);
   const updateStatus = useUpdateGrievanceStatus();
   const assignOfficer = useAssignOfficer();
   const { user } = useAuth();
 
   const grievances = useMemo(() => data?.data || [], [data]);
   const pagination = useMemo(() => data?.pagination || { total:0, totalPages:1 }, [data]);
+  const openedNotificationRef = useRef("");
+
+  useEffect(() => {
+    if (!notificationGrievanceId || !notificationGrievance) return;
+    if (openedNotificationRef.current === notificationGrievanceId) return;
+    openedNotificationRef.current = notificationGrievanceId;
+    setViewGrievance(notificationGrievance);
+  }, [notificationGrievanceId, notificationGrievance]);
 
   const handleStatusChange = useCallback((g: GrievanceData, status: string) => {
     if (!g._id) return;
@@ -2197,10 +2163,10 @@ export default memo(function Grievances() {
     );
   }, [statusConfirm, updateStatus, user]);
 
-  const handleReassign = useCallback((g: GrievanceData, officerName: string) => {
-    if (!g._id) return;
+  const handleReassign = useCallback((g: GrievanceData, officerName: string, officerId?: string) => {
+    if (!g._id || !officerName) return;
     const isNew = g._originalOfficer === "Unassigned" || !g._originalOfficer;
-    assignOfficer.mutate({ id: g._id, officerName, isNew });
+    assignOfficer.mutate({ id: g._id, officerName, officerId, isNew });
   }, [assignOfficer]);
 
   const removeFilter = (key: keyof FilterState) => setFilters((f)=>({...f,[key]:""}));
@@ -2383,14 +2349,37 @@ export default memo(function Grievances() {
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">Currently: <span className="text-foreground font-medium">{reassignGrievance._originalOfficer}</span></p>
         <FormField label={isUnassigned ? "Assign Officer" : "New Assigned Officer"}>
-          <SelectField value={reassignGrievance.officerName === "Unassigned" ? "" : reassignGrievance.officerName||""} onChange={(v)=>setReassignGrievance((g: GrievanceData)=>({...g,officerName:v}))}>
+          <SelectField
+            value={reassignGrievance.officerId ? String(reassignGrievance.officerId) : ""}
+            onChange={(v) => {
+              const selected = officers.find((o: { _id?: string; name?: string }) => String(o._id) === v);
+              setReassignGrievance((g: GrievanceData) => ({
+                ...g,
+                officerId: v,
+                officerName: selected?.name || "",
+              }));
+            }}
+          >
             <option value="">Select Officer</option>
-            {officers.map((o: Record<string, unknown> & { _id?: string; name?: string })=><option key={o._id as string || o.name as string} value={o.name as string}>{o.name as string}</option>)}
+            {officers.map((o: Record<string, unknown> & { _id?: string; name?: string }) => (
+              <option key={o._id as string} value={o._id as string}>{o.name as string}</option>
+            ))}
           </SelectField>
         </FormField>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={()=>setReassignGrievance(null)} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg">Cancel</button>
-          <button onClick={()=>{handleReassign(reassignGrievance,reassignGrievance.officerName);setReassignGrievance(null);}} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg">
+          <button
+            onClick={() => {
+              handleReassign(
+                reassignGrievance,
+                reassignGrievance.officerName || "",
+                reassignGrievance.officerId as string | undefined
+              );
+              setReassignGrievance(null);
+            }}
+            disabled={!reassignGrievance.officerId}
+            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
+          >
             {isUnassigned ? "Assign Officer" : "Reassign Officer"}
           </button>
         </div>

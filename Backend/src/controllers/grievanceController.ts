@@ -38,6 +38,7 @@ import {
   type ConcernDocumentItem,
 } from "../services/concernHelpers";
 import { assignStationL1ForGrievance, findOfficerAtOrgTier, resolveStationOrg } from "../services/grievanceOfficerResolver";
+import { createEscalationRecord } from "../utils/escalationId";
 import { computeDeadlineForOrgTier, getSlaConfigForCaseType } from "../services/slaConfigService";
 import {
   escalateGrievanceToLevel,
@@ -563,9 +564,7 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
 
     if (status === "escalated" && oldStatus !== "escalated") {
       const daysSinceCreation = Math.floor((Date.now() - grievance.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-      const escCount = await Escalation.countDocuments();
-      await Escalation.create({
-        escalationId: `ESC-${String(escCount + 1).padStart(3, "0")}`,
+      await createEscalationRecord({
         grievanceId: grievance._id,
         grievanceCode: grievance.grievanceId,
         veteranName: grievance.veteranName,
@@ -614,28 +613,39 @@ export const assignOfficer = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    grievance.officerId = officerId;
-    grievance.officerName = officerName;
+    let resolvedOfficer =
+      officerId && mongoose.isValidObjectId(officerId)
+        ? await Officer.findOne({ _id: officerId, status: "active" })
+        : null;
+    if (!resolvedOfficer && officerName) {
+      resolvedOfficer = await Officer.findOne({ name: officerName, status: "active" });
+    }
+
+    if (!resolvedOfficer) {
+      res.status(400).json({ success: false, message: "Valid active officer is required" });
+      return;
+    }
+
+    grievance.officerId = resolvedOfficer._id;
+    grievance.officerName = resolvedOfficer.name;
     grievance.status = "in-progress";
     grievance.timeline.push({
       status: "in-progress",
-      note: `Assigned to ${officerName}`,
-      updatedBy: "Admin",
+      note: `Assigned to ${resolvedOfficer.name}`,
+      updatedBy: (req as any).user?.name || "Admin",
       updatedAt: new Date(),
       eventType: "status",
     });
     await grievance.save();
 
-    if (officerId) {
-      await notifyOfficer(officerId, {
-        title: "Grievance assigned to you",
-        message: `${grievance.grievanceId} has been assigned to you. Please review.`,
-        type: "assignment",
-        grievanceId: grievance._id,
-        grievanceCode: grievance.grievanceId,
-        url: "/grievances",
-      });
-    }
+    await notifyOfficer(resolvedOfficer._id, {
+      title: "Grievance assigned to you",
+      message: `${grievance.grievanceId} has been assigned to you. Please review.`,
+      type: "assignment",
+      grievanceId: grievance._id,
+      grievanceCode: grievance.grievanceId,
+      url: "/grievances",
+    });
 
     res.status(200).json({ success: true, message: "Officer assigned", data: grievance });
   } catch (error: any) {

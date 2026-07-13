@@ -91,10 +91,14 @@ function getDisplayText(item: Record<string, unknown> & { originalText?: string;
 export default memo(function TrackCase() {
   const location = useLocation();
   const navigate = useNavigate();
-  const initialComplaint = (location.state as { complaint?: Record<string, unknown> & { _id?: string; id?: string } })?.complaint;
-  const grievanceId = initialComplaint?._id || initialComplaint?.id || "";
+  const routeState = location.state as {
+    complaint?: Record<string, unknown> & { _id?: string; id?: string };
+    grievanceId?: string;
+  } | null;
+  const initialComplaint = routeState?.complaint;
+  const grievanceId = String(initialComplaint?._id || initialComplaint?.id || routeState?.grievanceId || "");
 
-  const { data: liveData } = useTrackGrievance(grievanceId);
+  const { data: liveData, isLoading: isLoadingComplaint } = useTrackGrievance(grievanceId);
   const complaint = liveData || initialComplaint || {};
   const { t } = useTranslation();
   const { currentLang, getField } = useDynamicTranslation();
@@ -200,7 +204,7 @@ export default memo(function TrackCase() {
   const apiBase = getApiBaseUrl().replace("/api", "");
 
   const timeline = (complaint.timeline?.length > 0 ? complaint.timeline : [
-    { status: "pending", note: "Grievance submitted via portal", updatedAt: complaint.createdAt || new Date().toISOString(), eventType: "status" },
+    { status: "pending", note: "Grievance submitted via portal", updatedAt: complaint.createdAt, eventType: "status" },
   ]).slice().sort(
     (a: Record<string, unknown> & { updatedAt?: string }, b: Record<string, unknown> & { updatedAt?: string }) => new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime()
   );
@@ -210,6 +214,23 @@ export default memo(function TrackCase() {
 
   const progressPct =
     complaint.progress ?? grievanceProgressMap[complaint.status] ?? 10;
+
+  if (isLoadingComplaint && !initialComplaint) {
+    return (
+      <div className="px-3 space-y-4 pb-8">
+        <div className="flex items-center gap-3">
+          <Link to="/user/complaints" className="p-1.5 rounded-full hover:bg-secondary transition-colors">
+            <ChevronLeft className="w-5 h-5 text-foreground" />
+          </Link>
+          <h1 className="text-lg font-bold text-foreground">{t("complaintDetails")}</h1>
+        </div>
+        <div className="bg-card border border-border rounded-2xl p-6 text-center">
+          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading complaint details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-3 space-y-4 pb-8">
@@ -243,12 +264,12 @@ export default memo(function TrackCase() {
         <div>
           <p className="text-xs text-foreground/60">{t("submittedOn")}</p>
           <p className="text-xs font-medium text-foreground">
-          {new Date(complaint.createdAt || Date.now()).toLocaleDateString("en-IN", {
+          {complaint.createdAt ? new Date(complaint.createdAt).toLocaleDateString("en-IN", {
           day: "2-digit", month: "long", year: "numeric",
-          })}{" "}
-          {new Date(complaint.createdAt || Date.now()).toLocaleTimeString("en-IN", {
+          }) : "—"}{" "}
+          {complaint.createdAt ? new Date(complaint.createdAt).toLocaleTimeString("en-IN", {
           hour: "2-digit", minute: "2-digit",
-          })}
+          }) : ""}
           </p>
         </div>
         </div>

@@ -195,8 +195,18 @@ export const useUpdateGrievanceStatus = () => {
 export const useAssignOfficer = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, officerName, isNew = false }: { id: string; officerName: string; isNew?: boolean }) => {
-      const { data } = await api.patch(`/grievances/${id}/assign`, { officerName });
+    mutationFn: async ({
+      id,
+      officerName,
+      officerId,
+      isNew = false,
+    }: {
+      id: string;
+      officerName: string;
+      officerId?: string;
+      isNew?: boolean;
+    }) => {
+      const { data } = await api.patch(`/grievances/${id}/assign`, { officerName, officerId });
       return { ...data.data, isNew };
     },
     onSuccess: (data) => {
