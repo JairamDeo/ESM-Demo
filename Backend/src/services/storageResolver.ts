@@ -1,7 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { Response } from "express";
-import { deleteCloudinaryAsset, isRemoteStorageUrl } from "./cloudinaryService";
+import {
+  deleteCloudinaryAsset,
+  downloadCloudinaryAsset,
+  isCloudinaryUrl,
+  isRemoteStorageUrl,
+} from "./cloudinaryService";
 
 /** Legacy local path → absolute filesystem path. */
 export function absoluteFromPublicPath(publicPath: string): string {
@@ -9,14 +14,43 @@ export function absoluteFromPublicPath(publicPath: string): string {
   return path.join(__dirname, "../../uploads", rel);
 }
 
-/** Redirect to Cloudinary URL or stream a legacy local file. */
-export function serveStoredFile(
+/** Stream Cloudinary URL or legacy local file with correct headers (no bare redirect). */
+export async function serveStoredFile(
   res: Response,
   storedPath: string,
   options: { mimeType: string; fileName: string; disposition?: "inline" | "attachment" }
-): void {
+): Promise<void> {
+  const disposition = options.disposition || "inline";
+  const safeName = options.fileName.replace(/"/g, "");
+
   if (isRemoteStorageUrl(storedPath)) {
-    res.redirect(storedPath);
+    try {
+      let buffer: Buffer;
+      let contentType: string;
+
+      if (isCloudinaryUrl(storedPath)) {
+        const downloaded = await downloadCloudinaryAsset(storedPath);
+        buffer = downloaded.buffer;
+        contentType = options.mimeType || downloaded.contentType;
+      } else {
+        const response = await fetch(storedPath);
+        if (!response.ok) {
+          res.status(404).json({ success: false, message: "File not found" });
+          return;
+        }
+        buffer = Buffer.from(await response.arrayBuffer());
+        contentType =
+          options.mimeType ||
+          response.headers.get("content-type") ||
+          "application/octet-stream";
+      }
+
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Disposition", `${disposition}; filename="${safeName}"`);
+      res.send(buffer);
+    } catch {
+      res.status(404).json({ success: false, message: "File not found" });
+    }
     return;
   }
 
@@ -27,10 +61,7 @@ export function serveStoredFile(
   }
 
   res.setHeader("Content-Type", options.mimeType);
-  res.setHeader(
-    "Content-Disposition",
-    `${options.disposition || "inline"}; filename="${options.fileName.replace(/"/g, "")}"`
-  );
+  res.setHeader("Content-Disposition", `${disposition}; filename="${safeName}"`);
   fs.createReadStream(abs).pipe(res);
 }
 

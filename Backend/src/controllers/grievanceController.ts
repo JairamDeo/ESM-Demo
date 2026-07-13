@@ -8,6 +8,7 @@ import Station from "../models/Station";
 import CaseType from "../models/CaseType";
 import CaseTypeRequiredDocuments from "../models/CaseTypeRequiredDocuments";
 import Officer from "../models/Officer";
+import User from "../models/User";
 import QRCode from "../models/QRCode";
 import { getGrievanceScopeFilter } from "../utils/scopeFilter";
 import { storeUploadedBuffer, storeConcernAttachment } from "../services/storageService";
@@ -15,6 +16,12 @@ import {
   enrichGrievanceWithDocuments,
   reuploadGrievanceDocument,
   isValidObjectId,
+  getChecklistContext,
+  validateMandatoryDraftUploads,
+  validateMandatoryFilesByLabel,
+  persistRequiredDocumentsForGrievance,
+  parseRequiredDocumentUploads,
+  parseGrievanceUploadFiles,
 } from "../services/grievanceDocuments";
 import {
   effectiveConcernStatus,
@@ -45,6 +52,7 @@ import { OrgTier } from "../constants/orgTiers";
 import { notifyOfficer, notifyVeteran } from "../services/notificationService";
 import { OfficerLevel } from "../constants/officerLevels";
 import VeteranRequiredDocumentUpload from "../models/VeteranRequiredDocumentUpload";
+import { serveStoredFile } from "../services/storageResolver";
 
 // ─── Helper: get date filter ─────────────────────────────────────────────────
 const getDateFilter = (period?: string): any => {
@@ -153,12 +161,17 @@ export const getGrievanceById = async (req: Request, res: Response): Promise<voi
   }
 };
 
+// ─── Helper: normalize veteran mobile ────────────────────────────────────────
+function normalizeVeteranPhone(phone?: string): string {
+  return String(phone || "").replace(/\D/g, "").slice(-10);
+}
+
 // ─── CREATE grievance ────────────────────────────────────────────────────────
 export const createGrievance = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
-      stationName, officerName, priority, description, submissionSource,
+      stationName, stationId: stationIdRaw, officerName, priority, description, submissionSource,
       caseTypeId,
     } = req.body;
 
@@ -168,13 +181,41 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     let resolvedType = String(type || "").trim();
     let resolvedName = String(veteranName || "").trim();
     let resolvedStation = String(stationName || "").trim();
-    let resolvedPhone = String(veteranPhone || "").trim();
+    let resolvedPhone = normalizeVeteranPhone(veteranPhone);
+
+    const stationIdStr = String(stationIdRaw || "").trim();
+    if (stationIdStr && mongoose.isValidObjectId(stationIdStr)) {
+      const stationDoc = await Station.findOne({ _id: stationIdStr, isActive: true }).lean();
+      if (!stationDoc) {
+        res.status(400).json({ success: false, message: "Selected Station HQ was not found. Please refresh and try again." });
+        return;
+      }
+      resolvedStation = stationDoc.name;
+    }
 
     if (isVeteran) {
-      if (!resolvedPhone && currentUser?.phone) resolvedPhone = String(currentUser.phone).trim();
+      if (!resolvedPhone && currentUser?.phone) resolvedPhone = normalizeVeteranPhone(currentUser.phone);
       if (!resolvedName) {
         resolvedName = resolvedPhone ? `Veteran (${resolvedPhone})` : "Veteran";
       }
+    }
+
+    const isManualAdmin = !isVeteran && String(submissionSource || "").trim() === "manual";
+
+    if (isManualAdmin && !resolvedPhone) {
+      res.status(400).json({
+        success: false,
+        message: "Veteran mobile number is required so the grievance appears in their account.",
+      });
+      return;
+    }
+
+    if (isManualAdmin && resolvedPhone.length !== 10) {
+      res.status(400).json({
+        success: false,
+        message: "Enter a valid 10-digit veteran mobile number.",
+      });
+      return;
     }
 
     const fieldErrors: string[] = [];
@@ -187,6 +228,60 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       return;
     }
 
+    const checklistCtx = await getChecklistContext(
+      caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined,
+      resolvedType
+    );
+
+    const { attachmentFiles, requiredDocumentFiles } = parseGrievanceUploadFiles(
+      req.files as
+        | Express.Multer.File[]
+        | { attachments?: Express.Multer.File[]; requiredDocuments?: Express.Multer.File[] }
+        | undefined
+    );
+    const requiredFilesByLabel = parseRequiredDocumentUploads(
+      req.files as
+        | Express.Multer.File[]
+        | { attachments?: Express.Multer.File[]; requiredDocuments?: Express.Multer.File[] }
+        | undefined,
+      req.body.requiredDocumentLabels
+    );
+    if (requiredDocumentFiles.length > 0 && requiredFilesByLabel.size === 0) {
+      requiredDocumentFiles.forEach((file, index) => {
+        requiredFilesByLabel.set(`DOC-${index + 1}`, file);
+      });
+    }
+
+    // Enforce only admin-marked mandatory documents; optional docs may be skipped.
+    if (isVeteran && checklistCtx?.mandatoryLabels.length) {
+      const mandatoryCheck = await validateMandatoryDraftUploads(
+        currentUser.id,
+        checklistCtx.caseType._id.toString(),
+        resolvedType
+      );
+      if (!mandatoryCheck.ok) {
+        res.status(400).json({
+          success: false,
+          message: `Please upload mandatory documents: ${mandatoryCheck.missing.join(", ")}`,
+        });
+        return;
+      }
+    }
+
+    if (isManualAdmin && checklistCtx?.mandatoryLabels.length) {
+      const mandatoryCheck = validateMandatoryFilesByLabel(
+        checklistCtx.mandatoryLabels,
+        requiredFilesByLabel
+      );
+      if (!mandatoryCheck.ok) {
+        res.status(400).json({
+          success: false,
+          message: `Please upload mandatory documents: ${mandatoryCheck.missing.join(", ")}`,
+        });
+        return;
+      }
+    }
+
     const slaConfig = await getSlaConfigForCaseType(
       caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined
     );
@@ -194,26 +289,61 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     const slaTierDeadline = computeDeadlineForOrgTier(slaConfig, "station", now);
     const { org, officer: l1Officer } = await assignStationL1ForGrievance(resolvedStation);
 
+    let assignedOfficer = l1Officer;
+    if (isManualAdmin && officerName && String(officerName).trim()) {
+      const manualOfficerQuery: Record<string, unknown> = {
+        name: String(officerName).trim(),
+        role: "Station HQ Officer",
+      };
+      if (org?.stationId) manualOfficerQuery.station = org.stationId;
+      else manualOfficerQuery.stationName = { $regex: `^${resolvedStation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" };
+
+      const manualOfficer = await Officer.findOne(manualOfficerQuery);
+      if (manualOfficer) assignedOfficer = manualOfficer;
+    }
+
     const userId = isVeteran ? currentUser.id : undefined;
+    let linkedVeteranUserId = userId;
+    let linkedVeteran: InstanceType<typeof User> | null = null;
+
+    if (isManualAdmin) {
+      linkedVeteran = await User.findOne({ phone: resolvedPhone, isActive: true });
+      if (!linkedVeteran) {
+        res.status(400).json({
+          success: false,
+          message: "No veteran account found for this mobile number. Ask the veteran to register in the app first.",
+        });
+        return;
+      }
+      linkedVeteranUserId = linkedVeteran._id.toString();
+      if (!resolvedName || resolvedName === "Veteran") {
+        resolvedName = linkedVeteran.name || `${veteranRank || linkedVeteran.rank || ""} ${resolvedPhone}`.trim();
+      }
+    }
+
     const grievanceId = `GRV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // ── Build createdBy string ─────────────────────────────────────────────
     let createdBy = "";
     if (isVeteran) {
       const identifier = resolvedPhone || veteranArmyNo || currentUser.id;
-      createdBy = `${resolvedName} (${identifier})`;
+      createdBy = `${resolvedName} (veteran · ${identifier})`;
+    } else if (isManualAdmin) {
+      const adminLabel = currentUser?.email || currentUser?.name || "Admin";
+      createdBy = `${adminLabel} (admin) on behalf of ${resolvedName} (${resolvedPhone})`;
     } else {
-      // Admin / Officer: show email + id
-      const adminEmail = currentUser?.email || currentUser?.name || "Admin";
-      createdBy = `${adminEmail} (${currentUser?.id || "unknown"})`;
+      const adminLabel = currentUser?.email || currentUser?.name || "Admin";
+      createdBy = `${adminLabel} (admin)`;
     }
+
+    const submittedBy: "admin" | "veteran" = isVeteran ? "veteran" : "admin";
     
-    const files = req.files as Express.Multer.File[];
+    const files = attachmentFiles;
     const attachments: string[] = [];
 
     if (files && files.length > 0) {
-      const grievanceFolder = userId
-        ? `grievances/attachments/${userId}`
+      const grievanceFolder = linkedVeteranUserId
+        ? `grievances/attachments/${linkedVeteranUserId}`
         : `grievances/attachments/anonymous`;
 
       for (const file of files) {
@@ -229,9 +359,9 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
 
     // ── Fetch pre-uploaded documents ───────────────────────────────────────
     let uploads: any[] = [];
-    if (userId) {
+    if (linkedVeteranUserId) {
       const uploadFilter: Record<string, unknown> = {
-        userId,
+        userId: linkedVeteranUserId,
         grievanceId: { $exists: false },
       };
       const caseTypeIdStr = String(caseTypeId || "").trim();
@@ -278,24 +408,31 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       stationId: org?.stationId,
       hqId: org?.hqId,
       stateId: org?.stateId,
-      officerId: l1Officer?._id,
-      officerName: l1Officer?.name || officerName || "Unassigned",
+      officerId: assignedOfficer?._id,
+      officerName: assignedOfficer?.name || officerName || "Unassigned",
       assignedLevel: "L1",
       assignedOrgTier: "station",
       priority: priority || "medium",
       description,
       attachments,
       createdBy,
-      submissionSource: submissionSource || "portal",
+      submittedBy,
+      submissionSource: submissionSource || (isVeteran ? "portal" : "manual"),
       ...(slaTierDeadline ? { slaDeadline: slaTierDeadline, slaTierDeadline } : {}),
-      userId,
+      userId: linkedVeteranUserId,
       ...translationData,
       timeline: [{
         status: "pending",
-        note: l1Officer
-          ? `Grievance submitted and assigned to Station HQ L1 officer ${l1Officer.name}`
-          : "Grievance submitted — no Station HQ L1 officer found",
-        updatedBy: veteranName,
+        note: isManualAdmin
+          ? assignedOfficer
+            ? `Grievance filed by admin on behalf of veteran and assigned to ${assignedOfficer.name}`
+            : "Grievance filed by admin on behalf of veteran"
+          : assignedOfficer
+            ? `Grievance submitted and assigned to Station HQ L1 officer ${assignedOfficer.name}`
+            : "Grievance submitted — no Station HQ L1 officer found",
+        updatedBy: isManualAdmin
+          ? (currentUser?.name || currentUser?.email || "Admin")
+          : resolvedName,
         updatedAt: now,
         attachments,
         eventType: "status",
@@ -316,10 +453,26 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       );
     }
 
-    if (userId) {
-      await notifyVeteran(userId, {
-        title: "Grievance Submitted",
-        message: `Your grievance ${grievanceId} has been submitted successfully`,
+    if (isManualAdmin && checklistCtx && requiredFilesByLabel.size > 0) {
+      const manualDocUrls = await persistRequiredDocumentsForGrievance({
+        grievance,
+        ctx: checklistCtx,
+        filesByLabel: requiredFilesByLabel,
+        uploadedByUserId: linkedVeteranUserId || currentUser.id,
+        veteranKey: linkedVeteran ? `veteran-${linkedVeteran.phone}` : `admin-manual-${currentUser.id}`,
+      });
+      if (manualDocUrls.length > 0) {
+        grievance.attachments = [...(grievance.attachments || []), ...manualDocUrls];
+        await grievance.save();
+      }
+    }
+
+    if (linkedVeteranUserId) {
+      await notifyVeteran(linkedVeteranUserId, {
+        title: isManualAdmin ? "Grievance filed on your behalf" : "Grievance Submitted",
+        message: isManualAdmin
+          ? `Grievance ${grievanceId} was filed for you by admin. You can track it in My Complaints.`
+          : `Your grievance ${grievanceId} has been submitted successfully`,
         type: "grievance_update",
         grievanceId: grievance._id,
         grievanceCode: grievanceId,
@@ -327,8 +480,8 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       });
     }
 
-    if (l1Officer?._id) {
-      await notifyOfficer(l1Officer._id, {
+    if (assignedOfficer?._id) {
+      await notifyOfficer(assignedOfficer._id, {
         title: "New grievance assigned",
         message: `${grievanceId} from ${veteranName} at ${stationName}. Please review and take action.`,
         type: "assignment",
@@ -970,6 +1123,40 @@ export const deleteGrievance = async (req: Request, res: Response): Promise<void
   }
 };
 
+// ─── Admin: lookup veteran by mobile (for manual grievance filing) ───────────
+export const lookupVeteranByPhone = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const phone = normalizeVeteranPhone(String(req.query.phone || ""));
+    if (phone.length !== 10) {
+      res.status(400).json({ success: false, message: "Enter a valid 10-digit mobile number." });
+      return;
+    }
+
+    const user = await User.findOne({ phone, isActive: true }).lean();
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "No veteran account found for this mobile number.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user._id,
+        phone: user.phone,
+        name: user.name || "",
+        rank: user.rank || "",
+        armyNumber: user.armyNumber || user.serviceNumber || "",
+        stationHQ: user.stationHQ || "",
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ─── GET my grievances (veteran) ─────────────────────────────────────────────
 export const getMyGrievances = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -1552,6 +1739,43 @@ export const rejectEscalationRequest = async (req: Request, res: Response): Prom
     });
 
     res.status(200).json({ success: true, message: "Escalation request rejected", data: grievance });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/** Inline preview of a submitted required document (admin / officer). */
+export const previewGrievanceDocument = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const grievanceId = req.params.id;
+    const uploadId = req.params.uploadId;
+
+    const grievance = await Grievance.findById(grievanceId);
+    if (!grievance) {
+      res.status(404).json({ success: false, message: "Grievance not found" });
+      return;
+    }
+
+    const upload = await VeteranRequiredDocumentUpload.findById(uploadId);
+    if (!upload) {
+      res.status(404).json({ success: false, message: "Document not found" });
+      return;
+    }
+
+    const linkedToGrievance =
+      upload.grievanceId?.toString() === grievanceId ||
+      Boolean(grievance.attachments?.includes(upload.storedPath));
+
+    if (!linkedToGrievance) {
+      res.status(403).json({ success: false, message: "Document does not belong to this grievance" });
+      return;
+    }
+
+    await serveStoredFile(res, upload.storedPath, {
+      mimeType: upload.mimeType,
+      fileName: upload.originalFileName,
+      disposition: "inline",
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

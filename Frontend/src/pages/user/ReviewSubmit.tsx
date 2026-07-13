@@ -27,6 +27,16 @@ export default function ReviewSubmit() {
     return checklistData?.items || [];
   }, [stateDocuments, checklistData?.items]);
 
+  // Only admin-marked mandatory docs (red *) block submission; optional docs are allowed.
+  const missingMandatoryDocs = useMemo(() => {
+    return documents
+      .filter(
+        (doc: { isMandatory?: boolean; upload?: unknown }) =>
+          doc.isMandatory === true && !doc.upload
+      )
+      .map((doc: { label?: string; text?: string }) => doc.text || doc.label || "Document");
+  }, [documents]);
+
   const closePreview = () => {
     preview?.revoke?.();
     setPreview(null);
@@ -72,6 +82,12 @@ export default function ReviewSubmit() {
     if (!form.stationHQ?.trim()) {
       toast.error("Please select your Station HQ before submitting.");
       navigate("/user/raise-grievance", { state: { form, caseType, isFromQR } });
+      return;
+    }
+
+    if (missingMandatoryDocs.length > 0) {
+      toast.error(`Please upload mandatory document(s): ${missingMandatoryDocs.join(", ")}`);
+      navigate("/user/document-checklist", { state: { form, isFromQR, documents } });
       return;
     }
 
@@ -272,7 +288,7 @@ export default function ReviewSubmit() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={createGrievance.isPending}
+            disabled={createGrievance.isPending || missingMandatoryDocs.length > 0}
             className="flex-1 min-w-0 bg-[#826CF3] text-white font-bold text-sm py-3.5 px-3 rounded-xl hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(130,108,243,0.35)] disabled:opacity-50 flex items-center justify-center"
           >
             {createGrievance.isPending ? (
