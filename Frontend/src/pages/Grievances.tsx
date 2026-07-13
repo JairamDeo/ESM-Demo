@@ -83,6 +83,11 @@ type GrievanceData = Record<string, unknown> & {
   _originalOfficer?: string;
 };
 
+function getGrievanceApiId(grievance: GrievanceData): string {
+  const raw = grievance._id ?? grievance.id ?? grievance.grievanceId;
+  return raw ? String(raw) : "";
+}
+
 interface FilterState { priority:string; station:string; officer:string; caseType:string; dateFrom:string; dateTo:string; }
 
 function Modal({ open, onClose, title, children, wide=false }: { open:boolean; onClose:()=>void; title:string; children:React.ReactNode; wide?:boolean }) {
@@ -726,7 +731,7 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
 function EscalateGrievanceModal({ grievance, onClose }: { grievance: GrievanceData; onClose: () => void }) {
   const [escalationType, setEscalationType] = useState<"no_response" | "concern_pending">("no_response");
   const [note, setNote] = useState("");
-  const grievanceId = grievance._id || grievance.id;
+  const grievanceId = getGrievanceApiId(grievance);
   const { data: preview, isLoading } = useEscalationPreview(grievanceId, Boolean(grievanceId));
   const manualEscalate = useManualEscalateGrievance();
 
@@ -835,7 +840,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   const { user } = useAuth();
   const permissions = usePermissions();
 
-  const { data: liveGrievance, isLoading: detailLoading } = useGrievance(initialGrievance._id || "");
+  const { data: liveGrievance, isLoading: detailLoading } = useGrievance(getGrievanceApiId(initialGrievance));
   const grievance = liveGrievance || initialGrievance;
   const submittedDocs: SubmittedDoc[] = useMemo(() => (grievance.submittedDocuments as SubmittedDoc[] | undefined) || [], [grievance.submittedDocuments]);
   const concernStatus: string = getEffectiveConcernStatus(grievance as unknown as Record<string, unknown>);
@@ -1116,7 +1121,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => approveEscalation.mutate(grievance._id)}
+                  onClick={() => approveEscalation.mutate(getGrievanceApiId(grievance))}
                   disabled={approveEscalation.isPending}
                   className="text-xs px-3 py-1.5 rounded-lg bg-success/15 text-success hover:bg-success/25 disabled:opacity-60"
                 >
@@ -1124,7 +1129,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                 </button>
                 <button
                   type="button"
-                  onClick={() => rejectEscalation.mutate(grievance._id)}
+                  onClick={() => rejectEscalation.mutate(getGrievanceApiId(grievance))}
                   disabled={rejectEscalation.isPending}
                   className="text-xs px-3 py-1.5 rounded-lg bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-60"
                 >
@@ -1154,7 +1159,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               onClick={() =>
                 requestUpperTier.mutate(
                   {
-                    id: grievance._id,
+                    id: getGrievanceApiId(grievance),
                     reason: requestReason.trim() || `${user?.name} requested escalation to ${orgTierLabel(nextUpperTier!)} L1`,
                   },
                   { onSuccess: () => setRequestReason("") }

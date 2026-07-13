@@ -39,10 +39,12 @@ import {
 } from "../services/concernHelpers";
 import { assignStationL1ForGrievance, findOfficerAtOrgTier, resolveStationOrg } from "../services/grievanceOfficerResolver";
 import { createEscalationRecord } from "../utils/escalationId";
+import { findGrievanceByParamId } from "../utils/grievanceLookup";
 import { computeDeadlineForOrgTier, getSlaConfigForCaseType } from "../services/slaConfigService";
 import {
   escalateGrievanceToLevel,
   escalateGrievanceToOrgTier,
+  buildOrgFromGrievance,
   nextOrgTier,
   REASON_LABELS,
   ORG_TIER_LABELS,
@@ -1377,8 +1379,8 @@ export const deleteAllGrievances = async (_req: Request, res: Response): Promise
 // ─── Escalation preview (manual escalate modal) ──────────────────────────────
 export const getEscalationPreview = async (req: Request, res: Response): Promise<void> => {
   try {
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1389,15 +1391,8 @@ export const getEscalationPreview = async (req: Request, res: Response): Promise
     let toOfficer: { _id: mongoose.Types.ObjectId; name: string } | null = null;
 
     if (toOrgTier && fromLevel === "L1") {
-      const org = grievance.stationId || grievance.hqId || grievance.stateId
-        ? {
-            stationId: grievance.stationId,
-            stationName: grievance.stationName,
-            hqId: grievance.hqId,
-            stateId: grievance.stateId,
-          }
-        : await resolveStationOrg(grievance.stationName);
-      const officer = org ? await findOfficerAtOrgTier(toOrgTier, "L1", org) : null;
+      const org = await buildOrgFromGrievance(grievance);
+      const officer = await findOfficerAtOrgTier(toOrgTier, "L1", org);
       if (officer) {
         toOfficer = { _id: officer._id, name: officer.name };
       }
@@ -1439,8 +1434,8 @@ export const manualEscalateGrievance = async (req: Request, res: Response): Prom
       return;
     }
 
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1501,8 +1496,8 @@ export const requestEscalationTakeover = async (req: Request, res: Response): Pr
       return;
     }
 
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1570,8 +1565,8 @@ export const requestEscalationTakeover = async (req: Request, res: Response): Pr
 export const approveEscalationRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1637,8 +1632,8 @@ export const approveEscalationRequest = async (req: Request, res: Response): Pro
 export const requestEscalateToUpperTier = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1706,8 +1701,8 @@ export const requestEscalateToUpperTier = async (req: Request, res: Response): P
 export const rejectEscalationRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
