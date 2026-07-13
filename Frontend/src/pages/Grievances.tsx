@@ -5,7 +5,7 @@ import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   UserCheck, Printer, ChevronDown, Building2,
-  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon, UploadCloud,
+  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon, UploadCloud, Star,
 } from "lucide-react";
 import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useResolveConcern, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, useRequiredDocumentsForCaseType, useLookupVeteranByPhone, useSlaSettings, useUpdateSlaSettings, useRequestEscalationTakeover, useApproveEscalationRequest, useRejectEscalationRequest, useEscalationPreview, useManualEscalateGrievance, useRequestEscalateToUpperTier, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
@@ -73,7 +73,7 @@ interface SubmittedDoc { uploadId?: string; documentLabel?: string; documentText
 interface TimelineEntry { eventType: string; status?: string; note?: string; concernScope?: string; documentLabel?: string; documentText?: string; documentUploadId?: string; concernDocuments?: { documentLabel: string; documentText?: string; documentUploadId?: string }[]; attachments?: string[]; updatedAt?: string; updatedBy?: string; language?: string; translationFailed?: boolean; originalText?: string; translatedText?: string; fromLevel?: string; toLevel?: string; }
 type GrievanceData = Record<string, unknown> & {
   _id?: string; id?: string; grievanceId?: string; type?: string; status?: string; priority?: string;
-  veteranName?: string; veteran?: string; veteranPhone?: string; veteranArmyNo?: string; veteranRank?: string;
+  veteranName?: string; veteran?: string; veteranPhone?: string; veteranArmyNo?: string; veteranRank?: string; rank?: string;
   stationName?: string; station?: string; stationId?: string;
   officerName?: string; officer?: string; officerId?: string;
   hqId?: string; assignedLevel?: string; assignedOrgTier?: string;
@@ -1096,6 +1096,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         <div className="grid grid-cols-2 gap-4">
           {[
             { icon:User, label:"Veteran", value: getVeteranDisplay(grievance.veteranName || grievance.veteran) || "—" },
+            { icon:Star, label:"Rank", value: grievance.veteranRank || grievance.rank || "—" },
             { icon:Tag, label:"Army No.", value:grievance.veteranArmyNo || grievance.armyNo || "—" },
             { icon:Building2, label:"Station", value:grievance.stationName || grievance.station },
             { icon:UserCheck, label:"Assigned Officer", value:`${grievance.officerName || grievance.officer}${assignedLevel ? ` (${orgTierLabel(assignedOrgTier)} ${assignedLevel})` : ""}` },
