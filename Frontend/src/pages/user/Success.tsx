@@ -33,9 +33,42 @@ export default function Success() {
     }
   }, [date]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(grievanceId);
-    toast.success("Copied to clipboard");
+  const handleCopy = async () => {
+    const text = String(grievanceId ?? "").trim();
+    if (!text || text === "N/A") {
+      toast.error(t("copyFailed"));
+      return;
+    }
+
+    let copied = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      }
+    } catch {
+      // Clipboard API can fail on HTTP or without permission — fall back below.
+    }
+
+    if (!copied) {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, text.length);
+        copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (copied) toast.success(t("copiedToClipboard"));
+    else toast.error(t("copyFailed"));
   };
 
   return (

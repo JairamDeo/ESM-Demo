@@ -333,6 +333,8 @@ const resources = {
       dateAndTime: "Date & Time",
       grievanceId: "Grievance ID",
       copy: "Copy",
+      copiedToClipboard: "Copied to clipboard",
+      copyFailed: "Could not copy. Please copy the ID manually.",
       submitted: "Submitted",
 
       // ─── Nav bar ───────────────────────────────────────────────────────────
@@ -683,6 +685,8 @@ const resources = {
       dateAndTime: "दिनांक और समय",
       grievanceId: "शिकायत आईडी",
       copy: "कॉपी करें",
+      copiedToClipboard: "क्लिपबोर्ड पर कॉपी हो गया",
+      copyFailed: "कॉपी नहीं हो सका। कृपया आईडी मैन्युअल रूप से कॉपी करें।",
       submitted: "जमा किया गया",
 
       // ─── Nav bar ───────────────────────────────────────────────────────────
