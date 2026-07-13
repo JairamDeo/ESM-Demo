@@ -22,6 +22,7 @@ import {
   persistRequiredDocumentsForGrievance,
   parseRequiredDocumentUploads,
   parseGrievanceUploadFiles,
+  resolveDraftUploadsForGrievance,
 } from "../services/grievanceDocuments";
 import {
   effectiveConcernStatus,
@@ -360,20 +361,19 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       }
     }
 
-    // ── Fetch pre-uploaded documents ───────────────────────────────────────
+    // ── Fetch pre-uploaded documents (only those explicitly submitted with this grievance) ──
     let uploads: any[] = [];
     if (linkedVeteranUserId) {
-      const uploadFilter: Record<string, unknown> = {
+      const hasExplicitUploadIds = Object.prototype.hasOwnProperty.call(req.body, "documentUploadIds");
+      const explicitUploadIds = hasExplicitUploadIds ? parseDocumentUploadIds(req.body) : undefined;
+
+      uploads = await resolveDraftUploadsForGrievance({
         userId: linkedVeteranUserId,
-        grievanceId: { $exists: false },
-      };
-      const caseTypeIdStr = String(caseTypeId || "").trim();
-      if (caseTypeIdStr && mongoose.isValidObjectId(caseTypeIdStr)) {
-        uploadFilter.caseType = caseTypeIdStr;
-      } else {
-        uploadFilter.caseTypeName = resolvedType;
-      }
-      uploads = await VeteranRequiredDocumentUpload.find(uploadFilter);
+        caseTypeId: caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined,
+        caseTypeName: resolvedType,
+        documentUploadIds: explicitUploadIds,
+        isManualAdmin,
+      });
       for (const upload of uploads) {
         attachments.push(upload.storedPath);
       }

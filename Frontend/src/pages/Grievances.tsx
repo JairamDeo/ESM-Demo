@@ -1321,7 +1321,9 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               })}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p className="text-xs text-muted-foreground">No documents attached.</p>
+        )}
 
         <div className="space-y-3">
           <CollapsiblePanel
@@ -1748,6 +1750,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     if (uploadedLabels.length > 0) {
       fd.append("requiredDocumentLabels", JSON.stringify(uploadedLabels));
     }
+    fd.append("documentUploadIds", JSON.stringify([]));
 
     await createGrievance.mutateAsync(fd);
     onClose();

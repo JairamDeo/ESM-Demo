@@ -572,10 +572,13 @@ export default function DocumentCheckList() {
         <div className="bg-card border border-border rounded-xl p-6 flex flex-col items-center text-center">
           <Folder className="w-12 h-12 text-muted-foreground/30 mb-3" />
           <p className="text-sm font-medium text-foreground">{t("noDocumentsRequired")}</p>
+          {isNewGrievanceFlow && (
+            <p className="text-xs text-muted-foreground mt-1">{t("proceedNextStep")}</p>
+          )}
         </div>
       )}
 
-      {(documents.length > 0 || generalConcernMode) && (
+      {(documents.length > 0 || generalConcernMode || isNewGrievanceFlow) && (
         <button
           onClick={handleContinue}
           disabled={

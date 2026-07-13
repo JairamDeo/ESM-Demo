@@ -106,6 +106,11 @@ export default function ReviewSubmit() {
       formData.append("submissionSource", isFromQR ? "qr_code" : "portal");
       formData.append("priority", "medium");
 
+      const uploadIds = documents
+        .map((doc: { upload?: { uploadId?: string } }) => doc.upload?.uploadId)
+        .filter((id): id is string => Boolean(id));
+      formData.append("documentUploadIds", JSON.stringify(uploadIds));
+
       const result = await createGrievance.mutateAsync(formData);
       clearGrievanceDraft(user?.id);
       clearDraftResumeSession();
