@@ -175,8 +175,8 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
   try {
     const {
       type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
-      stationName, stationId: stationIdRaw, officerName, priority, description, submissionSource,
-      caseTypeId,
+      stationName, stationId: stationIdRaw, officerName, officerId: officerIdRaw, priority, description, submissionSource,
+      caseTypeId: caseTypeIdRaw,
     } = req.body;
 
     const currentUser = (req as any).user;
@@ -186,6 +186,14 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     let resolvedName = String(veteranName || "").trim();
     let resolvedStation = String(stationName || "").trim();
     let resolvedPhone = normalizeVeteranPhone(veteranPhone);
+
+    let resolvedCaseTypeId = String(caseTypeIdRaw || "").trim();
+    if (!resolvedCaseTypeId || !mongoose.isValidObjectId(resolvedCaseTypeId)) {
+      const caseTypeDoc = await CaseType.findOne({
+        name: { $regex: new RegExp(`^${resolvedType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      }).select("_id").lean();
+      resolvedCaseTypeId = caseTypeDoc?._id ? String(caseTypeDoc._id) : "";
+    }
 
     const stationIdStr = String(stationIdRaw || "").trim();
     if (stationIdStr && mongoose.isValidObjectId(stationIdStr)) {
@@ -233,7 +241,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     }
 
     const checklistCtx = await getChecklistContext(
-      caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined,
+      resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId) ? resolvedCaseTypeId : undefined,
       resolvedType
     );
 
@@ -287,23 +295,30 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     }
 
     const slaConfig = await getSlaConfigForCaseType(
-      caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined
+      resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId) ? resolvedCaseTypeId : undefined
     );
     const now = new Date();
     const slaTierDeadline = computeDeadlineForOrgTier(slaConfig, "station", now);
     const { org, officer: l1Officer } = await assignStationL1ForGrievance(resolvedStation);
 
     let assignedOfficer = l1Officer;
-    if (isManualAdmin && officerName && String(officerName).trim()) {
-      const manualOfficerQuery: Record<string, unknown> = {
-        name: String(officerName).trim(),
-        role: "Station HQ Officer",
-      };
-      if (org?.stationId) manualOfficerQuery.station = org.stationId;
-      else manualOfficerQuery.stationName = { $regex: `^${resolvedStation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" };
+    if (isManualAdmin) {
+      const officerIdStr = String(officerIdRaw || "").trim();
+      if (officerIdStr && mongoose.isValidObjectId(officerIdStr)) {
+        const byId = await Officer.findOne({ _id: officerIdStr, status: "active" });
+        if (byId) assignedOfficer = byId;
+      }
+      if (!assignedOfficer?._id && officerName && String(officerName).trim()) {
+        const manualOfficerQuery: Record<string, unknown> = {
+          name: String(officerName).trim(),
+          role: "Station HQ Officer",
+        };
+        if (org?.stationId) manualOfficerQuery.station = org.stationId;
+        else manualOfficerQuery.stationName = { $regex: `^${resolvedStation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" };
 
-      const manualOfficer = await Officer.findOne(manualOfficerQuery);
-      if (manualOfficer) assignedOfficer = manualOfficer;
+        const manualOfficer = await Officer.findOne(manualOfficerQuery);
+        if (manualOfficer) assignedOfficer = manualOfficer;
+      }
     }
 
     const userId = isVeteran ? currentUser.id : undefined;
@@ -369,7 +384,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
 
       uploads = await resolveDraftUploadsForGrievance({
         userId: linkedVeteranUserId,
-        caseTypeId: caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined,
+        caseTypeId: resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId) ? resolvedCaseTypeId : undefined,
         caseTypeName: resolvedType,
         documentUploadIds: explicitUploadIds,
         isManualAdmin,
@@ -396,12 +411,33 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       };
     }
 
+    const filedByMeta = isVeteran
+      ? {
+          filedById: currentUser.id,
+          filedByType: "user" as const,
+          filedByName: currentUser.name || resolvedName,
+          filedByEmail: resolvedPhone ? `+91 ${resolvedPhone}` : undefined,
+        }
+      : isManualAdmin
+        ? {
+            filedById: currentUser.id,
+            filedByType: "officer" as const,
+            filedByName: currentUser.name || "Admin",
+            filedByEmail: currentUser.email,
+          }
+        : {
+            filedById: currentUser.id,
+            filedByType: "officer" as const,
+            filedByName: currentUser.name || "Admin",
+            filedByEmail: currentUser.email,
+          };
+
     const grievance = await Grievance.create({
       grievanceId,
       type: resolvedType,
       caseTypeId:
-        caseTypeId && mongoose.isValidObjectId(String(caseTypeId))
-          ? caseTypeId
+        resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId)
+          ? resolvedCaseTypeId
           : undefined,
       veteranName: resolvedName,
       veteranPhone: resolvedPhone || veteranPhone,
@@ -419,6 +455,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       description,
       attachments,
       createdBy,
+      ...filedByMeta,
       submittedBy,
       submissionSource: submissionSource || (isVeteran ? "portal" : "manual"),
       ...(slaTierDeadline ? { slaDeadline: slaTierDeadline, slaTierDeadline } : {}),
@@ -461,14 +498,19 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
         grievance,
         ctx: checklistCtx,
         filesByLabel: requiredFilesByLabel,
-        uploadedByUserId: linkedVeteranUserId || currentUser.id,
+        uploadedByUserId: linkedVeteranUserId!,
         veteranKey: linkedVeteran ? `veteran-${linkedVeteran.phone}` : `admin-manual-${currentUser.id}`,
       });
       if (manualDocUrls.length > 0) {
         grievance.attachments = [...(grievance.attachments || []), ...manualDocUrls];
+        if (!grievance.caseTypeId && checklistCtx.caseType._id) {
+          grievance.caseTypeId = checklistCtx.caseType._id;
+        }
         await grievance.save();
       }
     }
+
+    const responseData = await enrichGrievanceWithDocuments(grievance.toObject());
 
     if (linkedVeteranUserId) {
       await notifyVeteran(linkedVeteranUserId, {
@@ -503,7 +545,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       { $inc: { totalCases: 1, pendingCases: 1 } }
     );
 
-    res.status(201).json({ success: true, message: "Grievance created successfully", data: grievance });
+    res.status(201).json({ success: true, message: "Grievance created successfully", data: responseData });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

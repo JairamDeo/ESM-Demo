@@ -81,6 +81,7 @@ type GrievanceData = Record<string, unknown> & {
   timeline?: TimelineEntry[]; submittedDocuments?: SubmittedDoc[]; attachments?: string[];
   pendingEscalationRequest?: { status?: string; reason?: string };
   _originalOfficer?: string;
+  filedByName?: string; filedByEmail?: string; filedByType?: string; createdBy?: string; submittedBy?: string;
 };
 
 function getGrievanceApiId(grievance: GrievanceData): string {
@@ -1098,6 +1099,9 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
             { icon:User, label:"Veteran", value: getVeteranDisplay(grievance.veteranName || grievance.veteran) || "—" },
             { icon:Star, label:"Rank", value: grievance.veteranRank || grievance.rank || "—" },
             { icon:Tag, label:"Army No.", value:grievance.veteranArmyNo || grievance.armyNo || "—" },
+            { icon:UserCheck, label:"Filed By", value: grievance.filedByName
+              ? `${grievance.filedByName}${grievance.filedByEmail ? ` (${grievance.filedByEmail})` : ""}${grievance.filedByType === "user" ? " · Veteran" : grievance.submittedBy === "admin" || grievance.filedByType === "officer" ? " · Admin" : ""}`
+              : grievance.createdBy || "—" },
             { icon:Building2, label:"Station", value:grievance.stationName || grievance.station },
             { icon:UserCheck, label:"Assigned Officer", value:`${grievance.officerName || grievance.officer}${assignedLevel ? ` (${orgTierLabel(assignedOrgTier)} ${assignedLevel})` : ""}` },
             { icon:Clock, label:"SLA Deadline", value: formatSlaDeadline(grievance.slaTierDeadline || grievance.slaDeadline) },
@@ -1606,7 +1610,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     () => caseTypesList.find((t: { name?: string }) => t.name === form.type),
     [caseTypesList, form.type]
   );
-  const caseTypeId = selectedCaseType?._id as string | undefined;
+  const caseTypeId = selectedCaseType?._id ? String(selectedCaseType._id) : undefined;
 
   const selectedStation = useMemo(
     () => stations.find((s: { _id?: string }) => s._id === form.stationId),
@@ -1616,15 +1620,22 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   const { data: veteranLookup, isFetching: veteranLookupLoading, isError: veteranLookupError } =
     useLookupVeteranByPhone(lookupPhone, lookupPhone.replace(/\D/g, "").length === 10);
 
-  const { data: checklistConfig } = useRequiredDocumentsForCaseType({
+  const {
+    data: checklistConfig,
+    isLoading: checklistLoading,
+    isError: checklistError,
+  } = useRequiredDocumentsForCaseType({
     caseTypeId,
-    enabled: !!caseTypeId,
+    name: form.type || undefined,
+    enabled: !!form.type,
   });
   const checklistDocs: Array<{
     label: string;
     text: string;
     isMandatory?: boolean;
     sortOrder?: number;
+    templateUrl?: string | null;
+    templateFileName?: string | null;
   }> = checklistConfig?.documents || [];
 
   const { data: officersData, isFetching: officersLoading } = useOfficers({
@@ -1715,6 +1726,8 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     if (!form.armyNo.trim())  e.armyNo  = "Required";
     if (!contactDigits) e.contact = "Required";
     else if (contactDigits.length !== 10) e.contact = "Enter valid 10-digit mobile";
+    else if (lookupPhone !== contactDigits) e.contact = "Tab out of mobile field to verify veteran account";
+    else if (veteranLookupError || !veteranLookup) e.contact = "No veteran account — ask them to register first";
     if (!form.stationId) e.stationId = "Select Station HQ";
     else if (!form.officer.trim()) e.officer = "Select an officer for the selected Station HQ";
     if (missingMandatoryDocs.length > 0) {
@@ -1740,6 +1753,9 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     fd.append("submissionSource", "manual");
     if (caseTypeId) fd.append("caseTypeId", caseTypeId);
 
+    const selectedOfficer = officers.find((o: { name?: string }) => o.name === form.officer);
+    if (selectedOfficer?._id) fd.append("officerId", String(selectedOfficer._id));
+
     const uploadedLabels: string[] = [];
     for (const doc of checklistDocs) {
       const file = form.requiredDocFiles[doc.label];
@@ -1755,7 +1771,28 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 
     await createGrievance.mutateAsync(fd);
     onClose();
-  }, [form, createGrievance, onClose, caseTypesList, selectedStation, caseTypeId, checklistDocs, missingMandatoryDocs]);
+  }, [form, createGrievance, onClose, caseTypesList, selectedStation, caseTypeId, checklistDocs, missingMandatoryDocs, officers, lookupPhone, veteranLookup, veteranLookupError]);
+
+  const handleTemplateDownload = async (
+    doc: { label: string; templateFileName?: string | null },
+    index: number
+  ) => {
+    if (!caseTypeId) {
+      toast.error("Select a case type first");
+      return;
+    }
+    try {
+      const { downloadChecklistTemplate } = await import("@/lib/veteranDocuments");
+      await downloadChecklistTemplate({
+        caseTypeId,
+        documentLabel: doc.label,
+        itemIndex: index,
+        fileName: doc.templateFileName || "template.pdf",
+      });
+    } catch {
+      toast.error("Could not download template");
+    }
+  };
 
   return (
     <Modal open onClose={onClose} title="New Grievance" wide>
@@ -1777,6 +1814,114 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
               ))}
             </SelectField>
           </FormField>
+
+        </div>
+
+        {form.type && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">
+                Required Documents — {form.type}
+              </h3>
+              {errors.documents && (
+                <span className="text-xs text-destructive">{errors.documents}</span>
+              )}
+            </div>
+
+            {checklistLoading ? (
+              <div className="h-24 bg-secondary/50 rounded-lg animate-pulse" />
+            ) : checklistError ? (
+              <p className="text-sm text-destructive">Could not load document checklist for this case type.</p>
+            ) : checklistDocs.length === 0 ? (
+              <div className="bg-secondary/30 border border-border rounded-lg p-4 text-center">
+                <p className="text-sm font-medium text-foreground">No documents required for this case type.</p>
+                <p className="text-xs text-muted-foreground mt-1">You can continue without uploading documents.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {checklistDocs.map((doc, index) => {
+                  const file = form.requiredDocFiles[doc.label];
+                  return (
+                    <div key={doc.label} className="bg-secondary/30 border border-border rounded-lg p-3 space-y-2">
+                      <div className="flex gap-2 items-start">
+                        <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
+                          {String.fromCharCode(65 + index)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {doc.text || doc.label}
+                            {doc.isMandatory !== false && <span className="text-destructive ml-1">*</span>}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">{doc.label}</p>
+                        </div>
+                      </div>
+
+                      {doc.templateUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleTemplateDownload(doc, index)}
+                          className="flex items-center justify-between w-full bg-card border border-border rounded-md px-3 py-2 hover:bg-secondary/40 transition-colors"
+                        >
+                          <span className="text-xs text-foreground">Download template</span>
+                          <Download className="w-4 h-4 text-primary" />
+                        </button>
+                      )}
+
+                      {file ? (
+                        <div className="flex items-center justify-between bg-card border border-border rounded-md px-3 py-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="w-4 h-4 text-primary shrink-0" />
+                            <p className="text-xs text-foreground truncate">{file.name}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRequiredDocChange(doc.label, null)}
+                            className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-3 w-full border border-dashed border-primary/40 rounded-md px-3 py-2.5 cursor-pointer hover:bg-primary/5">
+                          <UploadCloud className="w-5 h-5 text-primary shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground">Upload — {doc.label}</p>
+                            <p className="text-[11px] text-muted-foreground">JPG, PNG, PDF (max 5 MB)</p>
+                          </div>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              const picked = e.target.files?.[0];
+                              if (!picked) return;
+                              const okType = ["image/jpeg", "image/png", "image/jpg", "application/pdf"].includes(picked.type);
+                              const okSize = picked.size <= 5 * 1024 * 1024;
+                              if (!okType) {
+                                toast.error("Only JPG, PNG, PDF allowed");
+                                e.target.value = "";
+                                return;
+                              }
+                              if (!okSize) {
+                                toast.error("File must be under 5 MB");
+                                e.target.value = "";
+                                return;
+                              }
+                              handleRequiredDocChange(doc.label, picked);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
 
           <FormField label={`Veteran Name * ${errors.veteran || ""}`}>
             <InputField value={form.veteran} onChange={(v) => set("veteran", v)} placeholder="e.g. R.K. Sharma" />
@@ -1858,84 +2003,6 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground resize-none"
           />
         </FormField>
-
-        {checklistDocs.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Required Documents</h3>
-              {errors.documents && (
-                <span className="text-xs text-destructive">{errors.documents}</span>
-              )}
-            </div>
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-              {checklistDocs.map((doc, index) => {
-                const file = form.requiredDocFiles[doc.label];
-                return (
-                  <div key={doc.label} className="bg-secondary/30 border border-border rounded-lg p-3 space-y-2">
-                    <div className="flex gap-2 items-start">
-                      <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
-                        {String.fromCharCode(65 + index)}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {doc.text || doc.label}
-                          {doc.isMandatory !== false && <span className="text-destructive ml-1">*</span>}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">{doc.label}</p>
-                      </div>
-                    </div>
-                    {file ? (
-                      <div className="flex items-center justify-between bg-card border border-border rounded-md px-3 py-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="w-4 h-4 text-primary shrink-0" />
-                          <p className="text-xs text-foreground truncate">{file.name}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRequiredDocChange(doc.label, null)}
-                          className="p-1 rounded hover:bg-secondary text-muted-foreground"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center gap-3 w-full border border-dashed border-primary/40 rounded-md px-3 py-2.5 cursor-pointer hover:bg-primary/5">
-                        <UploadCloud className="w-5 h-5 text-primary shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground">Upload — {doc.label}</p>
-                          <p className="text-[11px] text-muted-foreground">JPG, PNG, PDF (max 5 MB)</p>
-                        </div>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.pdf"
-                          className="hidden"
-                          onChange={(e) => {
-                            const picked = e.target.files?.[0];
-                            if (!picked) return;
-                            const okType = ["image/jpeg", "image/png", "image/jpg", "application/pdf"].includes(picked.type);
-                            const okSize = picked.size <= 5 * 1024 * 1024;
-                            if (!okType) {
-                              toast.error("Only JPG, PNG, PDF allowed");
-                              e.target.value = "";
-                              return;
-                            }
-                            if (!okSize) {
-                              toast.error("File must be under 5 MB");
-                              e.target.value = "";
-                              return;
-                            }
-                            handleRequiredDocChange(doc.label, picked);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors">
