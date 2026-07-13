@@ -1,6 +1,11 @@
 import Escalation from "../models/Escalation";
 
-const ESCALATION_ID_PATTERN = /^ESC-(\d+)$/i;
+interface EscalationCounter {
+  _id: string;
+  seq: number;
+}
+
+const COUNTER_ID = "escalationId";
 
 async function maxEscalationNumber(): Promise<number> {
   const [row] = await Escalation.aggregate([
@@ -23,35 +28,63 @@ function formatEscalationId(num: number): string {
   return `ESC-${String(num).padStart(3, "0")}`;
 }
 
-function incrementEscalationId(current: string): string {
-  const match = current.match(ESCALATION_ID_PATTERN);
-  const next = match ? parseInt(match[1], 10) + 1 : 1;
-  return formatEscalationId(next);
-}
-
-/** Next unique escalation code based on highest existing ESC-### (not document count). */
+/**
+ * Allocate the next escalation number atomically.
+ *
+ * The max sync keeps the counter compatible with legacy/seeded escalation
+ * records, while findOneAndUpdate prevents concurrent requests from receiving
+ * the same number.
+ */
 export async function nextEscalationId(): Promise<string> {
   const maxNum = await maxEscalationNumber();
-  return formatEscalationId(maxNum + 1);
+  const counters =
+    Escalation.db.collection<EscalationCounter>("sequence_counters");
+
+  await counters.updateOne(
+    { _id: COUNTER_ID },
+    { $max: { seq: maxNum } },
+    { upsert: true }
+  );
+
+  const counter = await counters.findOneAndUpdate(
+    { _id: COUNTER_ID },
+    { $inc: { seq: 1 } },
+    { returnDocument: "after" }
+  );
+
+  if (!counter) {
+    throw new Error("Failed to allocate an escalation ID");
+  }
+  return formatEscalationId(counter.seq);
 }
 
-/** Create escalation record; retries if escalationId collides (concurrent writers). */
+/** Create escalation record; retry safely around legacy or external writers. */
 export async function createEscalationRecord(
   data: Record<string, unknown>
 ): Promise<InstanceType<typeof Escalation>> {
   const maxAttempts = 8;
-  let candidateId = await nextEscalationId();
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidateId = await nextEscalationId();
     try {
       return await Escalation.create({
         ...data,
         escalationId: candidateId,
       });
     } catch (err: unknown) {
-      const code = (err as { code?: number })?.code;
-      if (code === 11000 && attempt < maxAttempts - 1) {
-        candidateId = incrementEscalationId(candidateId);
+      const duplicate = err as {
+        code?: number;
+        keyPattern?: Record<string, number>;
+        keyValue?: Record<string, unknown>;
+      };
+      const isEscalationIdCollision =
+        duplicate.code === 11000 &&
+        (duplicate.keyPattern?.escalationId === 1 ||
+          Object.prototype.hasOwnProperty.call(
+            duplicate.keyValue || {},
+            "escalationId"
+          ));
+      if (isEscalationIdCollision && attempt < maxAttempts - 1) {
         continue;
       }
       throw err;
