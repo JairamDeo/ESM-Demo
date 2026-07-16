@@ -601,12 +601,34 @@ export default memo(function TrackCase() {
                         {step.attachments.map((url: string, idx: number) => {
                           const fullUrl = resolveFileUrl(url);
                           const isPdf = url.toLowerCase().includes(".pdf");
+                          const filename = url.split("/").pop() || (isPdf ? "Document.pdf" : "Image.jpg");
+                          const viewKey = `history-attachment-${i}-${idx}`;
+
                           return isPdf ? (
-                            <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="text-[10px] text-primary underline">{t("pdfAttachment")}</a>
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => handleViewDocument(viewKey, () => loadAttachmentPreview(url, { fileName: filename }))}
+                              disabled={viewingDocKey === viewKey}
+                              className="text-[10px] text-primary underline disabled:opacity-50 text-left"
+                            >
+                              {viewingDocKey === viewKey ? "Loading..." : t("pdfAttachment")}
+                            </button>
                           ) : (
-                            <a key={idx} href={fullUrl} target="_blank" rel="noreferrer">
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => handleViewDocument(viewKey, () => loadAttachmentPreview(url, { fileName: filename }))}
+                              disabled={viewingDocKey === viewKey}
+                              className="relative disabled:opacity-50"
+                            >
                               <img src={fullUrl} alt="" className="w-14 h-14 object-cover rounded-md border border-border" />
-                            </a>
+                              {viewingDocKey === viewKey && (
+                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-md">
+                                  <div className="w-4 h-4 border-2 border-white/80 border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              )}
+                            </button>
                           );
                         })}
                       </div>

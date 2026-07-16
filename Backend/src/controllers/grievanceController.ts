@@ -503,6 +503,9 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       });
       if (manualDocUrls.length > 0) {
         grievance.attachments = [...(grievance.attachments || []), ...manualDocUrls];
+        if (grievance.timeline && grievance.timeline.length > 0) {
+          grievance.timeline[0].attachments = [...(grievance.timeline[0].attachments || []), ...manualDocUrls];
+        }
         if (!grievance.caseTypeId && checklistCtx.caseType._id) {
           grievance.caseTypeId = checklistCtx.caseType._id;
         }
@@ -1832,3 +1835,31 @@ export const previewGrievanceDocument = async (req: Request, res: Response): Pro
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/** Proxy arbitrary Cloudinary URL (like timeline attachments) for secure viewing */
+export const proxyAttachment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const url = req.query.url as string;
+    if (!url) {
+      res.status(400).json({ success: false, message: "URL is required" });
+      return;
+    }
+
+    if (!url.includes("cloudinary.com")) {
+      res.status(400).json({ success: false, message: "Invalid attachment URL" });
+      return;
+    }
+
+    const fileName = (req.query.fileName as string) || "attachment";
+    const mimeType = (req.query.mimeType as string) || "application/octet-stream";
+
+    await serveStoredFile(res, url, {
+      mimeType,
+      fileName,
+      disposition: "inline",
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+

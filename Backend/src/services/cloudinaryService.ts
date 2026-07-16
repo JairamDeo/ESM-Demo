@@ -207,13 +207,15 @@ export async function downloadCloudinaryAsset(
   assertCloudinaryConfigured();
   applyCloudinaryConfig();
 
-  const publicId = publicIdFromCloudinaryUrl(url);
-  if (!publicId) {
+  const extractedPublicId = publicIdFromCloudinaryUrl(url);
+  if (!extractedPublicId) {
     throw new Error("Invalid Cloudinary URL");
   }
 
-  const resourceType = resourceTypeFromCloudinaryUrl(url, publicId);
-  const format = formatFromPublicId(publicId, resourceType);
+  const resourceType = resourceTypeFromCloudinaryUrl(url, extractedPublicId);
+  const format = formatFromPublicId(extractedPublicId, resourceType);
+
+  const publicId = resourceType === "image" ? extractedPublicId.replace(/\.[^.]+$/, "") : extractedPublicId;
 
   const downloadUrl = cloudinary.utils.private_download_url(publicId, format, {
     resource_type: resourceType,
@@ -245,17 +247,21 @@ export async function deleteCloudinaryAsset(
   assertCloudinaryConfigured();
 
   let publicId = urlOrPublicId;
+  let type = resourceType;
+
   if (isRemoteStorageUrl(urlOrPublicId)) {
     const extracted = publicIdFromCloudinaryUrl(urlOrPublicId);
     if (!extracted) return;
-    publicId = extracted;
+    
+    type = type || resourceTypeFromCloudinaryUrl(urlOrPublicId, extracted);
+    publicId = type === "image" ? extracted.replace(/\.[^.]+$/, "") : extracted;
   }
 
-  const type =
-    resourceType ||
-    (publicId.toLowerCase().includes(".pdf") || urlOrPublicId.toLowerCase().includes("/raw/")
+  if (!type) {
+    type = publicId.toLowerCase().includes(".pdf") || urlOrPublicId.toLowerCase().includes("/raw/")
       ? "raw"
-      : "image");
+      : "image";
+  }
 
   try {
     await cloudinary.uploader.destroy(publicId, { resource_type: type, invalidate: true });

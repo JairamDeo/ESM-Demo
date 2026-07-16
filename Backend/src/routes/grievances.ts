@@ -8,6 +8,7 @@ import {
   getEscalationPreview, manualEscalateGrievance, requestEscalateToUpperTier,
   lookupVeteranByPhone,
   previewGrievanceDocument,
+  proxyAttachment,
 } from "../controllers/grievanceController";
 import { getSlaSettings, updateSlaSettings } from "../controllers/slaController";
 import { protect, restrictTo, adminOnly } from "../middleware/auth";
@@ -23,8 +24,11 @@ router.get("/dashboard", protect, adminOnly, getDashboardStats);
 router.get("/sla-config", protect, requirePermission("viewSlaSettings"), getSlaSettings);
 router.put("/sla-config", protect, requirePermission("manageSlaSettings"), updateSlaSettings);
 
-// ─── Public: track by ID ──────────────────────────────────────────────────────
+// ─── User: track by ID ──────────────────────────────────────────────────────
 router.get("/track/:id", trackGrievance);
+
+// ─── Proxy Attachment ────────────────────────────────────────────────────────
+router.get("/proxy-attachment", protect, proxyAttachment);
 
 // ─── User: my complaints ──────────────────────────────────────────────────────
 router.get("/my", protect, restrictTo("user"), getMyGrievances);

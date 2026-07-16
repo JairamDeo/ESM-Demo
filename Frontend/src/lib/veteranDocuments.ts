@@ -116,14 +116,28 @@ export async function loadGrievanceDocumentPreview(
   return { url: direct, mimeType, fileName };
 }
 
+function guessMimeType(fileName: string): string {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "application/octet-stream";
+}
+
 /** Preview attachment by stored path / URL (timeline, legacy attachments). */
 export async function loadAttachmentPreview(
   fileUrl: string,
   options?: { mimeType?: string; fileName?: string }
 ): Promise<VeteranUploadPreview> {
   const fileName = options?.fileName || fileUrl.split("/").pop() || "document";
-  const mimeType = options?.mimeType || "application/octet-stream";
+  const mimeType = options?.mimeType || guessMimeType(fileName);
   const direct = resolveUploadUrl(fileUrl) || fileUrl;
+
+  if (direct.includes("cloudinary.com")) {
+    const proxyUrl = `/api/grievances/proxy-attachment?url=${encodeURIComponent(direct)}&fileName=${encodeURIComponent(fileName)}&mimeType=${encodeURIComponent(mimeType)}`;
+    return fetchBlobPreview(proxyUrl, mimeType, fileName);
+  }
 
   if (isPdfMime(mimeType, fileName)) {
     return fetchRemoteBlobPreview(direct, "application/pdf", fileName);
