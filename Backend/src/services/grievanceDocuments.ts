@@ -198,6 +198,41 @@ export interface SubmittedDocumentItem {
   sortOrder: number;
 }
 
+export async function resolveDraftUploadsForGrievance(params: {
+  userId: string;
+  caseTypeId?: string;
+  caseTypeName?: string;
+  documentUploadIds?: string[];
+  isManualAdmin?: boolean;
+}): Promise<InstanceType<typeof VeteranRequiredDocumentUpload>[]> {
+  if (params.isManualAdmin) return [];
+
+  const { userId, caseTypeId, caseTypeName, documentUploadIds } = params;
+
+  if (documentUploadIds !== undefined) {
+    if (documentUploadIds.length === 0) return [];
+    const validIds = documentUploadIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length === 0) return [];
+    return VeteranRequiredDocumentUpload.find({
+      _id: { $in: validIds },
+      userId,
+      grievanceId: { $exists: false },
+    });
+  }
+
+  const filter: Record<string, unknown> = {
+    userId,
+    grievanceId: { $exists: false },
+  };
+  const caseTypeIdStr = String(caseTypeId || "").trim();
+  if (caseTypeIdStr && mongoose.Types.ObjectId.isValid(caseTypeIdStr)) {
+    filter.caseType = caseTypeIdStr;
+  } else if (caseTypeName) {
+    filter.caseTypeName = caseTypeName;
+  }
+  return VeteranRequiredDocumentUpload.find(filter);
+}
+
 export async function getSubmittedDocumentsForGrievance(
   grievance: Pick<IGrievance, "_id" | "type" | "userId" | "attachments">
 ): Promise<SubmittedDocumentItem[]> {
@@ -205,21 +240,16 @@ export async function getSubmittedDocumentsForGrievance(
     grievanceId: grievance._id,
   }).sort({ documentSortOrder: 1 });
 
-  if (uploads.length === 0 && grievance.userId) {
-    const caseType = await CaseType.findOne({
-      name: { $regex: new RegExp(`^${escapeRegex(grievance.type)}$`, "i") },
-    }).lean();
+  // Legacy rows: only include drafts whose stored path is on this grievance record.
+  if (uploads.length === 0 && grievance.attachments?.length) {
+    const attachmentSet = new Set(grievance.attachments);
+    uploads = await VeteranRequiredDocumentUpload.find({
+      storedPath: { $in: [...attachmentSet] },
+      $or: [{ grievanceId: grievance._id }, { grievanceId: { $exists: false } }],
+    }).sort({ documentSortOrder: 1 });
 
-    if (caseType) {
-      uploads = await VeteranRequiredDocumentUpload.find({
-        userId: grievance.userId,
-        caseType: caseType._id,
-      }).sort({ documentSortOrder: 1 });
-
-      if (grievance.attachments?.length) {
-        const attachmentSet = new Set(grievance.attachments);
-        uploads = uploads.filter((u) => attachmentSet.has(u.storedPath));
-      }
+    if (grievance.userId) {
+      uploads = uploads.filter((u) => String(u.userId) === String(grievance.userId));
     }
   }
 

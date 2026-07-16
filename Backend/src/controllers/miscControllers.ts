@@ -54,8 +54,14 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
       filter.isActive = { $ne: false }; // Match active case types
     }
     const caseTypesRaw = await CaseType.find(filter).populate("category", "name nameHi isActive iconUrl").lean();
+    const activeOnly = status === "active";
     // Sort by casetype<N> numeric suffix if present, else fallback stable.
     const caseTypes = caseTypesRaw
+      .filter((ct: any) => {
+        if (!activeOnly) return true;
+        const populated = ct.category && typeof ct.category === "object" ? ct.category : null;
+        return populated?.isActive !== false;
+      })
       .sort((a: any, b: any) => {
         const aId = String(a.id ?? "");
         const bId = String(b.id ?? "");
@@ -457,6 +463,14 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     }
 
     const category = await Category.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
+
+    if (update.isActive === false) {
+      await CaseType.updateMany(
+        { category: req.params.id },
+        { $set: { isActive: false } }
+      );
+    }
+
     res.status(200).json({ success: true, data: category });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

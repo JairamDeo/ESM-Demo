@@ -3,6 +3,8 @@ import Escalation from "../models/Escalation";
 import Grievance from "../models/Grievance";
 import Notification from "../models/Notification";
 import { getGrievanceScopeFilter } from "../utils/scopeFilter";
+import { createEscalationRecord } from "../utils/escalationId";
+import { findGrievanceByParamId } from "../utils/grievanceLookup";
 
 // ─── GET all escalations ─────────────────────────────────────────────────────
 export const getEscalations = async (req: Request, res: Response): Promise<void> => {
@@ -82,20 +84,19 @@ export const createEscalation = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const grievance = await Grievance.findById(grievanceId);
+    const grievance = await findGrievanceByParamId(grievanceId);
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found" }); return; }
 
     const daysOpen = Math.floor((Date.now() - grievance.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    const count = await Escalation.countDocuments();
 
-    const escalation = await Escalation.create({
-      escalationId: `ESC-${String(count + 1).padStart(3, "0")}`,
+    const escalation = await createEscalationRecord({
       grievanceId: grievance._id,
       grievanceCode: grievance.grievanceId,
       veteranName: grievance.veteranName,
       type: grievance.type,
       stationName: grievance.stationName,
-      reason, escalatedTo,
+      reason,
+      escalatedTo,
       escalatedBy: (req as any).user?.name || "Admin",
       daysOpen,
       escalationReasonType: "manual_request",

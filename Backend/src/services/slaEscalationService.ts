@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import Grievance, { IGrievance } from "../models/Grievance";
-import Escalation from "../models/Escalation";
 import { OfficerLevel } from "../constants/officerLevels";
 import {
   OrgTier,
@@ -14,6 +13,7 @@ import {
 } from "./grievanceOfficerResolver";
 import { computeDeadlineForOrgTier, getSlaConfigForCaseType } from "./slaConfigService";
 import { notifyOfficer } from "./notificationService";
+import { createEscalationRecord } from "../utils/escalationId";
 
 export type EscalationReasonType =
   | "no_response"
@@ -52,22 +52,29 @@ function nextLevel(current: OfficerLevel): OfficerLevel | null {
 
 export { nextLevel };
 
-async function buildOrgFromGrievance(grievance: IGrievance): Promise<StationOrgContext> {
-  if (grievance.stationId || grievance.hqId || grievance.stateId) {
-    return {
-      stationId: grievance.stationId,
-      stationName: grievance.stationName,
-      hqId: grievance.hqId,
-      stateId: grievance.stateId,
-    };
-  }
-  const org = await resolveStationOrg(grievance.stationName);
-  return org || { stationName: grievance.stationName };
-}
+export async function buildOrgFromGrievance(grievance: IGrievance): Promise<StationOrgContext> {
+  let org: StationOrgContext = {
+    stationId: grievance.stationId,
+    stationName: grievance.stationName,
+    hqId: grievance.hqId,
+    stateId: grievance.stateId,
+  };
 
-async function nextEscalationId(): Promise<string> {
-  const count = await Escalation.countDocuments();
-  return `ESC-${String(count + 1).padStart(3, "0")}`;
+  if (!org.stationId || !org.hqId || !org.stateId) {
+    const resolved = await resolveStationOrg(grievance.stationName);
+    if (resolved) {
+      org = {
+        stationId: org.stationId || resolved.stationId,
+        stationName: resolved.stationName || org.stationName,
+        hqId: org.hqId || resolved.hqId,
+        hqName: resolved.hqName,
+        stateId: org.stateId || resolved.stateId,
+        stateName: resolved.stateName,
+      };
+    }
+  }
+
+  return org;
 }
 
 export interface AssignGrievanceOfficerOpts {
@@ -108,8 +115,7 @@ export async function assignGrievanceOfficer(
   const toOfficerName =
     officer?.name || `${ORG_TIER_LABELS[opts.orgTier]} ${opts.level} (Unassigned)`;
 
-  const escalation = await Escalation.create({
-    escalationId: await nextEscalationId(),
+  const escalation = await createEscalationRecord({
     grievanceId: grievance._id,
     grievanceCode: grievance.grievanceId,
     veteranName: grievance.veteranName,
@@ -136,6 +142,9 @@ export async function assignGrievanceOfficer(
   grievance.assignedLevel = opts.level;
   grievance.officerId = officer?._id;
   grievance.officerName = toOfficerName;
+  if (org.stationId) grievance.stationId = org.stationId;
+  if (org.hqId) grievance.hqId = org.hqId;
+  if (org.stateId) grievance.stateId = org.stateId;
   grievance.status = "escalated";
   grievance.escalationId = escalation._id as mongoose.Types.ObjectId;
   if (opts.orgTier === "area") {
@@ -157,14 +166,18 @@ export async function assignGrievanceOfficer(
   await grievance.save();
 
   if (officer?._id) {
-    await notifyOfficer(officer._id, {
-      title: opts.isAuto ? "Grievance auto-escalated to you" : "Grievance escalated to you",
-      message: `${grievance.grievanceId} — ${reasonText}. Assigned to you at ${ORG_TIER_LABELS[opts.orgTier]} ${opts.level}.`,
-      type: "escalation",
-      grievanceId: grievance._id as mongoose.Types.ObjectId,
-      grievanceCode: grievance.grievanceId,
-      url: "/grievances",
-    });
+    try {
+      await notifyOfficer(officer._id, {
+        title: opts.isAuto ? "Grievance auto-escalated to you" : "Grievance escalated to you",
+        message: `${grievance.grievanceId} — ${reasonText}. Assigned to you at ${ORG_TIER_LABELS[opts.orgTier]} ${opts.level}.`,
+        type: "escalation",
+        grievanceId: grievance._id as mongoose.Types.ObjectId,
+        grievanceCode: grievance.grievanceId,
+        url: "/grievances",
+      });
+    } catch (notifyErr) {
+      console.error("Escalation notification failed (escalation still saved):", notifyErr);
+    }
   }
 
   return { grievance, escalation };

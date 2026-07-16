@@ -1,10 +1,11 @@
 import { useState, useRef, memo, useCallback, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import {
   FileText, Filter, Download, Search, Eye, MoreVertical,
   ChevronLeft, ChevronRight, X, AlertTriangle, CheckCircle2,
   UserCheck, Printer, ChevronDown, Building2,
-  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon, UploadCloud,
+  User, Tag, Clock, MessageSquare, Send, ArrowUpRight,Trash2,Paperclip, Image as ImageIcon, UploadCloud, Star,
 } from "lucide-react";
 import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useResolveConcern, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, useRequiredDocumentsForCaseType, useLookupVeteranByPhone, useSlaSettings, useUpdateSlaSettings, useRequestEscalationTakeover, useApproveEscalationRequest, useRejectEscalationRequest, useEscalationPreview, useManualEscalateGrievance, useRequestEscalateToUpperTier, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
@@ -19,6 +20,7 @@ import {
 import { DocumentPreviewModal } from "@/components/DocumentPreviewModal";
 import { toast } from "sonner";
 import { getConcernDocuments, timelineConcernLabel, veteranResponseLabel, getEffectiveConcernStatus, isConcernBlockingStatus } from "@/lib/concernUtils";
+import { getSubmittedText, type TranslatableUserText } from "@/utils/translationHelper";
 
 type Status = "pending" | "in-progress" | "escalated" | "resolved";
 type Priority = "low" | "medium" | "high" | "critical";
@@ -71,7 +73,7 @@ interface SubmittedDoc { uploadId?: string; documentLabel?: string; documentText
 interface TimelineEntry { eventType: string; status?: string; note?: string; concernScope?: string; documentLabel?: string; documentText?: string; documentUploadId?: string; concernDocuments?: { documentLabel: string; documentText?: string; documentUploadId?: string }[]; attachments?: string[]; updatedAt?: string; updatedBy?: string; language?: string; translationFailed?: boolean; originalText?: string; translatedText?: string; fromLevel?: string; toLevel?: string; }
 type GrievanceData = Record<string, unknown> & {
   _id?: string; id?: string; grievanceId?: string; type?: string; status?: string; priority?: string;
-  veteranName?: string; veteran?: string; veteranPhone?: string; veteranArmyNo?: string; veteranRank?: string;
+  veteranName?: string; veteran?: string; veteranPhone?: string; veteranArmyNo?: string; veteranRank?: string; rank?: string;
   stationName?: string; station?: string; stationId?: string;
   officerName?: string; officer?: string; officerId?: string;
   hqId?: string; assignedLevel?: string; assignedOrgTier?: string;
@@ -79,7 +81,13 @@ type GrievanceData = Record<string, unknown> & {
   timeline?: TimelineEntry[]; submittedDocuments?: SubmittedDoc[]; attachments?: string[];
   pendingEscalationRequest?: { status?: string; reason?: string };
   _originalOfficer?: string;
+  filedByName?: string; filedByEmail?: string; filedByType?: string; createdBy?: string; submittedBy?: string;
 };
+
+function getGrievanceApiId(grievance: GrievanceData): string {
+  const raw = grievance._id ?? grievance.id ?? grievance.grievanceId;
+  return raw ? String(raw) : "";
+}
 
 interface FilterState { priority:string; station:string; officer:string; caseType:string; dateFrom:string; dateTo:string; }
 
@@ -110,23 +118,6 @@ function SelectField({ value, onChange, children }: { value:string; onChange:(v:
 
 function FormField({ label, children }: { label:string; children:React.ReactNode }) {
   return <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">{label}</label>{children}</div>;
-}
-
-/** Shows a small badge when grievance description/comment was translated from Hindi. */
-function TranslationBadge({ language, failed }: { language?: string; failed?: boolean }) {
-  if (!language || language === "en") return null;
-  if (failed) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/30 ml-2">
-        ⚠ Translation unavailable
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-info/15 text-info border border-info/30 ml-2">
-      🌐 Translated from Hindi
-    </span>
-  );
 }
 
 function InputField({ value, onChange, onBlur, placeholder, type="text" }: { value:string; onChange:(v:string)=>void; onBlur?:()=>void; placeholder?:string; type?:string }) {
@@ -741,7 +732,7 @@ function SlaSettingsModal({ open, onClose, canEdit }: { open: boolean; onClose: 
 function EscalateGrievanceModal({ grievance, onClose }: { grievance: GrievanceData; onClose: () => void }) {
   const [escalationType, setEscalationType] = useState<"no_response" | "concern_pending">("no_response");
   const [note, setNote] = useState("");
-  const grievanceId = grievance._id || grievance.id;
+  const grievanceId = getGrievanceApiId(grievance);
   const { data: preview, isLoading } = useEscalationPreview(grievanceId, Boolean(grievanceId));
   const manualEscalate = useManualEscalateGrievance();
 
@@ -850,7 +841,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
   const { user } = useAuth();
   const permissions = usePermissions();
 
-  const { data: liveGrievance, isLoading: detailLoading } = useGrievance(initialGrievance._id || "");
+  const { data: liveGrievance, isLoading: detailLoading } = useGrievance(getGrievanceApiId(initialGrievance));
   const grievance = liveGrievance || initialGrievance;
   const submittedDocs: SubmittedDoc[] = useMemo(() => (grievance.submittedDocuments as SubmittedDoc[] | undefined) || [], [grievance.submittedDocuments]);
   const concernStatus: string = getEffectiveConcernStatus(grievance as unknown as Record<string, unknown>);
@@ -1106,7 +1097,11 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
         <div className="grid grid-cols-2 gap-4">
           {[
             { icon:User, label:"Veteran", value: getVeteranDisplay(grievance.veteranName || grievance.veteran) || "—" },
+            { icon:Star, label:"Rank", value: grievance.veteranRank || grievance.rank || "—" },
             { icon:Tag, label:"Army No.", value:grievance.veteranArmyNo || grievance.armyNo || "—" },
+            { icon:UserCheck, label:"Filed By", value: grievance.filedByName
+              ? `${grievance.filedByName}${grievance.filedByEmail ? ` (${grievance.filedByEmail})` : ""}${grievance.filedByType === "user" ? " · Veteran" : grievance.submittedBy === "admin" || grievance.filedByType === "officer" ? " · Admin" : ""}`
+              : grievance.createdBy || "—" },
             { icon:Building2, label:"Station", value:grievance.stationName || grievance.station },
             { icon:UserCheck, label:"Assigned Officer", value:`${grievance.officerName || grievance.officer}${assignedLevel ? ` (${orgTierLabel(assignedOrgTier)} ${assignedLevel})` : ""}` },
             { icon:Clock, label:"SLA Deadline", value: formatSlaDeadline(grievance.slaTierDeadline || grievance.slaDeadline) },
@@ -1131,7 +1126,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => approveEscalation.mutate(grievance._id)}
+                  onClick={() => approveEscalation.mutate(getGrievanceApiId(grievance))}
                   disabled={approveEscalation.isPending}
                   className="text-xs px-3 py-1.5 rounded-lg bg-success/15 text-success hover:bg-success/25 disabled:opacity-60"
                 >
@@ -1139,7 +1134,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                 </button>
                 <button
                   type="button"
-                  onClick={() => rejectEscalation.mutate(grievance._id)}
+                  onClick={() => rejectEscalation.mutate(getGrievanceApiId(grievance))}
                   disabled={rejectEscalation.isPending}
                   className="text-xs px-3 py-1.5 rounded-lg bg-destructive/15 text-destructive hover:bg-destructive/25 disabled:opacity-60"
                 >
@@ -1169,7 +1164,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               onClick={() =>
                 requestUpperTier.mutate(
                   {
-                    id: grievance._id,
+                    id: getGrievanceApiId(grievance),
                     reason: requestReason.trim() || `${user?.name} requested escalation to ${orgTierLabel(nextUpperTier!)} L1`,
                   },
                   { onSuccess: () => setRequestReason("") }
@@ -1215,30 +1210,12 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
             </button>
           </div>
         )}
-        {grievance.description && (
+        {(grievance.description || grievance.originalText) && (
           <div className="bg-secondary/30 rounded-lg p-3">
-            <p className="text-xs text-muted-foreground mb-1 flex items-center flex-wrap gap-1">
-              Description
-              <TranslationBadge
-                language={grievance.language}
-                failed={grievance.translationFailed}
-              />
+            <p className="text-xs text-muted-foreground mb-1">Description</p>
+            <p className="text-sm text-foreground break-words overflow-hidden whitespace-pre-wrap">
+              {getSubmittedText(grievance as TranslatableUserText)}
             </p>
-            {/* Admin sees translatedText (EN) by default; falls back to description */}
-            <p className="text-sm text-foreground break-words overflow-hidden">
-              {grievance.translationFailed
-                ? grievance.originalText || grievance.description
-                : grievance.translatedText || grievance.description}
-            </p>
-            {/* Show original Hindi text if translation succeeded */}
-            {grievance.language && grievance.language !== "en" && !grievance.translationFailed && grievance.originalText && (
-              <details className="mt-2">
-                <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground select-none">
-                  View original (Hindi)
-                </summary>
-                <p className="text-xs text-foreground/70 mt-1 whitespace-pre-wrap">{grievance.originalText}</p>
-              </details>
-            )}
           </div>
         )}
         {submittedDocs.length > 0 ? (
@@ -1349,7 +1326,9 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
               })}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p className="text-xs text-muted-foreground">No documents attached.</p>
+        )}
 
         <div className="space-y-3">
           <CollapsiblePanel
@@ -1383,25 +1362,11 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
                         ))}
                       </div>
                     )}
-                    {t.note && (
+                    {(t.note || t.originalText) && (
                       <div className="mt-1">
                         <p className="text-sm text-foreground whitespace-pre-wrap">
-                          {t.translationFailed
-                            ? t.originalText || t.note
-                            : t.translatedText || t.note}
-                          <TranslationBadge
-                            language={t.language}
-                            failed={t.translationFailed}
-                          />
+                          {getSubmittedText(t as TranslatableUserText)}
                         </p>
-                        {t.language && t.language !== "en" && !t.translationFailed && t.originalText && (
-                          <details className="mt-1.5">
-                            <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground select-none">
-                              View original (Hindi)
-                            </summary>
-                            <p className="text-xs text-foreground/70 mt-1 whitespace-pre-wrap">{t.originalText}</p>
-                          </details>
-                        )}
                       </div>
                     )}
                     {t.attachments?.length > 0 && (
@@ -1645,7 +1610,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     () => caseTypesList.find((t: { name?: string }) => t.name === form.type),
     [caseTypesList, form.type]
   );
-  const caseTypeId = selectedCaseType?._id as string | undefined;
+  const caseTypeId = selectedCaseType?._id ? String(selectedCaseType._id) : undefined;
 
   const selectedStation = useMemo(
     () => stations.find((s: { _id?: string }) => s._id === form.stationId),
@@ -1655,15 +1620,22 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   const { data: veteranLookup, isFetching: veteranLookupLoading, isError: veteranLookupError } =
     useLookupVeteranByPhone(lookupPhone, lookupPhone.replace(/\D/g, "").length === 10);
 
-  const { data: checklistConfig } = useRequiredDocumentsForCaseType({
+  const {
+    data: checklistConfig,
+    isLoading: checklistLoading,
+    isError: checklistError,
+  } = useRequiredDocumentsForCaseType({
     caseTypeId,
-    enabled: !!caseTypeId,
+    name: form.type || undefined,
+    enabled: !!form.type,
   });
   const checklistDocs: Array<{
     label: string;
     text: string;
     isMandatory?: boolean;
     sortOrder?: number;
+    templateUrl?: string | null;
+    templateFileName?: string | null;
   }> = checklistConfig?.documents || [];
 
   const { data: officersData, isFetching: officersLoading } = useOfficers({
@@ -1754,6 +1726,8 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     if (!form.armyNo.trim())  e.armyNo  = "Required";
     if (!contactDigits) e.contact = "Required";
     else if (contactDigits.length !== 10) e.contact = "Enter valid 10-digit mobile";
+    else if (lookupPhone !== contactDigits) e.contact = "Tab out of mobile field to verify veteran account";
+    else if (veteranLookupError || !veteranLookup) e.contact = "No veteran account — ask them to register first";
     if (!form.stationId) e.stationId = "Select Station HQ";
     else if (!form.officer.trim()) e.officer = "Select an officer for the selected Station HQ";
     if (missingMandatoryDocs.length > 0) {
@@ -1779,6 +1753,9 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     fd.append("submissionSource", "manual");
     if (caseTypeId) fd.append("caseTypeId", caseTypeId);
 
+    const selectedOfficer = officers.find((o: { name?: string }) => o.name === form.officer);
+    if (selectedOfficer?._id) fd.append("officerId", String(selectedOfficer._id));
+
     const uploadedLabels: string[] = [];
     for (const doc of checklistDocs) {
       const file = form.requiredDocFiles[doc.label];
@@ -1790,10 +1767,32 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     if (uploadedLabels.length > 0) {
       fd.append("requiredDocumentLabels", JSON.stringify(uploadedLabels));
     }
+    fd.append("documentUploadIds", JSON.stringify([]));
 
     await createGrievance.mutateAsync(fd);
     onClose();
-  }, [form, createGrievance, onClose, caseTypesList, selectedStation, caseTypeId, checklistDocs, missingMandatoryDocs]);
+  }, [form, createGrievance, onClose, caseTypesList, selectedStation, caseTypeId, checklistDocs, missingMandatoryDocs, officers, lookupPhone, veteranLookup, veteranLookupError]);
+
+  const handleTemplateDownload = async (
+    doc: { label: string; templateFileName?: string | null },
+    index: number
+  ) => {
+    if (!caseTypeId) {
+      toast.error("Select a case type first");
+      return;
+    }
+    try {
+      const { downloadChecklistTemplate } = await import("@/lib/veteranDocuments");
+      await downloadChecklistTemplate({
+        caseTypeId,
+        documentLabel: doc.label,
+        itemIndex: index,
+        fileName: doc.templateFileName || "template.pdf",
+      });
+    } catch {
+      toast.error("Could not download template");
+    }
+  };
 
   return (
     <Modal open onClose={onClose} title="New Grievance" wide>
@@ -1815,6 +1814,114 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
               ))}
             </SelectField>
           </FormField>
+
+        </div>
+
+        {form.type && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">
+                Required Documents — {form.type}
+              </h3>
+              {errors.documents && (
+                <span className="text-xs text-destructive">{errors.documents}</span>
+              )}
+            </div>
+
+            {checklistLoading ? (
+              <div className="h-24 bg-secondary/50 rounded-lg animate-pulse" />
+            ) : checklistError ? (
+              <p className="text-sm text-destructive">Could not load document checklist for this case type.</p>
+            ) : checklistDocs.length === 0 ? (
+              <div className="bg-secondary/30 border border-border rounded-lg p-4 text-center">
+                <p className="text-sm font-medium text-foreground">No documents required for this case type.</p>
+                <p className="text-xs text-muted-foreground mt-1">You can continue without uploading documents.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {checklistDocs.map((doc, index) => {
+                  const file = form.requiredDocFiles[doc.label];
+                  return (
+                    <div key={doc.label} className="bg-secondary/30 border border-border rounded-lg p-3 space-y-2">
+                      <div className="flex gap-2 items-start">
+                        <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
+                          {String.fromCharCode(65 + index)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {doc.text || doc.label}
+                            {doc.isMandatory !== false && <span className="text-destructive ml-1">*</span>}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">{doc.label}</p>
+                        </div>
+                      </div>
+
+                      {doc.templateUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleTemplateDownload(doc, index)}
+                          className="flex items-center justify-between w-full bg-card border border-border rounded-md px-3 py-2 hover:bg-secondary/40 transition-colors"
+                        >
+                          <span className="text-xs text-foreground">Download template</span>
+                          <Download className="w-4 h-4 text-primary" />
+                        </button>
+                      )}
+
+                      {file ? (
+                        <div className="flex items-center justify-between bg-card border border-border rounded-md px-3 py-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="w-4 h-4 text-primary shrink-0" />
+                            <p className="text-xs text-foreground truncate">{file.name}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRequiredDocChange(doc.label, null)}
+                            className="p-1 rounded hover:bg-secondary text-muted-foreground"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-3 w-full border border-dashed border-primary/40 rounded-md px-3 py-2.5 cursor-pointer hover:bg-primary/5">
+                          <UploadCloud className="w-5 h-5 text-primary shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground">Upload — {doc.label}</p>
+                            <p className="text-[11px] text-muted-foreground">JPG, PNG, PDF (max 5 MB)</p>
+                          </div>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              const picked = e.target.files?.[0];
+                              if (!picked) return;
+                              const okType = ["image/jpeg", "image/png", "image/jpg", "application/pdf"].includes(picked.type);
+                              const okSize = picked.size <= 5 * 1024 * 1024;
+                              if (!okType) {
+                                toast.error("Only JPG, PNG, PDF allowed");
+                                e.target.value = "";
+                                return;
+                              }
+                              if (!okSize) {
+                                toast.error("File must be under 5 MB");
+                                e.target.value = "";
+                                return;
+                              }
+                              handleRequiredDocChange(doc.label, picked);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
 
           <FormField label={`Veteran Name * ${errors.veteran || ""}`}>
             <InputField value={form.veteran} onChange={(v) => set("veteran", v)} placeholder="e.g. R.K. Sharma" />
@@ -1896,84 +2003,6 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
             className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground resize-none"
           />
         </FormField>
-
-        {checklistDocs.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Required Documents</h3>
-              {errors.documents && (
-                <span className="text-xs text-destructive">{errors.documents}</span>
-              )}
-            </div>
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-              {checklistDocs.map((doc, index) => {
-                const file = form.requiredDocFiles[doc.label];
-                return (
-                  <div key={doc.label} className="bg-secondary/30 border border-border rounded-lg p-3 space-y-2">
-                    <div className="flex gap-2 items-start">
-                      <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
-                        {String.fromCharCode(65 + index)}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {doc.text || doc.label}
-                          {doc.isMandatory !== false && <span className="text-destructive ml-1">*</span>}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">{doc.label}</p>
-                      </div>
-                    </div>
-                    {file ? (
-                      <div className="flex items-center justify-between bg-card border border-border rounded-md px-3 py-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="w-4 h-4 text-primary shrink-0" />
-                          <p className="text-xs text-foreground truncate">{file.name}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRequiredDocChange(doc.label, null)}
-                          className="p-1 rounded hover:bg-secondary text-muted-foreground"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="flex items-center gap-3 w-full border border-dashed border-primary/40 rounded-md px-3 py-2.5 cursor-pointer hover:bg-primary/5">
-                        <UploadCloud className="w-5 h-5 text-primary shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground">Upload — {doc.label}</p>
-                          <p className="text-[11px] text-muted-foreground">JPG, PNG, PDF (max 5 MB)</p>
-                        </div>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.pdf"
-                          className="hidden"
-                          onChange={(e) => {
-                            const picked = e.target.files?.[0];
-                            if (!picked) return;
-                            const okType = ["image/jpeg", "image/png", "image/jpg", "application/pdf"].includes(picked.type);
-                            const okSize = picked.size <= 5 * 1024 * 1024;
-                            if (!okType) {
-                              toast.error("Only JPG, PNG, PDF allowed");
-                              e.target.value = "";
-                              return;
-                            }
-                            if (!okSize) {
-                              toast.error("File must be under 5 MB");
-                              e.target.value = "";
-                              return;
-                            }
-                            handleRequiredDocChange(doc.label, picked);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={onClose} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors">
@@ -2138,6 +2167,7 @@ function FilterPills({ filters, onRemove }: { filters:FilterState; onRemove:(k:k
 }
 
 export default memo(function Grievances() {
+  const location = useLocation();
   const permissions = usePermissions();
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
@@ -2173,12 +2203,24 @@ export default memo(function Grievances() {
   }), [page, search, activeTab, filters]);
 
   const { data, isLoading } = useGrievances(queryParams);
+  const notificationGrievanceId = String(
+    (location.state as { grievanceId?: string; openDetails?: boolean } | null)?.grievanceId || ""
+  );
+  const { data: notificationGrievance } = useGrievance(notificationGrievanceId);
   const updateStatus = useUpdateGrievanceStatus();
   const assignOfficer = useAssignOfficer();
   const { user } = useAuth();
 
   const grievances = useMemo(() => data?.data || [], [data]);
   const pagination = useMemo(() => data?.pagination || { total:0, totalPages:1 }, [data]);
+  const openedNotificationRef = useRef("");
+
+  useEffect(() => {
+    if (!notificationGrievanceId || !notificationGrievance) return;
+    if (openedNotificationRef.current === notificationGrievanceId) return;
+    openedNotificationRef.current = notificationGrievanceId;
+    setViewGrievance(notificationGrievance);
+  }, [notificationGrievanceId, notificationGrievance]);
 
   const handleStatusChange = useCallback((g: GrievanceData, status: string) => {
     if (!g._id) return;
@@ -2197,10 +2239,10 @@ export default memo(function Grievances() {
     );
   }, [statusConfirm, updateStatus, user]);
 
-  const handleReassign = useCallback((g: GrievanceData, officerName: string) => {
-    if (!g._id) return;
+  const handleReassign = useCallback((g: GrievanceData, officerName: string, officerId?: string) => {
+    if (!g._id || !officerName) return;
     const isNew = g._originalOfficer === "Unassigned" || !g._originalOfficer;
-    assignOfficer.mutate({ id: g._id, officerName, isNew });
+    assignOfficer.mutate({ id: g._id, officerName, officerId, isNew });
   }, [assignOfficer]);
 
   const removeFilter = (key: keyof FilterState) => setFilters((f)=>({...f,[key]:""}));
@@ -2383,14 +2425,37 @@ export default memo(function Grievances() {
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">Currently: <span className="text-foreground font-medium">{reassignGrievance._originalOfficer}</span></p>
         <FormField label={isUnassigned ? "Assign Officer" : "New Assigned Officer"}>
-          <SelectField value={reassignGrievance.officerName === "Unassigned" ? "" : reassignGrievance.officerName||""} onChange={(v)=>setReassignGrievance((g: GrievanceData)=>({...g,officerName:v}))}>
+          <SelectField
+            value={reassignGrievance.officerId ? String(reassignGrievance.officerId) : ""}
+            onChange={(v) => {
+              const selected = officers.find((o: { _id?: string; name?: string }) => String(o._id) === v);
+              setReassignGrievance((g: GrievanceData) => ({
+                ...g,
+                officerId: v,
+                officerName: selected?.name || "",
+              }));
+            }}
+          >
             <option value="">Select Officer</option>
-            {officers.map((o: Record<string, unknown> & { _id?: string; name?: string })=><option key={o._id as string || o.name as string} value={o.name as string}>{o.name as string}</option>)}
+            {officers.map((o: Record<string, unknown> & { _id?: string; name?: string }) => (
+              <option key={o._id as string} value={o._id as string}>{o.name as string}</option>
+            ))}
           </SelectField>
         </FormField>
         <div className="flex justify-end gap-2 pt-2">
           <button onClick={()=>setReassignGrievance(null)} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-lg">Cancel</button>
-          <button onClick={()=>{handleReassign(reassignGrievance,reassignGrievance.officerName);setReassignGrievance(null);}} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg">
+          <button
+            onClick={() => {
+              handleReassign(
+                reassignGrievance,
+                reassignGrievance.officerName || "",
+                reassignGrievance.officerId as string | undefined
+              );
+              setReassignGrievance(null);
+            }}
+            disabled={!reassignGrievance.officerId}
+            className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
+          >
             {isUnassigned ? "Assign Officer" : "Reassign Officer"}
           </button>
         </div>

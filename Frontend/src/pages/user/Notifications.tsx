@@ -22,6 +22,7 @@ interface Notification {
   message?: string;
   isRead: boolean;
   createdAt: string;
+  grievanceId?: string;
   grievanceCode?: string;
 }
 
@@ -129,11 +130,18 @@ export default memo(function Notifications() {
   }, [markRead]);
 
   const handleOpen = useCallback(
-    (n: Notification) => {
-      if (!n.isRead) markRead.mutate(n._id);
-      if (n.grievanceCode) {
+    async (n: Notification) => {
+      if (!n.isRead) {
+        try {
+          await markRead.mutateAsync(n._id);
+        } catch {
+          // Still open the linked grievance if the read-state update is delayed.
+        }
+      }
+      const grievanceRef = n.grievanceId || n.grievanceCode;
+      if (grievanceRef) {
         navigate(isAdminPortal ? "/grievances" : "/user/track-case", {
-          state: { grievanceId: n.grievanceCode },
+          state: { grievanceId: grievanceRef, openDetails: true },
         });
       }
     },

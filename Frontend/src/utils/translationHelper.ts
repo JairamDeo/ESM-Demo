@@ -49,3 +49,25 @@ export function useDynamicTranslation() {
 
   return { currentLang, getField, getUserText };
 }
+
+export type TranslatableUserText = {
+  originalText?: string;
+  translatedText?: string;
+  language?: string;
+  translationFailed?: boolean;
+  message?: string;
+  note?: string;
+  description?: string;
+};
+
+/** Officer portal: show grievance/comment text exactly as submitted. */
+export function getSubmittedText(item: TranslatableUserText | null | undefined): string {
+  if (!item) return "";
+  const submitted =
+    item.originalText?.trim() ||
+    item.message?.trim() ||
+    item.note?.trim() ||
+    item.description?.trim() ||
+    "";
+  return submitted || item.translatedText?.trim() || "";
+}

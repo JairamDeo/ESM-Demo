@@ -22,6 +22,7 @@ import {
   persistRequiredDocumentsForGrievance,
   parseRequiredDocumentUploads,
   parseGrievanceUploadFiles,
+  resolveDraftUploadsForGrievance,
 } from "../services/grievanceDocuments";
 import {
   effectiveConcernStatus,
@@ -38,10 +39,13 @@ import {
   type ConcernDocumentItem,
 } from "../services/concernHelpers";
 import { assignStationL1ForGrievance, findOfficerAtOrgTier, resolveStationOrg } from "../services/grievanceOfficerResolver";
+import { createEscalationRecord } from "../utils/escalationId";
+import { findGrievanceByParamId } from "../utils/grievanceLookup";
 import { computeDeadlineForOrgTier, getSlaConfigForCaseType } from "../services/slaConfigService";
 import {
   escalateGrievanceToLevel,
   escalateGrievanceToOrgTier,
+  buildOrgFromGrievance,
   nextOrgTier,
   REASON_LABELS,
   ORG_TIER_LABELS,
@@ -171,8 +175,8 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
   try {
     const {
       type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
-      stationName, stationId: stationIdRaw, officerName, priority, description, submissionSource,
-      caseTypeId,
+      stationName, stationId: stationIdRaw, officerName, officerId: officerIdRaw, priority, description, submissionSource,
+      caseTypeId: caseTypeIdRaw,
     } = req.body;
 
     const currentUser = (req as any).user;
@@ -182,6 +186,14 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     let resolvedName = String(veteranName || "").trim();
     let resolvedStation = String(stationName || "").trim();
     let resolvedPhone = normalizeVeteranPhone(veteranPhone);
+
+    let resolvedCaseTypeId = String(caseTypeIdRaw || "").trim();
+    if (!resolvedCaseTypeId || !mongoose.isValidObjectId(resolvedCaseTypeId)) {
+      const caseTypeDoc = await CaseType.findOne({
+        name: { $regex: new RegExp(`^${resolvedType.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      }).select("_id").lean();
+      resolvedCaseTypeId = caseTypeDoc?._id ? String(caseTypeDoc._id) : "";
+    }
 
     const stationIdStr = String(stationIdRaw || "").trim();
     if (stationIdStr && mongoose.isValidObjectId(stationIdStr)) {
@@ -229,7 +241,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     }
 
     const checklistCtx = await getChecklistContext(
-      caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined,
+      resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId) ? resolvedCaseTypeId : undefined,
       resolvedType
     );
 
@@ -283,23 +295,30 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     }
 
     const slaConfig = await getSlaConfigForCaseType(
-      caseTypeId && mongoose.isValidObjectId(String(caseTypeId)) ? String(caseTypeId) : undefined
+      resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId) ? resolvedCaseTypeId : undefined
     );
     const now = new Date();
     const slaTierDeadline = computeDeadlineForOrgTier(slaConfig, "station", now);
     const { org, officer: l1Officer } = await assignStationL1ForGrievance(resolvedStation);
 
     let assignedOfficer = l1Officer;
-    if (isManualAdmin && officerName && String(officerName).trim()) {
-      const manualOfficerQuery: Record<string, unknown> = {
-        name: String(officerName).trim(),
-        role: "Station HQ Officer",
-      };
-      if (org?.stationId) manualOfficerQuery.station = org.stationId;
-      else manualOfficerQuery.stationName = { $regex: `^${resolvedStation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" };
+    if (isManualAdmin) {
+      const officerIdStr = String(officerIdRaw || "").trim();
+      if (officerIdStr && mongoose.isValidObjectId(officerIdStr)) {
+        const byId = await Officer.findOne({ _id: officerIdStr, status: "active" });
+        if (byId) assignedOfficer = byId;
+      }
+      if (!assignedOfficer?._id && officerName && String(officerName).trim()) {
+        const manualOfficerQuery: Record<string, unknown> = {
+          name: String(officerName).trim(),
+          role: "Station HQ Officer",
+        };
+        if (org?.stationId) manualOfficerQuery.station = org.stationId;
+        else manualOfficerQuery.stationName = { $regex: `^${resolvedStation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" };
 
-      const manualOfficer = await Officer.findOne(manualOfficerQuery);
-      if (manualOfficer) assignedOfficer = manualOfficer;
+        const manualOfficer = await Officer.findOne(manualOfficerQuery);
+        if (manualOfficer) assignedOfficer = manualOfficer;
+      }
     }
 
     const userId = isVeteran ? currentUser.id : undefined;
@@ -315,7 +334,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
         });
         return;
       }
-      linkedVeteranUserId = linkedVeteran._id.toString();
+      linkedVeteranUserId = linkedVeteran._id;
       if (!resolvedName || resolvedName === "Veteran") {
         resolvedName = linkedVeteran.name || `${veteranRank || linkedVeteran.rank || ""} ${resolvedPhone}`.trim();
       }
@@ -357,20 +376,19 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       }
     }
 
-    // ── Fetch pre-uploaded documents ───────────────────────────────────────
+    // ── Fetch pre-uploaded documents (only those explicitly submitted with this grievance) ──
     let uploads: any[] = [];
     if (linkedVeteranUserId) {
-      const uploadFilter: Record<string, unknown> = {
+      const hasExplicitUploadIds = Object.prototype.hasOwnProperty.call(req.body, "documentUploadIds");
+      const explicitUploadIds = hasExplicitUploadIds ? parseDocumentUploadIds(req.body) : undefined;
+
+      uploads = await resolveDraftUploadsForGrievance({
         userId: linkedVeteranUserId,
-        grievanceId: { $exists: false },
-      };
-      const caseTypeIdStr = String(caseTypeId || "").trim();
-      if (caseTypeIdStr && mongoose.isValidObjectId(caseTypeIdStr)) {
-        uploadFilter.caseType = caseTypeIdStr;
-      } else {
-        uploadFilter.caseTypeName = resolvedType;
-      }
-      uploads = await VeteranRequiredDocumentUpload.find(uploadFilter);
+        caseTypeId: resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId) ? resolvedCaseTypeId : undefined,
+        caseTypeName: resolvedType,
+        documentUploadIds: explicitUploadIds,
+        isManualAdmin,
+      });
       for (const upload of uploads) {
         attachments.push(upload.storedPath);
       }
@@ -393,12 +411,33 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       };
     }
 
+    const filedByMeta = isVeteran
+      ? {
+          filedById: currentUser.id,
+          filedByType: "user" as const,
+          filedByName: currentUser.name || resolvedName,
+          filedByEmail: resolvedPhone ? `+91 ${resolvedPhone}` : undefined,
+        }
+      : isManualAdmin
+        ? {
+            filedById: currentUser.id,
+            filedByType: "officer" as const,
+            filedByName: currentUser.name || "Admin",
+            filedByEmail: currentUser.email,
+          }
+        : {
+            filedById: currentUser.id,
+            filedByType: "officer" as const,
+            filedByName: currentUser.name || "Admin",
+            filedByEmail: currentUser.email,
+          };
+
     const grievance = await Grievance.create({
       grievanceId,
       type: resolvedType,
       caseTypeId:
-        caseTypeId && mongoose.isValidObjectId(String(caseTypeId))
-          ? caseTypeId
+        resolvedCaseTypeId && mongoose.isValidObjectId(resolvedCaseTypeId)
+          ? resolvedCaseTypeId
           : undefined,
       veteranName: resolvedName,
       veteranPhone: resolvedPhone || veteranPhone,
@@ -416,6 +455,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       description,
       attachments,
       createdBy,
+      ...filedByMeta,
       submittedBy,
       submissionSource: submissionSource || (isVeteran ? "portal" : "manual"),
       ...(slaTierDeadline ? { slaDeadline: slaTierDeadline, slaTierDeadline } : {}),
@@ -458,14 +498,19 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
         grievance,
         ctx: checklistCtx,
         filesByLabel: requiredFilesByLabel,
-        uploadedByUserId: linkedVeteranUserId || currentUser.id,
+        uploadedByUserId: linkedVeteranUserId!,
         veteranKey: linkedVeteran ? `veteran-${linkedVeteran.phone}` : `admin-manual-${currentUser.id}`,
       });
       if (manualDocUrls.length > 0) {
         grievance.attachments = [...(grievance.attachments || []), ...manualDocUrls];
+        if (!grievance.caseTypeId && checklistCtx.caseType._id) {
+          grievance.caseTypeId = checklistCtx.caseType._id;
+        }
         await grievance.save();
       }
     }
+
+    const responseData = await enrichGrievanceWithDocuments(grievance.toObject());
 
     if (linkedVeteranUserId) {
       await notifyVeteran(linkedVeteranUserId, {
@@ -500,7 +545,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       { $inc: { totalCases: 1, pendingCases: 1 } }
     );
 
-    res.status(201).json({ success: true, message: "Grievance created successfully", data: grievance });
+    res.status(201).json({ success: true, message: "Grievance created successfully", data: responseData });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -563,9 +608,7 @@ export const updateGrievanceStatus = async (req: Request, res: Response): Promis
 
     if (status === "escalated" && oldStatus !== "escalated") {
       const daysSinceCreation = Math.floor((Date.now() - grievance.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-      const escCount = await Escalation.countDocuments();
-      await Escalation.create({
-        escalationId: `ESC-${String(escCount + 1).padStart(3, "0")}`,
+      await createEscalationRecord({
         grievanceId: grievance._id,
         grievanceCode: grievance.grievanceId,
         veteranName: grievance.veteranName,
@@ -614,28 +657,39 @@ export const assignOfficer = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    grievance.officerId = officerId;
-    grievance.officerName = officerName;
+    let resolvedOfficer =
+      officerId && mongoose.isValidObjectId(officerId)
+        ? await Officer.findOne({ _id: officerId, status: "active" })
+        : null;
+    if (!resolvedOfficer && officerName) {
+      resolvedOfficer = await Officer.findOne({ name: officerName, status: "active" });
+    }
+
+    if (!resolvedOfficer) {
+      res.status(400).json({ success: false, message: "Valid active officer is required" });
+      return;
+    }
+
+    grievance.officerId = resolvedOfficer._id;
+    grievance.officerName = resolvedOfficer.name;
     grievance.status = "in-progress";
     grievance.timeline.push({
       status: "in-progress",
-      note: `Assigned to ${officerName}`,
-      updatedBy: "Admin",
+      note: `Assigned to ${resolvedOfficer.name}`,
+      updatedBy: (req as any).user?.name || "Admin",
       updatedAt: new Date(),
       eventType: "status",
     });
     await grievance.save();
 
-    if (officerId) {
-      await notifyOfficer(officerId, {
-        title: "Grievance assigned to you",
-        message: `${grievance.grievanceId} has been assigned to you. Please review.`,
-        type: "assignment",
-        grievanceId: grievance._id,
-        grievanceCode: grievance.grievanceId,
-        url: "/grievances",
-      });
-    }
+    await notifyOfficer(resolvedOfficer._id, {
+      title: "Grievance assigned to you",
+      message: `${grievance.grievanceId} has been assigned to you. Please review.`,
+      type: "assignment",
+      grievanceId: grievance._id,
+      grievanceCode: grievance.grievanceId,
+      url: "/grievances",
+    });
 
     res.status(200).json({ success: true, message: "Officer assigned", data: grievance });
   } catch (error: any) {
@@ -1162,7 +1216,10 @@ export const getMyGrievances = async (req: Request, res: Response): Promise<void
   try {
     const userId = (req as any).user.id;
     const { status } = req.query;
-    const query: any = { userId, isDeleted: false };
+    const query: any = {
+      userId: mongoose.isValidObjectId(userId) ? new mongoose.Types.ObjectId(userId) : userId,
+      isDeleted: false,
+    };
     if (status) query.status = status;
     const grievances = await Grievance.find(query)
       .populate("caseTypeId", "name nameHi")
@@ -1172,9 +1229,11 @@ export const getMyGrievances = async (req: Request, res: Response): Promise<void
       const obj = g.toObject();
       if (obj.caseTypeId) {
         (obj as any).typeHi = (obj.caseTypeId as any).nameHi || "";
-        // optionally keep caseTypeId as just the ID for backwards compatibility
         obj.caseTypeId = (obj.caseTypeId as any)._id;
       }
+      const concernStatus = effectiveConcernStatus(obj);
+      (obj as any).concernStatus = concernStatus;
+      (obj as any).hasConcern = concernStatus === "awaiting_veteran";
       return obj;
     });
 
@@ -1367,8 +1426,8 @@ export const deleteAllGrievances = async (_req: Request, res: Response): Promise
 // ─── Escalation preview (manual escalate modal) ──────────────────────────────
 export const getEscalationPreview = async (req: Request, res: Response): Promise<void> => {
   try {
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1379,15 +1438,8 @@ export const getEscalationPreview = async (req: Request, res: Response): Promise
     let toOfficer: { _id: mongoose.Types.ObjectId; name: string } | null = null;
 
     if (toOrgTier && fromLevel === "L1") {
-      const org = grievance.stationId || grievance.hqId || grievance.stateId
-        ? {
-            stationId: grievance.stationId,
-            stationName: grievance.stationName,
-            hqId: grievance.hqId,
-            stateId: grievance.stateId,
-          }
-        : await resolveStationOrg(grievance.stationName);
-      const officer = org ? await findOfficerAtOrgTier(toOrgTier, "L1", org) : null;
+      const org = await buildOrgFromGrievance(grievance);
+      const officer = await findOfficerAtOrgTier(toOrgTier, "L1", org);
       if (officer) {
         toOfficer = { _id: officer._id, name: officer.name };
       }
@@ -1429,8 +1481,8 @@ export const manualEscalateGrievance = async (req: Request, res: Response): Prom
       return;
     }
 
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1491,8 +1543,8 @@ export const requestEscalationTakeover = async (req: Request, res: Response): Pr
       return;
     }
 
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1560,8 +1612,8 @@ export const requestEscalationTakeover = async (req: Request, res: Response): Pr
 export const approveEscalationRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1627,8 +1679,8 @@ export const approveEscalationRequest = async (req: Request, res: Response): Pro
 export const requestEscalateToUpperTier = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
@@ -1696,8 +1748,8 @@ export const requestEscalateToUpperTier = async (req: Request, res: Response): P
 export const rejectEscalationRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req as any).user;
-    const grievance = await Grievance.findById(req.params.id);
-    if (!grievance || grievance.isDeleted) {
+    const grievance = await findGrievanceByParamId(req.params.id);
+    if (!grievance) {
       res.status(404).json({ success: false, message: "Grievance not found" });
       return;
     }
