@@ -4,6 +4,10 @@ import { ChevronLeft, FileText, UploadCloud, AlertTriangle } from "lucide-react"
 import { useAddComment } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { DocumentPreviewModal } from "@/components/DocumentPreviewModal";
+import type { VeteranUploadPreview } from "@/lib/veteranDocuments";
+import { loadVeteranDocumentPreview } from "@/lib/veteranDocuments";
+import { getApiBaseUrl } from "@/lib/apiBase";
 
 export default function ConcernReviewSubmit() {
   const location = useLocation();
@@ -32,6 +36,8 @@ export default function ConcernReviewSubmit() {
 
   const [responseNote, setResponseNote] = useState("");
   const [generalFile, setGeneralFile] = useState<File | null>(null);
+  const [docPreview, setDocPreview] = useState<VeteranUploadPreview | null>(null);
+  const [viewingDocKey, setViewingDocKey] = useState<string | null>(null);
 
   const isLegacySingleDoc = concernMode && !!documentLabel && !documentOnlyFlow;
   const isDocumentOnly = documentOnlyFlow;
@@ -61,6 +67,48 @@ export default function ConcernReviewSubmit() {
       return;
     }
     navigate("/user/track-case", { state: { complaint }, replace: true });
+  };
+
+  /** Open a preview for a reuploaded doc (by uploadId or previewUrl) */
+  const handleViewDoc = async (
+    doc: { label: string; uploadId?: string; previewUrl?: string; mimeType?: string; fileName?: string }
+  ) => {
+    const key = doc.label;
+    if (viewingDocKey === key) return;
+    setViewingDocKey(key);
+    try {
+      if (doc.uploadId) {
+        const preview = await loadVeteranDocumentPreview({
+          uploadId: doc.uploadId,
+          mimeType: doc.mimeType,
+          originalFileName: doc.fileName,
+        });
+        setDocPreview(preview);
+      } else if (doc.previewUrl) {
+        // fallback: use the previewUrl directly
+        const apiBase = getApiBaseUrl().replace("/api", "");
+        const url = doc.previewUrl.startsWith("http")
+          ? doc.previewUrl
+          : `${apiBase}${doc.previewUrl.startsWith("/") ? "" : "/"}${doc.previewUrl}`;
+        const mimeType = doc.mimeType || "application/pdf";
+        setDocPreview({ url, mimeType, fileName: doc.fileName || doc.label });
+      }
+    } catch {
+      toast.error("Could not load document preview.");
+    } finally {
+      setViewingDocKey(null);
+    }
+  };
+
+  const handleViewReplacementFile = () => {
+    if (!replacementFile) return;
+    const url = URL.createObjectURL(replacementFile);
+    setDocPreview({
+      url,
+      mimeType: replacementFile.type || "application/pdf",
+      fileName: replacementFile.name,
+      revoke: () => URL.revokeObjectURL(url),
+    });
   };
 
   const handleSubmit = async () => {
@@ -151,6 +199,15 @@ export default function ConcernReviewSubmit() {
     );
   }
 
+  type DocSummaryItem = {
+    label: string;
+    text?: string;
+    fileName?: string | null;
+    uploadId?: string;
+    previewUrl?: string;
+    mimeType?: string;
+  };
+
   return (
     <div className="px-3 space-y-4 pb-8">
       <div className="flex items-center justify-between">
@@ -192,14 +249,23 @@ export default function ConcernReviewSubmit() {
             <h2 className="text-sm font-semibold text-foreground">{t("yourCorrectedUpload")}</h2>
             <div className="bg-card border border-border rounded-xl p-4">
               {replacementFile ? (
-                <div className="flex items-center gap-3">
-                  <img src="/icons/pdf2.svg" className="w-8 h-8" alt="" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{replacementFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(replacementFile.size / 1024).toFixed(0)} KB
-                    </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src="/icons/pdf2.svg" className="w-8 h-8 shrink-0" alt="" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{replacementFile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(replacementFile.size / 1024).toFixed(0)} KB
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleViewReplacementFile}
+                    className="px-3 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0"
+                  >
+                    {t("viewBtn")}
+                  </button>
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">{t("noFileSelected")}</p>
@@ -208,24 +274,37 @@ export default function ConcernReviewSubmit() {
           </div>
         </>
       )}
+
       {isDocumentOnly && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-foreground">
             {flaggedLabels.length > 1 ? t("documentsCorrected") : t("documentCorrected")}
           </h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            {flaggedDocSummary.map((doc: { label: string; text?: string; fileName?: string | null }) => (
-              <div key={doc.label} className="flex items-start gap-2 text-sm border-b border-border/50 last:border-0 pb-2 last:pb-0">
-                <img src="/icons/check.svg" className="w-4 h-4 mt-0.5 shrink-0" alt="" />
-                <div className="min-w-0">
-                  <p className="font-semibold text-primary">{doc.label}</p>
-                  {doc.text && doc.text !== doc.label && (
-                    <p className="text-xs text-muted-foreground">{doc.text}</p>
-                  )}
-                  {doc.fileName && (
-                    <p className="text-xs text-foreground/80 mt-0.5 truncate">{doc.fileName}</p>
-                  )}
+            {flaggedDocSummary.map((doc: DocSummaryItem) => (
+              <div key={doc.label} className="flex items-center justify-between gap-2 border-b border-border/50 last:border-0 pb-2 last:pb-0">
+                <div className="flex items-start gap-2 min-w-0">
+                  <img src="/icons/check.svg" className="w-4 h-4 mt-0.5 shrink-0" alt="" />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-primary">{doc.label}</p>
+                    {doc.text && doc.text !== doc.label && (
+                      <p className="text-xs text-muted-foreground">{doc.text}</p>
+                    )}
+                    {doc.fileName && (
+                      <p className="text-xs text-foreground/80 mt-0.5 truncate max-w-[160px]">{doc.fileName}</p>
+                    )}
+                  </div>
                 </div>
+                {(doc.uploadId || doc.previewUrl) && doc.fileName && (
+                  <button
+                    type="button"
+                    disabled={viewingDocKey === doc.label}
+                    onClick={() => handleViewDoc(doc)}
+                    className="px-3 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0 disabled:opacity-50"
+                  >
+                    {viewingDocKey === doc.label ? "Loading…" : t("viewBtn")}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -236,11 +315,23 @@ export default function ConcernReviewSubmit() {
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-foreground">{t("documentsUpdated")}</h2>
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-            {flaggedDocSummary.map((doc: { label: string; text?: string; fileName?: string | null }) => (
+            {flaggedDocSummary.map((doc: DocSummaryItem) => (
               <div key={doc.label} className="border-b border-border/50 last:border-0 pb-2 last:pb-0">
-                <p className="text-sm font-semibold text-primary">{doc.label}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-primary">{doc.label}</p>
+                  {(doc.uploadId || doc.previewUrl) && doc.fileName && (
+                    <button
+                      type="button"
+                      disabled={viewingDocKey === doc.label}
+                      onClick={() => handleViewDoc(doc)}
+                      className="px-3 py-1.5 bg-[#0051AE] text-white text-xs font-medium rounded-md hover:opacity-90 flex-shrink-0 disabled:opacity-50"
+                    >
+                      {viewingDocKey === doc.label ? "Loading…" : t("viewBtn")}
+                    </button>
+                  )}
+                </div>
                 {doc.text && doc.text !== doc.label && (
-                  <p className="text-xs text-muted-foreground">{doc.text}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{doc.text}</p>
                 )}
                 {doc.fileName ? (
                   <p className="text-xs text-success mt-1 flex items-center gap-1">
@@ -355,6 +446,14 @@ export default function ConcernReviewSubmit() {
           t("submitResponse")
         )}
       </button>
+
+      <DocumentPreviewModal
+        preview={docPreview}
+        onClose={() => {
+          docPreview?.revoke?.();
+          setDocPreview(null);
+        }}
+      />
     </div>
   );
 }

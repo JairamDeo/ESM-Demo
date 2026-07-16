@@ -321,10 +321,13 @@ export default function DocumentCheckList() {
           reuploadedDocumentLabels: [...reuploadedLabels],
           reuploadedDocuments: documents
             .filter((d: { label: string }) => reuploadedLabels.has(d.label))
-            .map((d: { label: string; text?: string; upload?: { originalFileName: string } }) => ({
+            .map((d: { label: string; text?: string; upload?: { originalFileName?: string; _id?: string; uploadId?: string; previewUrl?: string; mimeType?: string } }) => ({
               label: d.label,
               text: d.text,
               fileName: d.upload?.originalFileName,
+              uploadId: d.upload?._id || d.upload?.uploadId,
+              previewUrl: d.upload?.previewUrl || (d.upload?._id ? `/api/veteran/required-documents/uploads/${d.upload._id}/preview` : undefined),
+              mimeType: d.upload?.mimeType,
             })),
         },
       });
@@ -341,10 +344,13 @@ export default function DocumentCheckList() {
           reuploadedDocumentLabels: [...reuploadedLabels],
           reuploadedDocuments: documents
             .filter((d: { label: string }) => !hasRequiredDocFixes || reuploadedLabels.has(d.label))
-            .map((d: { label: string; text?: string; upload?: { originalFileName: string } }) => ({
+            .map((d: { label: string; text?: string; upload?: { originalFileName?: string; _id?: string; uploadId?: string; previewUrl?: string; mimeType?: string } }) => ({
               label: d.label,
               text: d.text,
               fileName: d.upload?.originalFileName,
+              uploadId: d.upload?._id || d.upload?.uploadId,
+              previewUrl: d.upload?.previewUrl || (d.upload?._id ? `/api/veteran/required-documents/uploads/${d.upload._id}/preview` : undefined),
+              mimeType: d.upload?.mimeType,
             })),
         },
       });
