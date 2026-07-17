@@ -25,6 +25,8 @@ interface ProfileForm {
   address: string;
 }
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 function FieldCard({
   icon: Icon,
   iconBg,
@@ -37,6 +39,8 @@ function FieldCard({
   placeholder,
   notAddedLabel,
   cannotBeChangedLabel,
+  inputType,
+  error,
 }: {
   icon: typeof User;
   iconBg: string;
@@ -49,6 +53,8 @@ function FieldCard({
   placeholder?: string;
   notAddedLabel?: string;
   cannotBeChangedLabel?: string;
+  inputType?: string;
+  error?: string;
 }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
@@ -59,12 +65,24 @@ function FieldCard({
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
           {editing && onChange && !readOnly ? (
-            <input
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              className="mt-1.5 w-full bg-secondary border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-[#826CF3]/50 focus:ring-1 focus:ring-[#826CF3]/20 transition-colors"
-            />
+            <>
+              <input
+                type={inputType ?? "text"}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                className={`mt-1.5 w-full bg-secondary border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:ring-1 transition-colors ${
+                  error
+                    ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20"
+                    : "border-border focus:border-[#826CF3]/50 focus:ring-[#826CF3]/20"
+                }`}
+              />
+              {error && (
+                <p className="text-[11px] text-rose-500 mt-1 flex items-center gap-1">
+                  <span>⚠</span> {error}
+                </p>
+              )}
+            </>
           ) : (
             <p className="text-sm font-medium text-foreground mt-1 break-words">
               {value || <span className="text-muted-foreground font-normal">{notAddedLabel ?? "Not added"}</span>}
@@ -86,6 +104,7 @@ export default memo(function UserProfile() {
   const { data: userMe, isLoading } = useUserMe();
   const { data: grievances = [] } = useMyGrievances();
   const [editing, setEditing] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [form, setForm] = useState<ProfileForm>({
     name: "",
     rank: "",
@@ -115,14 +134,26 @@ export default memo(function UserProfile() {
     }
   }, [userMe, user?.name, user?.email, user]);
 
+  const validateEmail = useCallback((value: string) => {
+    if (value && !EMAIL_REGEX.test(value)) {
+      return "Please enter a valid email address (e.g. name@example.com)";
+    }
+    return "";
+  }, []);
+
   const displayName = form.name?.trim() || user?.name?.trim() || (phone ? "Veteran" : "Veteran");
   const initials = (form.name?.trim() || user?.name?.trim() || phone || "V")[0].toUpperCase();
 
   const handleSave = useCallback(async () => {
+    const err = validateEmail(form.email);
+    if (err) {
+      setEmailError(err);
+      return;
+    }
     await updateProfile.mutateAsync(form);
     updateUser({ name: form.name, email: form.email });
     setEditing(false);
-  }, [form, updateProfile, updateUser]);
+  }, [form, updateProfile, updateUser, validateEmail]);
 
   const handleCancel = useCallback(() => {
     if (userMe) {
@@ -140,12 +171,16 @@ export default memo(function UserProfile() {
         email: user?.email || "",
       }));
     }
+    setEmailError("");
     setEditing(false);
   }, [userMe, user?.name, user?.email]);
 
   const setField = useCallback((key: keyof ProfileForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
+    if (key === "email") {
+      setEmailError(validateEmail(value));
+    }
+  }, [validateEmail]);
 
   const profileComplete = useMemo(() => {
     const filled = [form.name, form.rank, form.serviceNumber, form.email].filter(Boolean).length;
@@ -197,8 +232,8 @@ export default memo(function UserProfile() {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={updateProfile.isPending}
-                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#826CF3] px-3 py-1.5 rounded-full hover:opacity-90 disabled:opacity-50"
+                disabled={updateProfile.isPending || !!emailError}
+                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#826CF3] px-3 py-1.5 rounded-full hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {updateProfile.isPending ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -339,6 +374,8 @@ export default memo(function UserProfile() {
               placeholder={t("emailPlaceholderField")}
               notAddedLabel={t("notAdded")}
               cannotBeChangedLabel={t("cannotBeChanged")}
+              inputType="email"
+              error={emailError}
             />
             <FieldCard
               icon={MapPin}
