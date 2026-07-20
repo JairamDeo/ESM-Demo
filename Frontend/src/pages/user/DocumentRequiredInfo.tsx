@@ -49,6 +49,15 @@ export default function DocumentRequiredInfo() {
           "Additional documents may be requested during verification.",
         ];
 
+  const additionalQuestionsArray = currentLang === "hi" && requiredDocsData?.additionalQuestionsHi?.length
+    ? requiredDocsData.additionalQuestionsHi
+    : requiredDocsData?.additionalQuestions;
+
+  const additionalQuestions =
+    additionalQuestionsArray?.filter((q: string) => q?.trim())?.length
+      ? additionalQuestionsArray.filter((q: string) => q?.trim())
+      : [];
+
   const note = getField(requiredDocsData, "note").trim() || DEFAULT_NOTE;
 
   const handleTemplateDownload = async (
@@ -164,6 +173,21 @@ export default function DocumentRequiredInfo() {
           )}
         </div>
       </div>
+
+      {/* Additional Questions — from admin Required Documents config */}
+      {additionalQuestions.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <h3 className="text-base font-semibold text-foreground mb-3">{t("additionalQuestions") || "Additional Questions"}</h3>
+          <ul className="space-y-2">
+            {additionalQuestions.map((item: string, i: number) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                <span className="w-1 h-1 rounded-full bg-foreground flex-shrink-0 mt-2" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Guidelines — from admin Required Documents config */}
       {guidelines.length > 0 && (
