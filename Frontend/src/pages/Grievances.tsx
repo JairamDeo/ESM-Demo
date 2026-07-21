@@ -10,7 +10,7 @@ import {
 import { useGrievances, useGrievance, useUpdateGrievanceStatus, useAssignOfficer, useAddComment, useResolveConcern, useCreateGrievance, useDeleteGrievance, useCaseTypes, useStations, useOfficers, useRequiredDocumentsForCaseType, useLookupVeteranByPhone, useSlaSettings, useUpdateSlaSettings, useRequestEscalationTakeover, useApproveEscalationRequest, useRejectEscalationRequest, useEscalationPreview, useManualEscalateGrievance, useRequestEscalateToUpperTier, type GrievanceParams } from "@/hooks/useApi";
 import { usePermissions } from "@/stores/rbac";
 import { useAuth } from "@/contexts/AuthContext";
-import { getApiBaseUrl } from "@/lib/apiBase";
+import { getApiBaseUrl, resolveUploadUrl } from "@/lib/apiBase";
 import {
   loadGrievanceDocumentPreview,
   loadAttachmentPreview,
@@ -1629,14 +1629,14 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     name: form.type || undefined,
     enabled: !!form.type,
   });
-  const checklistDocs: Array<{
+  const checklistDocs = useMemo<Array<{
     label: string;
     text: string;
     isMandatory?: boolean;
     sortOrder?: number;
     templateUrl?: string | null;
     templateFileName?: string | null;
-  }> = checklistConfig?.documents || [];
+  }>>(() => checklistConfig?.documents || [], [checklistConfig?.documents]);
 
   const { data: officersData, isFetching: officersLoading } = useOfficers({
     limit: 100,
@@ -1774,24 +1774,67 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   }, [form, createGrievance, onClose, caseTypesList, selectedStation, caseTypeId, checklistDocs, missingMandatoryDocs, officers, lookupPhone, veteranLookup, veteranLookupError]);
 
   const handleTemplateDownload = async (
-    doc: { label: string; templateFileName?: string | null },
+    doc: { label: string; templateUrl?: string | null; templateFileName?: string | null },
     index: number
   ) => {
     if (!caseTypeId) {
       toast.error("Select a case type first");
       return;
     }
+    const fileName = doc.templateFileName || "template.pdf";
+
+    let err1 = "";
+    let err2 = "";
+    
+    // Strategy 1: backend API endpoint (auth-agnostic after the route fix)
+    // This correctly proxies Cloudinary / local files through the server.
     try {
       const { downloadChecklistTemplate } = await import("@/lib/veteranDocuments");
       await downloadChecklistTemplate({
         caseTypeId,
         documentLabel: doc.label,
         itemIndex: index,
-        fileName: doc.templateFileName || "template.pdf",
+        fileName,
       });
-    } catch {
-      toast.error("Could not download template");
+      return;
+    } catch (e: unknown) {
+      const err = e as { response?: { status?: number; data?: unknown }; message?: string };
+      let msg = "";
+      if (err?.response?.data instanceof Blob) {
+        msg = await err.response.data.text();
+      } else if (err?.response?.data && typeof err.response.data === "object" && "message" in err.response.data) {
+        msg = String((err.response.data as { message: unknown }).message);
+      } else {
+        msg = JSON.stringify(err?.response?.data ?? "");
+      }
+      err1 = err?.response?.status ? `API ${err.response.status} ${msg}` : ((e instanceof Error ? e.message : String(e)));
+      // fall through to direct URL strategy
     }
+
+    // Strategy 2: resolve the stored URL directly and force-download via blob.
+    // Works for public / local file URLs; Cloudinary may block CORS for private files.
+    if (doc.templateUrl) {
+      try {
+        const directUrl = resolveUploadUrl(doc.templateUrl) || doc.templateUrl;
+        const res = await fetch(directUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = objectUrl;
+          anchor.download = fileName;
+          anchor.click();
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+          return;
+        } else {
+          err2 = `Fetch HTTP ${res.status}`;
+        }
+      } catch (e: unknown) {
+        err2 = e instanceof Error ? e.message : String(e);
+      }
+    }
+
+    toast.error(`Could not download template. S1: ${err1} | S2: ${err2}`);
   };
 
   return (
