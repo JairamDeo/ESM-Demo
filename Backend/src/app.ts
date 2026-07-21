@@ -1,4 +1,5 @@
 import express, { Application } from "express";
+import path from "path";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -102,6 +103,9 @@ app.use("/api/rbac",          rbacRouter);
 app.use("/api/veteran/required-documents", veteranDocumentsRouter);
 app.use("/api/translate",     translateRouter);
 app.use("/api/dashboard/layout", dashboardLayoutRoutes);
+
+// Serve uploads directory statically for direct URL downloads (Strategy 2)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // ─── 404 + Error handler ──────────────────────────────────────────────────────
 app.use(notFound);

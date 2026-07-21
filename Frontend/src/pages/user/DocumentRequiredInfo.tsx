@@ -49,16 +49,18 @@ export default function DocumentRequiredInfo() {
           "Additional documents may be requested during verification.",
         ];
 
-  const additionalQuestionsArray = currentLang === "hi" && requiredDocsData?.additionalQuestionsHi?.length
-    ? requiredDocsData.additionalQuestionsHi
-    : requiredDocsData?.additionalQuestions;
+  const additionalQuestionsArray = currentLang === "hi" && requiredDocsData?.questionsHi?.length
+    ? requiredDocsData.questionsHi
+    : requiredDocsData?.questions;
 
   const additionalQuestions =
     additionalQuestionsArray?.filter((q: string) => q?.trim())?.length
       ? additionalQuestionsArray.filter((q: string) => q?.trim())
       : [];
 
-  const note = getField(requiredDocsData, "note").trim() || DEFAULT_NOTE;
+  const note = (currentLang === "hi" && requiredDocsData?.noteHi?.trim()
+    ? requiredDocsData.noteHi
+    : getField(requiredDocsData, "note")).trim() || DEFAULT_NOTE;
 
   const handleTemplateDownload = async (
     doc: { label: string; templateFileName?: string | null },
