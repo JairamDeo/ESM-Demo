@@ -82,6 +82,7 @@ type GrievanceData = Record<string, unknown> & {
   pendingEscalationRequest?: { status?: string; reason?: string };
   _originalOfficer?: string;
   filedByName?: string; filedByEmail?: string; filedByType?: string; createdBy?: string; submittedBy?: string;
+  concernType?: string;
 };
 
 function getGrievanceApiId(grievance: GrievanceData): string {
@@ -1107,6 +1108,7 @@ function ViewDetailsModal({ grievance: initialGrievance, onClose }: { grievance:
             { icon:Clock, label:"SLA Deadline", value: formatSlaDeadline(grievance.slaTierDeadline || grievance.slaDeadline) },
             { icon:Clock, label:"Filed On", value:grievance.createdAt ? new Date(grievance.createdAt).toLocaleDateString("en-IN") : grievance.date },
             { icon:User, label:"Contact", value:grievance.veteranPhone || grievance.contact || "—" },
+            { icon:User, label:"Concern For", value:grievance.concernType || "Self" },
           ].map(({ icon:Icon, label, value }) => (
             <div key={label} className="flex items-start gap-2.5 bg-secondary/30 rounded-lg p-3">
               <Icon className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -1599,7 +1601,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 
   const [form, setForm] = useState({
     type: "", veteran: "", rank: "", armyNo: "", contact: "",
-    stationId: "", officer: "", priority: "medium",
+    stationId: "", officer: "", priority: "medium", concernType: "Self",
     description: "",
     requiredDocFiles: {} as Record<string, File>,
   });
@@ -1745,6 +1747,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
     fd.append("veteranPhone", contactDigits);
     fd.append("veteranArmyNo", form.armyNo);
     fd.append("veteranRank", form.rank);
+    fd.append("concernType", form.concernType);
     if (selectedStation?.name) fd.append("stationName", selectedStation.name);
     fd.append("stationId", form.stationId);
     fd.append("officerName", form.officer || "Unassigned");
@@ -1976,6 +1979,13 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 
           <FormField label={`Army No. * ${errors.armyNo || ""}`}>
             <InputField value={form.armyNo} onChange={(v) => set("armyNo", v)} placeholder="e.g. IC-45678" />
+          </FormField>
+
+          <FormField label="Concern For *">
+            <SelectField value={form.concernType} onChange={(v) => set("concernType", v)}>
+              <option value="Self">Self</option>
+              <option value="Dependent">Dependent</option>
+            </SelectField>
           </FormField>
 
           <FormField label={`Contact Number * ${errors.contact || ""}`}>

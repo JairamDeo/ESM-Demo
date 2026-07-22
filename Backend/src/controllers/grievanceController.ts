@@ -176,7 +176,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     const {
       type, veteranName, veteranPhone, veteranArmyNo, veteranRank,
       stationName, stationId: stationIdRaw, officerName, officerId: officerIdRaw, priority, description, submissionSource,
-      caseTypeId: caseTypeIdRaw,
+      caseTypeId: caseTypeIdRaw, concernType,
     } = req.body;
 
     const currentUser = (req as any).user;
@@ -443,6 +443,7 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
       veteranPhone: resolvedPhone || veteranPhone,
       veteranArmyNo,
       veteranRank,
+      concernType: concernType || "Self",
       stationName: org?.stationName || resolvedStation,
       stationId: org?.stationId,
       hqId: org?.hqId,
@@ -1257,7 +1258,7 @@ export const trackGrievance = async (req: Request, res: Response): Promise<void>
       ],
       isDeleted: false,
     }).select(
-      "grievanceId type caseTypeId veteranName veteranRank veteranArmyNo stationName officerName status priority timeline description comments attachments concernStatus createdAt resolvedAt"
+      "grievanceId type caseTypeId veteranName veteranRank veteranArmyNo concernType stationName officerName status priority timeline description comments attachments concernStatus createdAt resolvedAt"
     ).populate("caseTypeId", "name nameHi");
 
     if (!grievance) { res.status(404).json({ success: false, message: "Grievance not found. Check your complaint ID." }); return; }

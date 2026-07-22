@@ -77,6 +77,7 @@ export interface IGrievance extends Document {
   veteranPhone?: string;
   veteranArmyNo?: string;
   veteranRank?: string;
+  concernType?: string;
   userId?: mongoose.Types.ObjectId;
   stationId?: mongoose.Types.ObjectId;    // ← ref to Station
   stationName: string;                    // ← cached string
@@ -181,6 +182,7 @@ const GrievanceSchema = new Schema<IGrievance>(
     veteranPhone: { type: String },
     veteranArmyNo:{ type: String },
     veteranRank:  { type: String },
+    concernType:  { type: String, enum: ["Self", "Dependent"], default: "Self" },
     userId:       { type: Schema.Types.ObjectId, ref: "User" },
     stationId:    { type: Schema.Types.ObjectId, ref: "Station" },
     stationName:  { type: String, required: true },   // ← cached

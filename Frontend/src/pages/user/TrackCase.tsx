@@ -347,14 +347,34 @@ export default memo(function TrackCase() {
                   {activeQuery.attachments.map((url: string, idx: number) => {
                     const fullUrl = resolveFileUrl(url);
                     const isPdf = url.toLowerCase().includes(".pdf");
+                    const filename = url.split("/").pop() || (isPdf ? "Document.pdf" : "Image.jpg");
+                    const viewKey = `concern-attachment-${idx}`;
+                    
                     return isPdf ? (
-                      <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary rounded-lg border border-border text-xs font-medium text-primary">
-                        <FileText className="w-3.5 h-3.5" /> {t("viewAttachment")}
-                      </a>
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleViewDocument(viewKey, () => loadAttachmentPreview(url, { fileName: filename }))}
+                        disabled={viewingDocKey === viewKey}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary rounded-lg border border-border text-xs font-medium text-primary disabled:opacity-50"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> {viewingDocKey === viewKey ? "Loading…" : t("viewAttachment")}
+                      </button>
                     ) : (
-                      <a key={idx} href={fullUrl} target="_blank" rel="noreferrer" className="block">
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleViewDocument(viewKey, () => loadAttachmentPreview(url, { fileName: filename }))}
+                        disabled={viewingDocKey === viewKey}
+                        className="relative block disabled:opacity-50"
+                      >
                         <img src={fullUrl} alt="" className="w-20 h-20 object-cover rounded-lg border border-border" />
-                      </a>
+                        {viewingDocKey === viewKey && (
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-lg">
+                            <div className="w-5 h-5 border-2 border-white/80 border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </button>
                     );
                   })}
                 </div>
