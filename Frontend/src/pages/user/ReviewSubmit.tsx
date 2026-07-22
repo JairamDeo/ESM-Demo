@@ -100,6 +100,7 @@ export default function ReviewSubmit() {
       if (user?.phone) formData.append("veteranPhone", user.phone);
       if (form.rank) formData.append("veteranRank", form.rank);
       if (form.armyNumber) formData.append("veteranArmyNo", form.armyNumber);
+      if (form.concernType) formData.append("concernType", form.concernType);
       formData.append("stationName", form.stationHQ.trim());
       if (form.caseTypeId) formData.append("caseTypeId", form.caseTypeId);
       if (form.description) formData.append("description", form.description);
