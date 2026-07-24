@@ -1,5 +1,5 @@
 import { useState, useCallback, memo, Fragment } from "react";
-import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronUp, RotateCcw, Check, X, Sun, Moon, Monitor } from "lucide-react";
+import { Settings, Bell, Shield, Globe, Clock, Users, ChevronDown, ChevronRight, RotateCcw, X, Sun, Moon, Monitor } from "lucide-react";
 import { useTheme, type ThemePreference } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRBACStore, usePermissions, type UserRole, type Permission, DEFAULT_PERMISSIONS } from "@/stores/rbac";
@@ -190,7 +190,7 @@ const RoleMatrix = memo(({ canEdit }: { canEdit: boolean }) => {
                 >
                   <td colSpan={ROLES.length + 1} className="py-2.5 px-2">
                     <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {expandedGroup === group.label ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      {expandedGroup === group.label ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                       {group.label}
                     </div>
                   </td>

@@ -216,6 +216,53 @@ export async function escalateGrievanceToLevel(
 export async function runSlaEscalationCheck(): Promise<number> {
   const now = new Date();
 
+  // ── Step 1: Backfill missing slaTierDeadline ────────────────────────────
+  // Grievances filed before SLA config existed (or when compute returned null)
+  // have no slaTierDeadline, so they never match the $lte query below.
+  // We compute the correct deadline retroactively and save it so the
+  // next iteration picks them up normally.
+  const noDeadlineCandidates = await Grievance.find({
+    isDeleted: false,
+    status: { $in: ["pending", "in-progress", "escalated"] },
+    assignedLevel: "L1",
+    // Match both: field missing entirely ($exists: false) OR field is null
+    $and: [
+      {
+        $or: [
+          { slaTierDeadline: { $exists: false } },
+          { slaTierDeadline: null },
+        ],
+      },
+      {
+        $or: [
+          { assignedOrgTier: { $in: ["station", "hq"] } },
+          { assignedOrgTier: { $exists: false } },
+        ],
+      },
+    ],
+  });
+
+  for (const g of noDeadlineCandidates) {
+    try {
+      const cfg = await getSlaConfigForCaseType(g.caseTypeId);
+      const tier = (g.assignedOrgTier || "station") as "station" | "hq" | "area";
+      // Compute deadline from when the grievance was created (or last assigned)
+      const baseline = g.createdAt;
+      const deadline = computeDeadlineForOrgTier(cfg, tier, baseline);
+      if (deadline) {
+        g.slaTierDeadline = deadline;
+        await g.save();
+        console.log(
+          `[SLA Backfill] Set slaTierDeadline for ${g.grievanceId}: ${deadline.toISOString()} ` +
+          `(${deadline <= now ? "OVERDUE — will escalate now" : "future"})`
+        );
+      }
+    } catch (err: any) {
+      console.error(`[SLA Backfill] Failed for ${g.grievanceId}:`, err.message);
+    }
+  }
+
+  // ── Step 2: Main escalation check ──────────────────────────────────────
   const candidates = await Grievance.find({
     isDeleted: false,
     status: { $in: ["pending", "in-progress", "escalated"] },
@@ -226,6 +273,10 @@ export async function runSlaEscalationCheck(): Promise<number> {
       { assignedOrgTier: { $exists: false } },
     ],
   });
+
+  if (candidates.length > 0) {
+    console.log(`[SLA Check] ${new Date().toISOString()} — ${candidates.length} overdue grievance(s) found`);
+  }
 
   let escalated = 0;
   for (const grievance of candidates) {
@@ -243,6 +294,11 @@ export async function runSlaEscalationCheck(): Promise<number> {
         if (!fresh?.slaTierDeadline || fresh.slaTierDeadline > now) break;
         current = fresh;
       }
+
+      console.log(
+        `[SLA Escalate] ${current.grievanceId}: ${currentTier} L1 → ${targetTier} L1` +
+        ` (deadline was ${current.slaTierDeadline?.toISOString()})`
+      );
 
       const reasonType = determineEscalationReasonType(current);
       const { grievance: updated } = await escalateGrievanceToOrgTier(current, targetTier, {
@@ -264,5 +320,6 @@ export async function runSlaEscalationCheck(): Promise<number> {
   }
   return escalated;
 }
+
 
 export { REASON_LABELS, nextOrgTier, ORG_TIER_LABELS };
