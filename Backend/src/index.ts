@@ -17,8 +17,15 @@ const startServer = async () => {
     await ensureRolePermissionsSeeded();
     await verifyCloudinaryConnection();
 
-    // Auto SLA escalation check every 5 minutes (+ once on startup)
-    const SLA_CHECK_MS = 5 * 60 * 1000;
+    // ── SLA auto-escalation: adaptive poll interval ──────────────────────────
+    // Poll every half of the shortest configured SLA window.
+    // Floor: 30 s  |  Ceiling: 5 min  (so a 1-min SLA polls every 30 s)
+    const MIN_POLL_MS  = 30 * 1000;          // 30 seconds
+    const MAX_POLL_MS  = 5 * 60 * 1000;      // 5 minutes
+    const CONFIG_REFRESH_MS = 60 * 60 * 1000; // re-read SLA config every 1 h
+
+    let slaIntervalHandle: ReturnType<typeof setInterval> | null = null;
+
     const runSlaCheck = async (label: string) => {
       try {
         const count = await runSlaEscalationCheck();
@@ -29,8 +36,51 @@ const startServer = async () => {
         console.error("SLA escalation check failed:", err.message);
       }
     };
+
+    /** Compute the shortest SLA window (minutes) across all tiers from DB config. */
+    const getShortestSlaMinutes = async (): Promise<number | null> => {
+      try {
+        const { getSlaConfig } = await import("./services/slaConfigService");
+        const cfg = await getSlaConfig();
+        const candidates: number[] = [];
+        const push = (h?: number | null, m?: number | null) => {
+          const total = (h || 0) * 60 + (m || 0);
+          if (total > 0) candidates.push(total);
+        };
+        if (cfg.mode === "common") {
+          push(cfg.hours, cfg.minutes);
+        } else {
+          push(cfg.l1Hours, cfg.l1Minutes);
+          push(cfg.l2Hours, cfg.l2Minutes);
+          push(cfg.l3Hours, cfg.l3Minutes);
+        }
+        return candidates.length ? Math.min(...candidates) : null;
+      } catch {
+        return null;
+      }
+    };
+
+    /** (Re-)start the SLA poll with the correct interval derived from config. */
+    const startSlaPoller = async () => {
+      const shortestMin = await getShortestSlaMinutes();
+      const pollMs = shortestMin
+        ? Math.max(MIN_POLL_MS, Math.min(Math.floor((shortestMin * 60 * 1000) / 2), MAX_POLL_MS))
+        : MAX_POLL_MS;
+
+      if (slaIntervalHandle) clearInterval(slaIntervalHandle);
+      slaIntervalHandle = setInterval(() => void runSlaCheck("Scheduled"), pollMs);
+      console.log(
+        `⏱️  SLA poller started — interval: ${pollMs / 1000}s` +
+        (shortestMin ? ` (shortest SLA: ${shortestMin}m)` : " (no SLA configured, using default)")
+      );
+    };
+
+    // Run immediately on startup, then start adaptive poller
     void runSlaCheck("Startup");
-    setInterval(() => void runSlaCheck("Scheduled"), SLA_CHECK_MS);
+    void startSlaPoller();
+
+    // Re-read SLA config every hour in case admin changes the window
+    setInterval(() => void startSlaPoller(), CONFIG_REFRESH_MS);
 
     // Start Express server
     const server = app.listen(PORT, HOST, () => {

@@ -1743,7 +1743,7 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 
     const fd = new FormData();
     fd.append("type", form.type || (caseTypesList[0]?.name || ""));
-    fd.append("veteranName", `${form.rank} ${form.veteran}`.trim());
+    fd.append("veteranName", form.veteran);
     fd.append("veteranPhone", contactDigits);
     fd.append("veteranArmyNo", form.armyNo);
     fd.append("veteranRank", form.rank);
@@ -2485,13 +2485,19 @@ export default memo(function Grievances() {
               setReassignGrievance((g: GrievanceData) => ({
                 ...g,
                 officerId: v,
-                officerName: selected?.name || "",
+                officerName: selected?.name,
               }));
             }}
           >
-            <option value="">Select Officer</option>
-            {officers.map((o: Record<string, unknown> & { _id?: string; name?: string }) => (
-              <option key={o._id as string} value={o._id as string}>{o.name as string}</option>
+            <option value="" disabled hidden>Select Officer</option>
+            {officers
+              .filter((o: { _id?: string; name?: string; role?: string }) => {
+                const orgRoleMap: Record<string, string> = { station: "Station HQ Officer", hq: "Headquarter Officer", area: "Area Officer" };
+                const requiredRole = orgRoleMap[reassignGrievance.assignedOrgTier || "station"];
+                return o.role === requiredRole && String(o._id) !== String(reassignGrievance.officerId) && o.name !== reassignGrievance._originalOfficer;
+              })
+              .map((o: { _id?: string; name?: string }) => (
+              <option key={o._id || o.name} value={String(o._id)}>{o.name}</option>
             ))}
           </SelectField>
         </FormField>
