@@ -61,38 +61,38 @@ export default memo(function CompleteProfile() {
 
   return (
     <div className="h-screen overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
-      <div className="flex flex-col w-full bg-background scrollbar-none h-screen overflow-y-auto sm:h-[90vh] sm:max-w-sm sm:rounded-md sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-2 pb-4">
+      <div className="flex flex-col w-full bg-background scrollbar-none h-screen sm:h-auto sm:max-w-sm sm:rounded-2xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-5 pb-6">
 
-        {/* Top controls */}
-        <div className="flex justify-end mb-4 flex-shrink-0">
+        {/* Top Header Row with Profile Icon and Theme Toggle */}
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-[#826CF3]/15 flex items-center justify-center">
+            <User className="w-6 h-6 text-[#826CF3]" />
+          </div>
           <button
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground border border-border"
+            className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors text-muted-foreground border border-border"
           >
             {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
 
-        {/* Header */}
-        <div className="mb-6 flex-shrink-0">
-          <div className="w-14 h-14 rounded-2xl bg-[#826CF3]/15 flex items-center justify-center mb-4">
-            <User className="w-7 h-7 text-[#826CF3]" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">{t("completeProfile")}</h1>
-          <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+        {/* Header Titles */}
+        <div className="mb-4 flex-shrink-0">
+          <h1 className="text-xl font-bold text-foreground">{t("completeProfile")}</h1>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
             {t("completeProfileDesc")}
           </p>
         </div>
 
         {/* Fields */}
-        <div className="space-y-3 flex-1">
+        <div className="space-y-2.5 flex-1 overflow-y-auto scrollbar-none">
           {fields.map(({ icon: Icon, label, key, placeholder, required, type }) => (
             <div key={label}>
               <label className="text-xs font-medium text-foreground mb-1.5 flex items-center gap-1">
                 {label}
                 {required && <span className="text-red-500 ml-0.5">*</span>}
               </label>
-              <div className={`flex items-center gap-3 bg-[#EFEFEF] dark:bg-secondary border rounded-xl px-4 py-3.5 transition-colors ${
+              <div className={`flex items-center gap-2.5 bg-[#EFEFEF] dark:bg-secondary border rounded-xl px-3.5 py-2.5 transition-colors ${
                 key
                   ? "border-border focus-within:border-[#826CF3] focus-within:ring-1 focus-within:ring-[#826CF3]/20"
                   : "border-border/40 opacity-60"
@@ -118,7 +118,7 @@ export default memo(function CompleteProfile() {
         <button
           onClick={handleSubmit}
           disabled={!form.name.trim() || updateProfile.isPending}
-          className="w-full mt-7 bg-[#826CF3] text-white font-bold py-4 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)] flex-shrink-0"
+          className="w-full mt-4 bg-[#826CF3] text-white font-bold py-3.5 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)] flex-shrink-0"
         >
           {updateProfile.isPending ? (
             <>
