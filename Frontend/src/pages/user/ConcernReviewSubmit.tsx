@@ -167,6 +167,7 @@ export default function ConcernReviewSubmit() {
       if (form.armyNumber) formData.append("veteranArmyNo", form.armyNumber);
       if (form.rank) formData.append("veteranRank", form.rank);
       if (form.stationHQ) formData.append("stationName", form.stationHQ);
+      if (form.concernType) formData.append("concernType", form.concernType);
     }
 
     try {

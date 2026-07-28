@@ -955,6 +955,9 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
         if (detailStation !== undefined && String(detailStation).trim()) {
           grievance.stationName = String(detailStation).trim();
         }
+        if (req.body.concernType !== undefined && String(req.body.concernType).trim()) {
+          grievance.concernType = String(req.body.concernType).trim();
+        }
       }
     }
 

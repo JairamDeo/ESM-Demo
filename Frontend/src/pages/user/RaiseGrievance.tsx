@@ -145,7 +145,7 @@ export default memo(function RaiseGrievance() {
     if (!generalConcernMode || !concernComplaint) return;
     setForm((prev) => ({
       ...prev,
-      concernType: prev.concernType || "Self",
+      concernType: prev.concernType || (concernComplaint.concernType as string) || "Self",
       caseType: prev.caseType || concernComplaint.type || "",
       caseTypeId: prev.caseTypeId || concernComplaint.caseTypeId || "",
       stationHQ: prev.stationHQ || concernComplaint.stationName || "",

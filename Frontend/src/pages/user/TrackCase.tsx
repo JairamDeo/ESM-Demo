@@ -154,7 +154,7 @@ export default memo(function TrackCase() {
       hasRequiredDocFixes: needsDocuments,
       concernScope: activeQuery?.concernScope,
       form: {
-        concernType: "Self",
+        concernType: complaint.concernType || "Self",
         caseType: complaint.type,
         caseTypeId: complaint.caseTypeId,
         stationHQ: complaint.stationName,
@@ -493,7 +493,7 @@ export default memo(function TrackCase() {
       <Accordion title={t("grievanceDetailsTitle")} defaultOpen={true}>
         <div className="space-y-0">
           {[
-            { label: t("concernForDetail"),  value: complaint.veteranName ? "Self" : "Other" },
+            { label: t("concernForDetail"),  value: complaint.concernType === "Dependent" ? t("dependent") : t("self") },
             { label: t("stationHQ"),    value: complaint.stationName },
             { label: t("rankLabel2"),   value: complaint.veteranRank || "—" },
             { label: t("armyNoLabel"),  value: complaint.veteranArmyNo || "—" },
