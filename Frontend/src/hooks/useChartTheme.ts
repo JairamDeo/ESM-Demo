@@ -3,21 +3,20 @@ import { useTheme } from "@/hooks/useTheme";
 
 export function useChartTheme() {
   const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-  
+
   return useMemo(
     () => ({
-      grid: isDark ? "hsl(240 3% 22%)" : "hsl(240 5% 88%)",
-      axis: isDark ? "hsl(240 3% 55%)" : "hsl(240 4% 46%)",
-      bar: "hsl(255 60% 69%)",
-      barHover: "hsl(255 60% 62%)",
+      grid: "hsl(var(--border))",
+      axis: "hsl(var(--muted-foreground))",
+      bar: "hsl(var(--primary))",
+      barHover: "hsl(var(--primary))",
       tooltip: {
-        background: isDark ? "hsl(240 3% 14%)" : "hsl(0 0% 100%)",
-        border: isDark ? "hsl(240 3% 24%)" : "hsl(240 5% 88%)",
-        color: isDark ? "hsl(0 0% 92%)" : "hsl(240 5% 15%)",
+        background: "hsl(var(--popover))",
+        border: "hsl(var(--border))",
+        color: "hsl(var(--popover-foreground))",
       },
     }),
-    [isDark]
+    [resolvedTheme]
   );
 }
 

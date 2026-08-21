@@ -5,87 +5,87 @@
 @layer base {
   :root {
     color-scheme: light;
-    --background: 0 0% 98%;
-    --foreground: 240 5% 15%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 5% 15%;
+    --background: 220 16% 91%;
+    --foreground: 222 22% 14%;
+    --card: 220 20% 97%;
+    --card-foreground: 222 22% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 5% 15%;
-    --primary: 255 60% 69%;
+    --popover-foreground: 222 22% 14%;
+    --primary: 255 58% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 93%;
-    --secondary-foreground: 240 5% 15%;
-    --muted: 240 5% 93%;
-    --muted-foreground: 240 4% 46%;
-    --accent: 255 60% 69%;
+    --secondary: 220 14% 86%;
+    --secondary-foreground: 222 22% 14%;
+    --muted: 220 12% 87%;
+    --muted-foreground: 220 10% 32%;
+    --accent: 255 58% 62%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 255 60% 69%;
+    --border: 220 12% 78%;
+    --input: 220 12% 78%;
+    --ring: 255 58% 62%;
     --radius: 0.75rem;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 5% 15%;
-    --sidebar-primary: 255 60% 69%;
+    --sidebar-background: 220 18% 95%;
+    --sidebar-foreground: 222 18% 18%;
+    --sidebar-primary: 255 58% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 255 60% 96%;
-    --sidebar-accent-foreground: 255 60% 50%;
-    --sidebar-border: 240 6% 90%;
-    --sidebar-ring: 255 60% 69%;
-    --success: 142 71% 45%;
+    --sidebar-accent: 255 48% 93%;
+    --sidebar-accent-foreground: 255 45% 36%;
+    --sidebar-border: 220 12% 84%;
+    --sidebar-ring: 255 58% 62%;
+    --success: 142 62% 36%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 32 90% 42%;
     --warning-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
+    --info: 199 78% 40%;
     --info-foreground: 0 0% 100%;
-    --chart-1: 255 60% 69%;
-    --chart-2: 199 89% 48%;
-    --chart-3: 142 71% 45%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 0 84% 60%;
+    --chart-1: 255 58% 62%;
+    --chart-2: 199 78% 40%;
+    --chart-3: 142 62% 36%;
+    --chart-4: 32 90% 42%;
+    --chart-5: 0 72% 48%;
   }
 
   .dark {
     color-scheme: dark;
-    --background: 240 3% 9%;
-    --foreground: 0 0% 92%;
-    --card: 240 3% 12%;
-    --card-foreground: 0 0% 92%;
-    --popover: 240 3% 12%;
-    --popover-foreground: 0 0% 92%;
-    --primary: 255 60% 69%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 3% 18%;
-    --secondary-foreground: 0 0% 92%;
-    --muted: 240 3% 18%;
-    --muted-foreground: 240 3% 55%;
-    --accent: 255 60% 69%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 50%;
+    --background: 228 14% 16%;
+    --foreground: 210 20% 96%;
+    --card: 228 12% 22%;
+    --card-foreground: 210 20% 96%;
+    --popover: 228 12% 24%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 255 62% 74%;
+    --primary-foreground: 255 30% 16%;
+    --secondary: 228 10% 28%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 228 10% 26%;
+    --muted-foreground: 215 12% 74%;
+    --accent: 255 62% 74%;
+    --accent-foreground: 255 30% 16%;
+    --destructive: 0 72% 64%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 3% 20%;
-    --input: 240 3% 20%;
-    --ring: 255 60% 69%;
-    --sidebar-background: 240 3% 7%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 255 60% 69%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 255 60% 15%;
-    --sidebar-accent-foreground: 255 60% 80%;
-    --sidebar-border: 240 3% 18%;
-    --sidebar-ring: 255 60% 69%;
-    --success: 142 71% 45%;
+    --border: 228 8% 34%;
+    --input: 228 8% 34%;
+    --ring: 255 62% 74%;
+    --sidebar-background: 228 16% 13%;
+    --sidebar-foreground: 210 16% 92%;
+    --sidebar-primary: 255 62% 74%;
+    --sidebar-primary-foreground: 255 30% 16%;
+    --sidebar-accent: 255 32% 24%;
+    --sidebar-accent-foreground: 255 70% 86%;
+    --sidebar-border: 228 10% 22%;
+    --sidebar-ring: 255 62% 74%;
+    --success: 142 58% 52%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
+    --warning: 38 90% 58%;
+    --warning-foreground: 30 20% 12%;
+    --info: 199 82% 62%;
     --info-foreground: 0 0% 100%;
-    --chart-1: 255 60% 69%;
-    --chart-2: 199 89% 48%;
-    --chart-3: 142 71% 45%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 0 84% 60%;
+    --chart-1: 255 62% 74%;
+    --chart-2: 199 82% 62%;
+    --chart-3: 142 58% 52%;
+    --chart-4: 38 90% 58%;
+    --chart-5: 0 72% 64%;
   }
 }
 
@@ -145,14 +145,14 @@
   height: 6px;
 }
 .dark ::-webkit-scrollbar-track {
-  background: hsl(240 3% 12%);
+  background: hsl(var(--card));
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: hsl(240 3% 25%);
+  background: hsl(var(--border));
   border-radius: 3px;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: hsl(255 60% 69%);
+  background: hsl(var(--primary));
 }
 
 /* Custom styling for Sonner toasts */
