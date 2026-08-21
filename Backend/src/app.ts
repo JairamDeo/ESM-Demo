@@ -19,6 +19,7 @@ import { rbacRouter } from "./routes/rbac";
 import { veteranDocumentsRouter } from "./routes/veteranDocuments";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 import dashboardLayoutRoutes from "./routes/dashboardLayout";
+import { getLanIPv4Addresses } from "./utils/network";
 
 const app: Application = express();
 
@@ -46,22 +47,25 @@ app.use(
 );
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"),
-  max: parseInt(process.env.RATE_LIMIT_MAX || "100"),
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: "Too many requests. Please try again later." },
-});
-app.use("/api", limiter);
+// Off unless RATE_LIMIT_ENABLED=true (local testing hits 429s otherwise).
+const rateLimitEnabled = process.env.RATE_LIMIT_ENABLED === "true";
+if (rateLimitEnabled) {
+  const limiter = rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"),
+    max: parseInt(process.env.RATE_LIMIT_MAX || "100"),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: "Too many requests. Please try again later." },
+  });
+  app.use("/api", limiter);
 
-// Stricter limit on auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { success: false, message: "Too many login attempts. Try again in 15 minutes." },
-});
-app.use("/api/auth", authLimiter);
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { success: false, message: "Too many login attempts. Try again in 15 minutes." },
+  });
+  app.use("/api/auth", authLimiter);
+}
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
@@ -72,7 +76,28 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// ─── Health check ─────────────────────────────────────────────────────────────
+
+// ─── Welcome + health ─────────────────────────────────────────────────────────
+const PORT = parseInt(process.env.PORT || "5000", 10);
+const HOST = process.env.HOST || "0.0.0.0";
+
+app.get("/", (_req, res) => {
+  const lanIps = getLanIPv4Addresses();
+  res.status(200).json({
+    success: true,
+    message: "Welcome to ESM Backend",
+    timestamp: new Date().toISOString(),
+    version: "1.0.0",
+    environment: process.env.NODE_ENV,
+    host: HOST,
+    port: PORT,
+    urls: {
+      local: `http://localhost:${PORT}`,
+      lan: lanIps.map((ip) => `http://${ip}:${PORT}`),
+    },
+  });
+});
+
 app.get("/health", (_req, res) => {
   res.status(200).json({
     success: true,
@@ -82,6 +107,7 @@ app.get("/health", (_req, res) => {
     environment: process.env.NODE_ENV,
   });
 });
+
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use("/api/auth",          authRoutes);

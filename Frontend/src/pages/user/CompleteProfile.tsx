@@ -60,8 +60,8 @@ export default memo(function CompleteProfile() {
   ];
 
   return (
-    <div className="h-screen overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
-      <div className="flex flex-col w-full bg-background scrollbar-none h-screen sm:h-auto sm:max-w-sm sm:rounded-2xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-5 pb-6">
+    <div className="min-h-dvh h-dvh overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
+      <div className="flex flex-col w-full max-w-full bg-background scrollbar-none h-dvh sm:h-auto sm:max-w-sm sm:rounded-2xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-5 pb-6">
 
         {/* Top Header Row with Profile Icon and Theme Toggle */}
         <div className="flex items-center justify-between mb-4 flex-shrink-0">

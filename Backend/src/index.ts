@@ -91,6 +91,7 @@ const startServer = async () => {
       console.log(`  🚀  Listening on ${HOST}:${PORT}`);
       console.log(`  🌍  Environment: ${process.env.NODE_ENV}`);
       console.log(`  🔗  Local:   http://localhost:${PORT}`);
+      console.log(`  👋  Welcome: http://localhost:${PORT}/`);
       console.log(`  ❤️  Health:  http://localhost:${PORT}/health`);
       if (lanIps.length) {
         console.log("  📡  LAN (direct API — optional):");

@@ -273,7 +273,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
 
   const shellClass = isMockup
     ? "relative flex flex-col font-['Montserrat',sans-serif] bg-background overflow-hidden h-[844px] w-[390px] shadow-[0_0_0_1px_rgba(15,23,42,0.06),0_20px_40px_rgba(15,23,42,0.12),0_8px_16px_rgba(15,23,42,0.06)] dark:shadow-none"
-    : "relative flex flex-col font-['Montserrat',sans-serif] w-full h-screen max-h-[100dvh] bg-background overflow-hidden";
+    : "relative flex flex-col font-['Montserrat',sans-serif] w-full max-w-full min-h-dvh h-dvh max-h-dvh bg-background overflow-hidden";
 
   const contentAnimation =
     isTabScreen && navDirection === "left"
@@ -287,7 +287,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       className={
         isMockup
           ? "fixed inset-0 z-50 overflow-hidden bg-muted/40 dark:bg-zinc-950 flex items-center justify-center py-[8px]"
-          : "min-h-screen bg-muted/40 dark:bg-zinc-950"
+          : "min-h-dvh w-full max-w-full bg-muted/40 dark:bg-zinc-950"
       }
     >
       <div

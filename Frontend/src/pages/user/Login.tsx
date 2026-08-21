@@ -42,8 +42,8 @@ export default memo(function Login() {
   }, [phone, sendOtp, navigate]);
 
   return (
-    <div className="h-screen bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
-      <div className="flex flex-col w-full bg-background min-h-screen sm:min-h-0 sm:max-w-sm sm:rounded-3xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-10 pb-8 sm:pt-8 sm:pb-8">
+    <div className="min-h-dvh h-dvh bg-muted/40 dark:bg-zinc-950 flex items-center justify-center sm:p-6 p-0">
+      <div className="flex flex-col w-full max-w-full bg-background min-h-dvh sm:min-h-0 sm:max-w-sm sm:rounded-3xl sm:shadow-xl sm:dark:border sm:dark:border-border px-6 pt-10 pb-8 sm:pt-8 sm:pb-8">
 
         {/* Top controls */}
         <div className="flex justify-end items-center gap-2 mb-2 ">
