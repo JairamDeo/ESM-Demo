@@ -1,7 +1,6 @@
 import { memo, useState } from "react";
 import { Clock, ChevronDown } from "lucide-react";
 import { useDashboard } from "@/hooks/useApi";
-import { useAuth } from "@/contexts/AuthContext";
 import { DynamicDashboard } from "@/components/dashboard-dynamic/DynamicDashboard";
 
 const PERIOD_OPTIONS = [
@@ -17,35 +16,31 @@ export default memo(function Dashboard() {
   const [period, setPeriod] = useState("all");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { data, isLoading } = useDashboard(period);
-  const { user } = useAuth();
 
   const selectedLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label || "All Time";
-  const scopeLabel = user?.stateName || user?.hqName || user?.stationName || "your scope";
 
   return (
-    <div className="space-y-6 animate-fade-in pb-2">
-      {/* Header */}
+    <div className="space-y-5 animate-fade-in pb-2">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Grievance overview · {scopeLabel}
-          </p>
+          <h1 className="text-[1.65rem] font-semibold text-foreground tracking-tight leading-none">Dashboard</h1>
         </div>
         <div className="relative shrink-0">
           <button
             type="button"
             onClick={() => setDropdownOpen((o) => !o)}
-            className="flex items-center gap-2 min-w-[11rem] px-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground hover:bg-secondary/50 transition-colors shadow-sm"
+            className="flex items-center gap-2 min-w-[11.5rem] px-3.5 py-2.5 bg-card/90 border border-border rounded-2xl text-sm text-foreground hover:border-primary/30 hover:bg-card transition-all shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
           >
-            <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
-            <span className="flex-1 text-left truncate">{selectedLabel}</span>
+            <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 text-primary shrink-0">
+              <Clock className="w-3.5 h-3.5" />
+            </span>
+            <span className="flex-1 text-left truncate font-medium">{selectedLabel}</span>
             <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
           </button>
           {dropdownOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 z-20 bg-card border border-border rounded-xl shadow-xl py-1 w-52">
+              <div className="absolute right-0 top-full mt-2 z-20 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-2xl py-1.5 w-52 overflow-hidden">
                 {PERIOD_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -54,10 +49,10 @@ export default memo(function Dashboard() {
                       setPeriod(opt.value);
                       setDropdownOpen(false);
                     }}
-                    className={`flex items-center justify-between w-full px-3 py-2.5 text-sm transition-colors text-left ${
+                    className={`flex items-center justify-between w-full px-3.5 py-2.5 text-sm transition-colors text-left ${
                       period === opt.value
                         ? "bg-primary/10 text-primary font-medium"
-                        : "text-foreground hover:bg-secondary/60"
+                        : "text-foreground hover:bg-secondary/70"
                     }`}
                   >
                     {opt.label}

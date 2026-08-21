@@ -61,7 +61,7 @@ export function QuickCountsWidget({ chartType, isEditMode = false }: { chartType
             onDragStart={(e) => handleDragStart(e, row.id)}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(e, row.id)}
-            className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/10 hover:bg-secondary/30 px-3 py-3 flex-1 min-h-[70px] transition-colors ${
+            className={`flex items-center gap-3 rounded-2xl border border-border/70 bg-gradient-to-r from-secondary/40 to-transparent hover:from-secondary/70 px-3.5 py-3 flex-1 min-h-[70px] transition-all ${
               isEditMode ? "group cursor-grab active:cursor-grabbing" : "cursor-default"
             } ${
               draggedItem === row.id ? "opacity-40 border-dashed" : "opacity-100"
@@ -72,11 +72,11 @@ export function QuickCountsWidget({ chartType, isEditMode = false }: { chartType
                 <GripVertical className="w-5 h-5" />
               </div>
             )}
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${row.cls}`}>
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${row.cls}`}>
               <row.icon className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xl font-bold text-foreground tabular-nums leading-none mb-1">
+              <p className="text-[1.35rem] font-semibold text-foreground tabular-nums leading-none mb-1 tracking-tight">
                 {row.value}
               </p>
               <p className="text-xs text-muted-foreground truncate">{row.label}</p>

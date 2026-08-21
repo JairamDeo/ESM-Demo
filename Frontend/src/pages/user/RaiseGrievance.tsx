@@ -1,13 +1,15 @@
 import { useState, memo, useCallback, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronUp } from "lucide-react";
-import { useCreateGrievance, useCaseTypes, useStations, useCategories } from "@/hooks/useApi";
+import { useCreateGrievance, useCaseTypes, useStations, useCategories, useUserMe } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
+import { getQrScanStation } from "@/lib/qrScan";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useDynamicTranslation } from "@/utils/translationHelper";
 import { getCategoryFallbackMeta } from "@/lib/categoryIcons";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import VoiceDescriptionField from "@/components/VoiceDescriptionField";
 
 const normalizeCategory = (v: string) =>
   String(v || "").trim().toLowerCase().replace("idenity", "identity");
@@ -60,6 +62,7 @@ export default memo(function RaiseGrievance() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { currentLang, getField } = useDynamicTranslation();
+  const { data: userMe } = useUserMe();
 
   const { data: caseTypesList = [] } = useCaseTypes({ status: "active" });
   const { data: categories = [] } = useCategories({ status: "active" });
@@ -75,7 +78,7 @@ export default memo(function RaiseGrievance() {
   const concernComplaint = useMemo(() => routeState.complaint || {}, [routeState.complaint]);
   const concernMessage = routeState.concernMessage || "";
   const concernGrievanceId = routeState.grievanceId || concernComplaint._id || concernComplaint.id;
-  const stationFromQR = urlParams.get("station") || routeState.station || savedForm.stationHQ || "";
+  const stationFromQR = urlParams.get("station") || routeState.station || getQrScanStation() || "";
   const preselectedType = savedForm.caseType || routeState.caseType || "";
   const preselectedCaseTypeId = savedForm.caseTypeId || routeState.caseTypeId || "";
   const isFromQR = !!stationFromQR;
@@ -92,7 +95,28 @@ export default memo(function RaiseGrievance() {
   });
 
   const [openCategory, setOpenCategory] = useState<string | null>(null);
-  const [servicesOpen, setServicesOpen] = useState(true);
+  const [servicesOpen, setServicesOpen] = useState(false);
+
+  useEffect(() => {
+    const dbRank = userMe?.rank || user?.rank || "";
+    const dbArmy = userMe?.armyNumber || userMe?.serviceNumber || user?.armyNumber || "";
+    if (!dbRank && !dbArmy) return;
+    setForm((prev) => ({
+      ...prev,
+      rank: prev.rank || dbRank,
+      armyNumber: prev.armyNumber || dbArmy,
+    }));
+  }, [userMe, user?.rank, user?.armyNumber]);
+
+  useEffect(() => {
+    if (!stationFromQR || !stationHQsList.length) return;
+    const match = stationHQsList.find(
+      (s: Record<string, unknown> & { name: string }) =>
+        String(s.name || "").toLowerCase() === String(stationFromQR).toLowerCase()
+    );
+    if (!match?.name) return;
+    setForm((prev) => (prev.stationHQ === match.name ? prev : { ...prev, stationHQ: match.name }));
+  }, [stationFromQR, stationHQsList]);
 
   // ── Build category lookup map ─────────────────────────────────────────
   const catById = useMemo(() => {
@@ -382,12 +406,10 @@ export default memo(function RaiseGrievance() {
         {/* Description */}
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-foreground">{t("description")}</label>
-          <textarea
+          <VoiceDescriptionField
             value={form.description}
-            onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-            rows={4}
+            onChange={(v) => setForm((prev) => ({ ...prev, description: v }))}
             placeholder={t("descriptionPlaceholder")}
-            className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary transition-colors resize-none leading-relaxed"
           />
         </div>
 

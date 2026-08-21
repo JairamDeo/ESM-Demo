@@ -1673,15 +1673,32 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
   }, [form.stationId, officers]);
 
   useEffect(() => {
+    const digits = form.contact.replace(/\D/g, "").slice(-10);
+    if (digits.length === 10) {
+      if (digits !== lookupPhone) setLookupPhone(digits);
+    } else if (lookupPhone) {
+      setLookupPhone("");
+    }
+  }, [form.contact, lookupPhone]);
+
+  useEffect(() => {
     if (!veteranLookup) return;
     setForm((f) => ({
       ...f,
-      veteran: veteranLookup.name || f.veteran,
-      rank: veteranLookup.rank || f.rank,
-      armyNo: veteranLookup.armyNumber || f.armyNo,
-      stationId: f.stationId || stations.find((s: { name?: string }) => s.name === veteranLookup.stationHQ)?._id || f.stationId,
+      veteran: veteranLookup.name || "",
+      rank: veteranLookup.rank || "",
+      armyNo: veteranLookup.armyNumber || "",
     }));
-  }, [veteranLookup, stations]);
+  }, [veteranLookup?.id, veteranLookup?.name, veteranLookup?.rank, veteranLookup?.armyNumber]);
+
+  useEffect(() => {
+    if (!veteranLookup?.stationHQ || !stations.length) return;
+    setForm((f) => {
+      if (f.stationId) return f;
+      const match = stations.find((s: { name?: string }) => s.name === veteranLookup.stationHQ);
+      return match?._id ? { ...f, stationId: match._id } : f;
+    });
+  }, [veteranLookup?.id, veteranLookup?.stationHQ, stations]);
 
   const set = (k: string, v: string | File[] | Record<string, File>) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -1969,6 +1986,28 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
 
         <div className="grid grid-cols-2 gap-4">
 
+          <FormField label={`Contact Number * ${errors.contact || ""}`}>
+            <InputField
+              value={form.contact}
+              onChange={(v) => set("contact", v)}
+              onBlur={handleContactBlur}
+              placeholder="10-digit mobile registered in app"
+            />
+            {veteranLookupLoading && (
+              <p className="text-[11px] text-muted-foreground mt-1">Looking up veteran account…</p>
+            )}
+            {veteranLookup && !veteranLookupLoading && (
+              <p className="text-[11px] text-success mt-1">
+                Veteran account found — name, rank and army no. filled from their profile.
+              </p>
+            )}
+            {veteranLookupError && lookupPhone.length === 10 && !veteranLookupLoading && (
+              <p className="text-[11px] text-destructive mt-1">
+                No veteran account for this number. Ask them to register first.
+              </p>
+            )}
+          </FormField>
+
           <FormField label={`Veteran Name * ${errors.veteran || ""}`}>
             <InputField value={form.veteran} onChange={(v) => set("veteran", v)} placeholder="e.g. R.K. Sharma" />
           </FormField>
@@ -1986,31 +2025,6 @@ function NewGrievanceModal({ onClose }: { onClose:()=>void }) {
               <option value="Self">Self</option>
               <option value="Dependent">Dependent</option>
             </SelectField>
-          </FormField>
-
-          <FormField label={`Contact Number * ${errors.contact || ""}`}>
-            <InputField
-              value={form.contact}
-              onChange={(v) => {
-                set("contact", v);
-                setLookupPhone("");
-              }}
-              onBlur={handleContactBlur}
-              placeholder="10-digit mobile registered in app"
-            />
-            {veteranLookupLoading && (
-              <p className="text-[11px] text-muted-foreground mt-1">Looking up veteran account…</p>
-            )}
-            {veteranLookup && !veteranLookupLoading && (
-              <p className="text-[11px] text-success mt-1">
-                Veteran account found — grievance will appear in their login.
-              </p>
-            )}
-            {veteranLookupError && lookupPhone.length === 10 && !veteranLookupLoading && (
-              <p className="text-[11px] text-destructive mt-1">
-                No veteran account for this number. Ask them to register first.
-              </p>
-            )}
           </FormField>
 
           <FormField label={`Station HQ * ${errors.stationId || ""}`}>

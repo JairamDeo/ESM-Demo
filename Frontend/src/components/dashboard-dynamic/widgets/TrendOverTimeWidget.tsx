@@ -17,7 +17,7 @@ export function TrendOverTimeWidget({ chartType }: { chartType: string }) {
   }
 
   if (chartData.length === 0) {
-    return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">No trend data</div>;
+    return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">No monthly grievance data</div>;
   }
 
   if (chartType === "bar") {
@@ -30,8 +30,8 @@ export function TrendOverTimeWidget({ chartType }: { chartType: string }) {
             <YAxis stroke={theme.axis} fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip {...getTooltipProps(theme)} cursor={{ fill: "hsl(var(--muted) / 0.1)" }} />
             <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-            <Bar dataKey="received" name="Received" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="resolved" name="Resolved" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="received" name="New grievances" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="resolved" name="Resolved" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -47,8 +47,8 @@ export function TrendOverTimeWidget({ chartType }: { chartType: string }) {
           <YAxis stroke={theme.axis} fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
           <Tooltip {...getTooltipProps(theme)} />
           <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-          <Line type="monotone" dataKey="received" name="Received" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-          <Line type="monotone" dataKey="resolved" name="Resolved" stroke="hsl(var(--success))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="received" name="New grievances" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="resolved" name="Resolved" stroke="hsl(var(--success))" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>

@@ -121,7 +121,7 @@ export default memo(function UserProfile() {
       setForm({
         name: userMe.name || user?.name || "",
         rank: userMe.rank || "",
-        serviceNumber: userMe.serviceNumber || "",
+        serviceNumber: userMe.serviceNumber || userMe.armyNumber || "",
         email: userMe.email || user?.email || "",
         address: userMe.address || "",
       });
@@ -150,8 +150,8 @@ export default memo(function UserProfile() {
       setEmailError(err);
       return;
     }
-    await updateProfile.mutateAsync(form);
-    updateUser({ name: form.name, email: form.email });
+    await updateProfile.mutateAsync({ ...form, armyNumber: form.serviceNumber });
+    updateUser({ name: form.name, email: form.email, rank: form.rank, armyNumber: form.serviceNumber });
     setEditing(false);
   }, [form, updateProfile, updateUser, validateEmail]);
 
@@ -160,7 +160,7 @@ export default memo(function UserProfile() {
       setForm({
         name: userMe.name || "",
         rank: userMe.rank || "",
-        serviceNumber: userMe.serviceNumber || "",
+        serviceNumber: userMe.serviceNumber || userMe.armyNumber || "",
         email: userMe.email || "",
         address: userMe.address || "",
       });

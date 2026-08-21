@@ -101,10 +101,6 @@ const AdminLogin = memo(() => {
               <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Signing in...</>
             ) : "Sign In"}
           </button>
-
-          <p className="text-xs text-center text-muted-foreground">
-            Test: <span className="font-mono text-foreground">admin</span> / <span className="font-mono text-foreground">Jairam@123</span>
-          </p>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">

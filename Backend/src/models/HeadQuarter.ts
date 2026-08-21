@@ -1,9 +1,16 @@
 import mongoose, { Document, Schema } from "mongoose";
 import { auditEntrySchema, IAuditEntry } from "./AuditLog";
+import { orgOfficerRefSchema } from "./orgOfficerRef";
 
 export interface IHQStationRef {
   stationId: mongoose.Types.ObjectId;
   stationName: string;
+}
+
+export interface IHQOfficerRef {
+  officerId: mongoose.Types.ObjectId;
+  role: string;
+  level?: "L1" | "L2" | "L3";
 }
 
 export interface IHQ extends Document {
@@ -21,6 +28,7 @@ export interface IHQ extends Document {
   contactEmail?: string;
   contactPhone?: string;
   stations: IHQStationRef[];
+  officers: IHQOfficerRef[];
   auditHistory: IAuditEntry[];
   isActive: boolean;
   createdAt: Date;
@@ -45,6 +53,7 @@ const HQSchema = new Schema<IHQ>(
         stationName: { type: String, required: true, trim: true },
       },
     ],
+    officers: { type: [orgOfficerRefSchema], default: [] },
     auditHistory: { type: [auditEntrySchema], default: [] },
     isActive:  { type: Boolean, default: true },
   },

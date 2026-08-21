@@ -18,7 +18,8 @@
     "seed:org-officers": "ts-node src/scripts/seedOrgOfficers.ts",
     "set:officer-passwords": "ts-node src/scripts/setOfficerPasswords.ts",
     "backfill:category-casetype-hi": "ts-node src/scripts/backfillCategoryCaseTypeHi.ts",
-    "fix:stations-hq-mapping": "ts-node src/scripts/fixStationsHqAreaMapping.ts"
+    "fix:stations-hq-mapping": "ts-node src/scripts/fixStationsHqAreaMapping.ts",
+    "fix:officer-org-mapping": "ts-node src/scripts/fixOfficerOrgMapping.ts"
   },
   "keywords": [],
   "author": "",

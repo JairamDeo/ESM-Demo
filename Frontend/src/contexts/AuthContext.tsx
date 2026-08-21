@@ -3,6 +3,7 @@ import api, { setAuthToken, clearAuthToken, setStoredUser, getStoredUser } from 
 import { queryClient } from "@/lib/queryClient";
 import { resolveRbacRole, type UserRole } from "@/lib/rbacRole";
 import { registerPushDeviceOnLogin } from "@/lib/pushNotifications";
+import { clearQrScan } from "@/lib/qrScan";
 
 export type { UserRole };
 
@@ -22,6 +23,8 @@ export interface AuthUser {
   jobRole?: string;
   station?: string;
   phone?: string;
+  rank?: string;
+  armyNumber?: string;
   stateId?: string;
   stateName?: string;
   hqId?: string;
@@ -111,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: userInfo.phone,
       role: "user",
       station: userInfo.stationHQ,
+      rank: userInfo.rank || "",
+      armyNumber: userInfo.armyNumber || userInfo.serviceNumber || "",
     };
     setStoredUser(authUser, "user");
     setUser(authUser);
@@ -134,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const path = window.location.pathname;
     const role = path.startsWith("/user/") ? "user" : "admin";
     clearAuthToken(role);                 // ← pass correct role
+    if (role === "user") clearQrScan();
     setUser(null);
     queryClient.clear();
   }, []);

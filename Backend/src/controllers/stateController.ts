@@ -6,7 +6,7 @@ import { buildAuditEntry } from "../services/auditService";
 export const getStates = async (req: Request, res: Response): Promise<void> => {
   try {
     const query = stateListQuery((req as any).user);
-    const states = await State.find(query).sort({ name: 1 });
+    const states = await State.find(query).populate("officers.officerId", "name role level status").sort({ name: 1 });
     res.json({ success: true, data: states });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });

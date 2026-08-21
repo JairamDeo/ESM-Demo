@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import Officer, { OFFICER_LEVELS } from "../models/Officer";
-import Station from "../models/Station";
 import { buildOfficerAssignment } from "../services/officerAssignment";
 import { rbacRoleFromJobRole } from "../constants/officerRoles";
 import { HIERARCHY_ORDER } from "../constants/officerHierarchy";
@@ -11,7 +10,7 @@ import {
   officerScopeQuery,
 } from "../services/officerHierarchy";
 import { buildAuditEntry } from "../services/auditService";
-import { OfficerJobRole } from "../constants/officerRoles";
+import { applyOfficerOrgMapping, removeOfficerFromAllOrgs, refreshStationOfficerCount } from "../services/officerOrgMapping";
 
 function assignmentDisplay(o: {
   role: string;
@@ -233,9 +232,7 @@ export const createOfficer = async (req: Request, res: Response): Promise<void> 
       auditHistory: [auditEntry],
     });
 
-    if (officer.station) {
-      await Station.findByIdAndUpdate(officer.station, { $inc: { officerCount: 1 } });
-    }
+    await applyOfficerOrgMapping(officer);
 
     res.status(201).json({ success: true, message: "Officer added successfully", data: officer });
   } catch (error: any) {
@@ -314,10 +311,7 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
         Object.assign(updateData, assignment);
         const newStationId = "station" in assignment ? assignment.station : undefined;
         if (existing.station && newStationId?.toString() !== existing.station.toString()) {
-          await Station.findByIdAndUpdate(existing.station, { $inc: { officerCount: -1 } });
-        }
-        if (newStationId) {
-          await Station.findByIdAndUpdate(newStationId, { $inc: { officerCount: 1 } });
+          await refreshStationOfficerCount(existing.station);
         }
       } catch (e: any) {
         res.status(400).json({ success: false, message: e.message });
@@ -362,6 +356,9 @@ export const updateOfficer = async (req: Request, res: Response): Promise<void> 
       res.status(404).json({ success: false, message: "Officer not found" });
       return;
     }
+
+    await applyOfficerOrgMapping(officer);
+
     res.status(200).json({ success: true, message: "Officer updated", data: officer });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -385,6 +382,7 @@ export const toggleOfficerStatus = async (req: Request, res: Response): Promise<
       buildAuditEntry(actor, "status_toggle", { note: `Status set to ${officer.status}` })
     );
     await officer.save();
+    if (officer.station) await refreshStationOfficerCount(officer.station);
     res.status(200).json({ success: true, message: `Officer ${officer.status}`, data: officer });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -404,9 +402,8 @@ export const deleteOfficer = async (req: Request, res: Response): Promise<void> 
       return;
     }
     await Officer.findByIdAndDelete(req.params.id);
-    if (officer.station) {
-      await Station.findByIdAndUpdate(officer.station, { $inc: { officerCount: -1 } });
-    }
+    await removeOfficerFromAllOrgs(officer._id);
+    await refreshStationOfficerCount(officer.station);
     res.status(200).json({ success: true, message: "Officer deleted" });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

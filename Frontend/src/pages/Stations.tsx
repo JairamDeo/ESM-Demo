@@ -22,7 +22,7 @@ export default memo(function Stations() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterState, setFilterState] = useState("");
-  const [form, setForm] = useState({ name: "", city: "", state: "Maharashtra", officers: "4", address: "", hqId: "", hqName: ""   });
+  const [form, setForm] = useState({ name: "", city: "", state: "Maharashtra", address: "", hqId: "", hqName: ""   });
   const [deleteTarget, setDeleteTarget] = useState<StationData | null>(null);
 
   const { data, isLoading } = useStations({ search, state: filterState || undefined });
@@ -43,10 +43,9 @@ export default memo(function Stations() {
       state: form.state,
       hqId: form.hqId,
       hqName: form.hqName,
-      officerCount: Number(form.officers) || 0,
       address: form.address,
     });
-    setForm({ name: "", city: "", state: "Maharashtra", officers: "4", address: "", hqId: "", hqName: ""   });
+    setForm({ name: "", city: "", state: "Maharashtra", address: "", hqId: "", hqName: ""   });
     setOpen(false);
   }, [form, createStation]);
 
@@ -194,16 +193,6 @@ export default memo(function Stations() {
           )}
         </div>
 
-        {/* Number of officers */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground">Number of Officers</label>
-          <input
-            type="number" min="0" value={form.officers}
-            onChange={(e) => setForm({ ...form, officers: e.target.value })}
-            className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
-          />
-        </div>
-
         {/* Address */}
         <div>
           <label className="text-xs font-medium text-muted-foreground">Address (optional)</label>
@@ -288,9 +277,9 @@ export default memo(function Stations() {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-4 gap-3">
                   {[
-                    { icon: Users,        val: s.officerCount,  label: "Officers", color: "text-primary"  },
-                    { icon: FileText,     val: s.totalCases,    label: "Cases",    color: "text-info"     },
-                    { icon: CheckCircle2, val: s.resolvedCases, label: "Resolved", color: "text-success"  },
+                    { icon: Users,        val: Number(s.officerCount ?? 0),  label: "Officers", color: "text-primary"  },
+                    { icon: FileText,     val: Number(s.totalCases ?? 0),    label: "Cases",    color: "text-info"     },
+                    { icon: CheckCircle2, val: Number(s.resolvedCases ?? 0), label: "Resolved", color: "text-success"  },
                     { icon: QrCode,       val: `${resRate}%`,   label: "Rate",     color: "text-warning"  },
                   ].map(({ icon: Icon, val, label, color }) => (
                     <div key={label} className="text-center p-2 rounded-lg bg-secondary/50">

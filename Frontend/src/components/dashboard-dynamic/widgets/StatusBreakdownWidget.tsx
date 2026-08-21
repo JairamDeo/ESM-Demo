@@ -23,7 +23,7 @@ export function StatusBreakdownWidget({ chartType }: { chartType: string }) {
   }
 
   if (pieData.length === 0) {
-    return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">No status data</div>;
+    return <div className="h-full flex items-center justify-center text-muted-foreground text-sm">No grievance status data</div>;
   }
 
   if (chartType === "bar") {
@@ -35,7 +35,7 @@ export function StatusBreakdownWidget({ chartType }: { chartType: string }) {
             <XAxis dataKey="name" stroke={chartTheme.axis} fontSize={10} tickLine={false} axisLine={false} />
             <YAxis stroke={chartTheme.axis} fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip {...getTooltipProps(chartTheme)} />
-            <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={30}>
+            <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={28}>
               {pieData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
@@ -46,22 +46,23 @@ export function StatusBreakdownWidget({ chartType }: { chartType: string }) {
     );
   }
 
-  const innerRadius = chartType === "donut" ? 52 : 0;
+  const innerRadius = chartType === "donut" ? "52%" : 0;
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="relative flex-1 min-h-0">
+    <div className="h-full flex flex-col min-h-0">
+      <div className="relative flex-1 min-h-[120px] overflow-visible">
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
             <Pie
               data={pieData}
               dataKey="value"
               cx="50%"
               cy="50%"
-              outerRadius={78}
+              outerRadius="72%"
               innerRadius={innerRadius}
               paddingAngle={chartType === "donut" ? 3 : 0}
-              stroke="transparent"
+              stroke="hsl(var(--card))"
+              strokeWidth={2}
             >
               {pieData.map((entry, i) => (
                 <Cell key={i} fill={entry.color} />
@@ -73,20 +74,26 @@ export function StatusBreakdownWidget({ chartType }: { chartType: string }) {
         {chartType === "donut" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-2xl font-bold text-foreground tabular-nums">{pieTotal}</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Grievances</span>
           </div>
         )}
       </div>
-      <div className="space-y-2 mt-3 pt-3 border-t border-border overflow-y-auto max-h-[100px]">
-        {pieData.map((item) => (
-          <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: item.color }} />
-              <span className="text-muted-foreground truncate">{item.name}</span>
+      <div className="mt-2 pt-2 border-t border-border/70 overflow-y-auto max-h-[72px] shrink-0">
+        <div className="flex items-center justify-between px-2 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <span>Status</span>
+          <span>Count</span>
+        </div>
+        <div className="space-y-1.5">
+          {pieData.map((item) => (
+            <div key={item.name} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded-lg bg-secondary/35">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-2 h-2 rounded-full shrink-0 ring-2 ring-background" style={{ background: item.color }} />
+                <span className="text-muted-foreground truncate">{item.name}</span>
+              </div>
+              <span className="text-foreground font-semibold tabular-nums shrink-0">{item.value}</span>
             </div>
-            <span className="text-foreground font-semibold tabular-nums shrink-0">{item.value}</span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

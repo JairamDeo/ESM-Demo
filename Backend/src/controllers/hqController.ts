@@ -6,7 +6,7 @@ import { hqListQuery, resolveAreaForHQCreate } from "../services/officerHierarch
 export const getHQs = async (req: Request, res: Response): Promise<void> => {
   try {
     const query = hqListQuery((req as any).user);
-    const hqs = await HQ.find(query).sort({ name: 1 });
+    const hqs = await HQ.find(query).populate("officers.officerId", "name role level status").sort({ name: 1 });
     res.json({ success: true, data: hqs });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });

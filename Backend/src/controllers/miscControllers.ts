@@ -55,6 +55,35 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
     }
     const caseTypesRaw = await CaseType.find(filter).populate("category", "name nameHi isActive iconUrl").lean();
     const activeOnly = status === "active";
+
+    const scopeFilter = await getGrievanceScopeFilter((req as any).user);
+    const countRows = await Grievance.aggregate([
+      { $match: { ...scopeFilter, isDeleted: { $ne: true } } },
+      {
+        $group: {
+          _id: { $ifNull: ["$caseTypeId", "$type"] },
+          total: { $sum: 1 },
+          resolved: {
+            $sum: { $cond: [{ $in: ["$status", ["resolved", "closed"]] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    const liveCounts = new Map<string, { totalCases: number; pendingCases: number; resolvedCases: number }>();
+    for (const row of countRows) {
+      const key = String(row._id ?? "");
+      if (!key) continue;
+      const totalCases = row.total || 0;
+      const resolvedCases = row.resolved || 0;
+      liveCounts.set(key, {
+        totalCases,
+        resolvedCases,
+        pendingCases: Math.max(0, totalCases - resolvedCases),
+      });
+    }
+    const emptyCounts = { totalCases: 0, pendingCases: 0, resolvedCases: 0 };
+
     // Sort by casetype<N> numeric suffix if present, else fallback stable.
     const caseTypes = caseTypesRaw
       .filter((ct: any) => {
@@ -74,8 +103,20 @@ export const getCaseTypes = async (req: Request, res: Response): Promise<void> =
       })
       .map((ct: any) => {
         const populated = ct.category && typeof ct.category === "object" ? ct.category : null;
+        const fromId = liveCounts.get(String(ct._id));
+        const fromName = liveCounts.get(String(ct.name || ""));
+        const live = fromId && fromName
+          ? {
+              totalCases: fromId.totalCases + fromName.totalCases,
+              pendingCases: fromId.pendingCases + fromName.pendingCases,
+              resolvedCases: fromId.resolvedCases + fromName.resolvedCases,
+            }
+          : fromId || fromName || emptyCounts;
         return {
           ...ct,
+          totalCases: live.totalCases,
+          pendingCases: live.pendingCases,
+          resolvedCases: live.resolvedCases,
           categoryId: populated?._id ?? ct.category,
           categoryName: populated?.name ?? "Other",
           categoryNameHi: populated?.nameHi ?? "",

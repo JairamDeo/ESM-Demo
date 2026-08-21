@@ -7,7 +7,6 @@ interface ChartTypeMenuProps {
   widgetKey: WidgetKey;
   currentChart: ChartType;
   onChange: (chartType: ChartType) => void;
-  onRemove: () => void;
 }
 
 const CHART_LABELS: Record<string, string> = {
@@ -15,11 +14,12 @@ const CHART_LABELS: Record<string, string> = {
   bar: "Bar Chart",
   pie: "Pie Chart",
   donut: "Donut Chart",
+  line: "Line Chart",
   list: "List",
   table: "Table",
 };
 
-export function ChartTypeMenu({ widgetKey, currentChart, onChange, onRemove }: ChartTypeMenuProps) {
+export function ChartTypeMenu({ widgetKey, currentChart, onChange }: ChartTypeMenuProps) {
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -32,7 +32,7 @@ export function ChartTypeMenu({ widgetKey, currentChart, onChange, onRemove }: C
   useEffect(() => {
     if (open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const menuHeight = allowedCharts.length * 38 + 80;
+      const menuHeight = allowedCharts.length * 38 + 40;
       const spaceBelow = window.innerHeight - rect.bottom;
       const openUpward = spaceBelow < menuHeight;
 
@@ -75,17 +75,8 @@ export function ChartTypeMenu({ widgetKey, currentChart, onChange, onRemove }: C
     };
   }, [open]);
 
-  if (allowedCharts.length <= 1) {
-    return (
-      <button
-        type="button"
-        onClick={onRemove}
-        className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-        title="Remove widget"
-      >
-        <span className="text-xs px-1">Remove</span>
-      </button>
-    );
+  if (allowedCharts.length === 0) {
+    return null;
   }
 
   const dropdown = open ? (
@@ -117,17 +108,6 @@ export function ChartTypeMenu({ widgetKey, currentChart, onChange, onRemove }: C
           )}
         </button>
       ))}
-      <div className="my-1 border-t border-border" />
-      <button
-        type="button"
-        onClick={() => {
-          onRemove();
-          setOpen(false);
-        }}
-        className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-      >
-        Remove Widget
-      </button>
     </div>
   ) : null;
 
@@ -138,6 +118,8 @@ export function ChartTypeMenu({ widgetKey, currentChart, onChange, onRemove }: C
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+        title="Change view"
+        aria-label="Change view"
       >
         <MoreVertical className="w-4 h-4" />
       </button>

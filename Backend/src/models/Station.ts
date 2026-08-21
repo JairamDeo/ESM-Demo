@@ -1,5 +1,12 @@
 import mongoose, { Document, Schema } from "mongoose";
 import { auditEntrySchema, IAuditEntry } from "./AuditLog";
+import { orgOfficerRefSchema } from "./orgOfficerRef";
+
+export interface IStationOfficerRef {
+  officerId: mongoose.Types.ObjectId;
+  role: string;
+  level?: "L1" | "L2" | "L3";
+}
 
 export interface IStation extends Document {
   _id: mongoose.Types.ObjectId;
@@ -11,6 +18,7 @@ export interface IStation extends Document {
   stateCode?: string;                // ← cached for quick access
   stateName?: string;                // ← cached for display
   address?: string;
+  officers: IStationOfficerRef[];
   officerCount: number;
   totalCases: number;
   resolvedCases: number;
@@ -34,6 +42,7 @@ const StationSchema = new Schema<IStation>(
     stateCode:{ type: String },
     stateName:{ type: String },
     address:  { type: String },
+    officers: { type: [orgOfficerRefSchema], default: [] },
     officerCount:  { type: Number, default: 0, min: 0 },
     totalCases:    { type: Number, default: 0, min: 0 },
     resolvedCases: { type: Number, default: 0, min: 0 },

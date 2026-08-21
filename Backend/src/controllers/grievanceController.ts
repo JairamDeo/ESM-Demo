@@ -170,6 +170,33 @@ function normalizeVeteranPhone(phone?: string): string {
   return String(phone || "").replace(/\D/g, "").slice(-10);
 }
 
+/** Save rank / army no / name on the veteran account only when those fields are still empty. */
+async function persistMissingVeteranProfile(
+  userId: unknown,
+  details: { name?: string; rank?: string; armyNumber?: string; stationHQ?: string }
+): Promise<void> {
+  if (!userId || !mongoose.isValidObjectId(String(userId))) return;
+  const user = await User.findById(userId);
+  if (!user) return;
+
+  const $set: Record<string, string> = {};
+  const name = String(details.name || "").trim();
+  const rank = String(details.rank || "").trim();
+  const army = String(details.armyNumber || "").trim();
+  const station = String(details.stationHQ || "").trim();
+
+  if (name && !String(user.name || "").trim()) $set.name = name;
+  if (rank && !String(user.rank || "").trim()) $set.rank = rank;
+  if (army) {
+    if (!String(user.armyNumber || "").trim()) $set.armyNumber = army;
+    if (!String(user.serviceNumber || "").trim()) $set.serviceNumber = army;
+  }
+  if (station && !String(user.stationHQ || "").trim()) $set.stationHQ = station;
+
+  if (Object.keys($set).length === 0) return;
+  await User.updateOne({ _id: user._id }, { $set });
+}
+
 // ─── CREATE grievance ────────────────────────────────────────────────────────
 export const createGrievance = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -325,6 +352,10 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     let linkedVeteranUserId = userId;
     let linkedVeteran: InstanceType<typeof User> | null = null;
 
+    if (isVeteran && currentUser?.id) {
+      linkedVeteran = await User.findById(currentUser.id);
+    }
+
     if (isManualAdmin) {
       linkedVeteran = await User.findOne({ phone: resolvedPhone, isActive: true });
       if (!linkedVeteran) {
@@ -339,6 +370,13 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
         resolvedName = linkedVeteran.name || `${veteranRank || linkedVeteran.rank || ""} ${resolvedPhone}`.trim();
       }
     }
+
+    const incomingRank = String(veteranRank || "").trim();
+    const incomingArmy = String(veteranArmyNo || "").trim();
+    const resolvedRank = incomingRank || String(linkedVeteran?.rank || "").trim();
+    const resolvedArmy =
+      incomingArmy ||
+      String(linkedVeteran?.armyNumber || linkedVeteran?.serviceNumber || "").trim();
 
     const grievanceId = `GRV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -441,8 +479,8 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
           : undefined,
       veteranName: resolvedName,
       veteranPhone: resolvedPhone || veteranPhone,
-      veteranArmyNo,
-      veteranRank,
+      veteranArmyNo: resolvedArmy || undefined,
+      veteranRank: resolvedRank || undefined,
       concernType: concernType || "Self",
       stationName: org?.stationName || resolvedStation,
       stationId: org?.stationId,
@@ -515,6 +553,13 @@ export const createGrievance = async (req: Request, res: Response): Promise<void
     }
 
     const responseData = await enrichGrievanceWithDocuments(grievance.toObject());
+
+    await persistMissingVeteranProfile(linkedVeteranUserId, {
+      name: resolvedName,
+      rank: resolvedRank,
+      armyNumber: resolvedArmy,
+      stationHQ: org?.stationName || resolvedStation,
+    });
 
     if (linkedVeteranUserId) {
       await notifyVeteran(linkedVeteranUserId, {
@@ -958,6 +1003,11 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
         if (req.body.concernType !== undefined && String(req.body.concernType).trim()) {
           grievance.concernType = String(req.body.concernType).trim();
         }
+        await persistMissingVeteranProfile(grievance.userId, {
+          rank: grievance.veteranRank,
+          armyNumber: grievance.veteranArmyNo,
+          stationHQ: grievance.stationName,
+        });
       }
     }
 
@@ -1381,9 +1431,12 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       withinSla: slaStatsRaw.find(s => s._id === false)?.count || 0
     };
 
-    const recent = await Grievance.find(baseFilter)
+    const recent = await Grievance.find({
+      ...baseFilter,
+      status: { $nin: ["resolved", "closed"] },
+    })
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(3)
       .select("grievanceId type veteranName stationName status createdAt");
 
       // Dynamic counts

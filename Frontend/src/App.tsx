@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useRBACStore } from "@/stores/rbac";
 import RBACHydrator from "@/components/RBACHydrator";
 import PermissionRouteGuard from "@/components/PermissionRouteGuard";
+import { QrScanCapture, QrScanEntry } from "@/components/QrScanCapture";
 
 const AdminLayout   = lazy(() => import("@/components/AdminLayout"));
 const UserLayout    = lazy(() => import("@/components/UserLayout"));
@@ -127,8 +128,10 @@ const App = () => (
         future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
       >
         <AuthProvider>
+          <QrScanCapture />
           <RBACHydrator />
           <Routes>
+            <Route path="/grievance"       element={<QrScanEntry />} />
             <Route path="/admin/login"     element={<AdminLoginGuard />} />
             <Route path="/user/login"      element={<S><Login /></S>} />
             <Route path="/user/verify-otp" element={<S><VerifyOTP /></S>} />

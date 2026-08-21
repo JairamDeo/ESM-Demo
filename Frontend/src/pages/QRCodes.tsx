@@ -1,8 +1,8 @@
 import { usePermissions } from "@/stores/rbac";
-import { useState, memo, useCallback, useMemo } from "react";
+import { useState, memo, useCallback, useMemo, useEffect } from "react";
 import { QrCode, Download, Eye, RefreshCw, X, Plus, Search, ChevronDown } from "lucide-react";
 import QRCode from "react-qr-code";
-import { useQRCodes, useGenerateQRCode, useRegenerateQRCode, useToggleQRStatus, getQRDownloadUrl } from "@/hooks/useApi";
+import { useQRCodes, useGenerateQRCode, useRegenerateQRCode, useToggleQRStatus, useStations, getQRDownloadUrl } from "@/hooks/useApi";
 import { toast } from "sonner";
 
 type QRCodeData = Record<string, unknown> & {
@@ -19,8 +19,6 @@ type QRCodeData = Record<string, unknown> & {
   lastScan?: string;
 };
 
-const STATIONS = ["Nagpur Station HQ","Pune Station HQ","Ahmedabad Station HQ","Nashik Station HQ","Aurangabad Station HQ","Kolhapur Station HQ","Solapur Station HQ","Baroda Station HQ","Rajkot Station HQ","Surat Station HQ"];
-
 export default memo(function QRCodes() {
   const permissions = usePermissions();
   const canManageQRCodes = permissions.manageQRCodes;
@@ -29,26 +27,36 @@ export default memo(function QRCodes() {
   const [filterStatus, setFilterStatus] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedQR, setSelectedQR] = useState<QRCodeData | null>(null);
-  const [form, setForm] = useState({ station: STATIONS[0], code: "" });
+  const [form, setForm] = useState({ stationId: "", stationName: "" });
 
   const { data: qrCodes = [], isLoading } = useQRCodes({ search, status: filterStatus || undefined });
+  const { data: stationsData } = useStations();
   const generate = useGenerateQRCode();
   const regenerate = useRegenerateQRCode();
   const toggle = useToggleQRStatus();
 
-  const autoCode = useMemo(() => {
-    if (!form.station) return "";
-    const prefix = form.station.replace(" Station HQ","").replace(" HQ","").toUpperCase().slice(0,3);
-    return `${prefix}-QR-${String(qrCodes.length + 1).padStart(3,"0")}`;
-  }, [form.station, qrCodes.length]);
+  const stations = useMemo(() => {
+    const list = (stationsData?.data || []) as Array<{ _id: string; name: string }>;
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+  }, [stationsData]);
+
+  useEffect(() => {
+    if (!open || stations.length === 0) return;
+    const stillValid = stations.some((s) => s._id === form.stationId);
+    if (!stillValid) {
+      setForm({ stationId: stations[0]._id, stationName: stations[0].name });
+    }
+  }, [open, stations, form.stationId]);
 
   const handleGenerate = useCallback(async () => {
-    const code = form.code.trim() || autoCode;
-    if (!form.station || !code) return;
-    await generate.mutateAsync({ stationName: form.station, code });
-    setForm({ station: STATIONS[0], code: "" });
+    if (!form.stationName) return;
+    await generate.mutateAsync({
+      stationName: form.stationName,
+      stationId: form.stationId || undefined,
+    });
+    setForm({ stationId: "", stationName: "" });
     setOpen(false);
-  }, [form, autoCode, generate]);
+  }, [form, generate]);
 
   const handleDownload = useCallback((qr: QRCodeData) => {
     if (qr._id) {
@@ -117,19 +125,25 @@ export default memo(function QRCodes() {
             <div>
               <label className="text-xs font-medium text-muted-foreground">Station *</label>
             <div className="relative mt-1">
-            <select value={form.station} onChange={(e) => setForm({ ...form, station: e.target.value })} className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
-    >       {STATIONS.map((s) => (<option key={s}>{s}</option>))}
+            <select
+              value={form.stationId}
+              onChange={(e) => {
+                const selected = stations.find((s) => s._id === e.target.value);
+                setForm({ stationId: e.target.value, stationName: selected?.name || "" });
+              }}
+              className="w-full appearance-none px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary"
+            >
+              {stations.length === 0 && <option value="">No stations available</option>}
+              {stations.map((s) => (
+                <option key={s._id} value={s._id}>{s.name}</option>
+              ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-foreground pointer-events-none" />
           </div>
           </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">QR Code (auto-generated if empty)</label>
-                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder={autoCode} className="mt-1 w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary placeholder:text-muted-foreground" />
-              </div>
               <div className="flex gap-2 mt-2">
                 <button onClick={() => setOpen(false)} className="flex-1 py-2 bg-secondary text-foreground rounded-lg text-sm">Cancel</button>
-                <button onClick={handleGenerate} disabled={generate.isPending} className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+                <button onClick={handleGenerate} disabled={generate.isPending || !form.stationName} className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-60">
                   {generate.isPending ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
                   Generate
                 </button>

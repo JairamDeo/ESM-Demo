@@ -273,6 +273,7 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         rank: user.rank,
         serviceNumber: user.serviceNumber,
+        armyNumber: user.armyNumber || user.serviceNumber,
         stationHQ: user.stationHQ,
         isVerified: user.isVerified,
       },

@@ -3,6 +3,8 @@ import Station from "../models/Station";
 import HQ from "../models/HeadQuarter";
 import State from "../models/State";
 import QRCode from "../models/QRCode";
+import Officer from "../models/Officer";
+import Grievance from "../models/Grievance";
 import qrcode from "qrcode";
 import {
   syncStationOnHQ,
@@ -53,6 +55,7 @@ export const getStations = async (req: Request, res: Response): Promise<void> =>
       Station.find(query)
         .populate("hqId", "name city state")
         .populate("state", "name code")
+        .populate("officers.officerId", "name role level status")
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum)
@@ -60,9 +63,70 @@ export const getStations = async (req: Request, res: Response): Promise<void> =>
       Station.countDocuments(query),
     ]);
 
+    const stationIds = stations.map((s) => s._id);
+    const stationNames = stations.map((s) => s.name).filter(Boolean);
+
+    const [officerRows, caseRows] = await Promise.all([
+      stationIds.length
+        ? Officer.aggregate([
+            {
+              $match: {
+                station: { $in: stationIds },
+                role: "Station HQ Officer",
+                status: "active",
+              },
+            },
+            { $group: { _id: "$station", count: { $sum: 1 } } },
+          ])
+        : Promise.resolve([]),
+      stationIds.length
+        ? Grievance.aggregate([
+            {
+              $match: {
+                isDeleted: { $ne: true },
+                $or: [
+                  { stationId: { $in: stationIds } },
+                  ...(stationNames.length ? [{ stationName: { $in: stationNames } }] : []),
+                ],
+              },
+            },
+            {
+              $group: {
+                _id: { $ifNull: ["$stationId", "$stationName"] },
+                total: { $sum: 1 },
+                resolved: {
+                  $sum: { $cond: [{ $in: ["$status", ["resolved", "closed"]] }, 1, 0] },
+                },
+              },
+            },
+          ])
+        : Promise.resolve([]),
+    ]);
+
+    const officerByStation = new Map(officerRows.map((r: { _id: unknown; count: number }) => [String(r._id), r.count]));
+    const casesByKey = new Map(
+      caseRows.map((r: { _id: unknown; total: number; resolved: number }) => [
+        String(r._id),
+        { total: r.total || 0, resolved: r.resolved || 0 },
+      ])
+    );
+
+    const data = stations.map((s) => {
+      const fromId = casesByKey.get(String(s._id));
+      const fromName = casesByKey.get(String(s.name || ""));
+      const totalCases = (fromId?.total || 0) + (fromName?.total || 0);
+      const resolvedCases = (fromId?.resolved || 0) + (fromName?.resolved || 0);
+      return {
+        ...s,
+        officerCount: officerByStation.get(String(s._id)) || 0,
+        totalCases,
+        resolvedCases,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: stations,
+      data,
       pagination: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
     });
   } catch (error: any) {
@@ -75,7 +139,8 @@ export const getStationById = async (req: Request, res: Response): Promise<void>
   try {
     const station = await Station.findById(req.params.id)
       .populate("hqId", "name city state address commanderName")
-      .populate("state", "name code");
+      .populate("state", "name code")
+      .populate("officers.officerId", "name role level status");
     if (!station || !station.isActive) {
       res.status(404).json({ success: false, message: "Station not found" });
       return;
@@ -89,7 +154,7 @@ export const getStationById = async (req: Request, res: Response): Promise<void>
 // ─── CREATE station ──────────────────────────────────────────────────────────
 export const createStation = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, city, state, address, officerCount, contactEmail, contactPhone, hqId, hqName } = req.body;
+    const { name, city, state, address, contactEmail, contactPhone, hqId, hqName } = req.body;
 
     if (!name || !city || !state || !hqId) {
       res.status(400).json({
@@ -145,7 +210,10 @@ export const createStation = async (req: Request, res: Response): Promise<void> 
       stateCode: stateDoc.code,
       stateName: stateDoc.name,
       address,
-      officerCount: officerCount || 0,
+      officers: [],
+      officerCount: 0,
+      totalCases: 0,
+      resolvedCases: 0,
       contactEmail,
       contactPhone,
     };

@@ -4,6 +4,30 @@ import QRCodeModel from "../models/QRCode";
 import Station from "../models/Station";
 import { getGrievanceScopeFilter } from "../utils/scopeFilter";
 
+function stationQrPrefix(stationName: string): string {
+  return stationName.replace(" Station HQ", "").replace(" HQ", "").toUpperCase().slice(0, 3);
+}
+
+async function nextUniqueQrCode(stationName: string): Promise<string> {
+  const prefix = stationQrPrefix(stationName);
+  const pattern = new RegExp(`^${prefix}-QR-(\\d+)$`, "i");
+  const existing = await QRCodeModel.find({ code: pattern }).select("code").lean();
+
+  let max = 0;
+  for (const row of existing) {
+    const n = parseInt(String(row.code).split("-")[2] || "0", 10);
+    if (!Number.isNaN(n) && n > max) max = n;
+  }
+
+  let next = max + 1;
+  let code = `${prefix}-QR-${String(next).padStart(3, "0")}`;
+  while (await QRCodeModel.exists({ code })) {
+    next += 1;
+    code = `${prefix}-QR-${String(next).padStart(3, "0")}`;
+  }
+  return code;
+}
+
 // ─── GET all QR codes ────────────────────────────────────────────────────────
 export const getQRCodes = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -44,20 +68,16 @@ export const getQRCodeById = async (req: Request, res: Response): Promise<void> 
 // ─── GENERATE new QR code ────────────────────────────────────────────────────
 export const generateQRCode = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { stationId, stationName, code } = req.body;
+    const { stationId, stationName } = req.body;
 
-    if (!stationName || !code) {
-      res.status(400).json({ success: false, message: "stationName and code are required" });
+    if (!stationName) {
+      res.status(400).json({ success: false, message: "stationName is required" });
       return;
     }
 
-    const existing = await QRCodeModel.findOne({ code: (code as string).toUpperCase() });
-    if (existing) {
-      res.status(409).json({ success: false, message: "QR code with this code already exists" });
-      return;
-    }
+    const codeUpper = await nextUniqueQrCode(stationName);
 
-    const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(stationName)}&code=${code.toUpperCase()}`;
+    const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(stationName)}&code=${codeUpper}`;
 
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
@@ -67,14 +87,14 @@ export const generateQRCode = async (req: Request, res: Response): Promise<void>
       if (station) {
         linkedStationId = station._id;
         station.qrActive = true;
-        station.qrCode = code.toUpperCase();
+        station.qrCode = codeUpper;
         await station.save();
       }
     }
 
     const qr = await QRCodeModel.create({
       stationId: linkedStationId, stationName,
-      code: (code as string).toUpperCase(),
+      code: codeUpper,
       qrData, svgContent,
       generatedBy: (req as any).user?.id,
     });
@@ -135,9 +155,7 @@ export const regenerateQRCode = async (req: Request, res: Response): Promise<voi
     const newQrData = `${oldQR.qrData}&regen=${Date.now()}`;
     const svgContent = await qrcode.toString(newQrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
-    const baseParts = oldQR.code.split("-");
-    const newNum = parseInt(baseParts[2] || "0") + 1;
-    const newCode = `${baseParts[0]}-${baseParts[1]}-${String(newNum).padStart(3, "0")}`;
+    const newCode = await nextUniqueQrCode(oldQR.stationName);
 
     const newQR = await QRCodeModel.create({
       stationId: oldQR.stationId, stationName: oldQR.stationName,

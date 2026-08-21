@@ -259,15 +259,15 @@ export default memo(function CaseTypes() {
               {/* Stats */}
               <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border">
                 <div>
-                  <p className="text-lg font-bold text-foreground">{ct.totalCases}</p>
+                  <p className="text-lg font-bold text-foreground">{Number(ct.totalCases ?? 0)}</p>
                   <p className="text-xs text-muted-foreground">Total</p>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-warning">{ct.pendingCases}</p>
+                  <p className="text-lg font-bold text-warning">{Number(ct.pendingCases ?? 0)}</p>
                   <p className="text-xs text-muted-foreground">Pending</p>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-success">{ct.resolvedCases}</p>
+                  <p className="text-lg font-bold text-success">{Number(ct.resolvedCases ?? 0)}</p>
                   <p className="text-xs text-muted-foreground">Resolved</p>
                 </div>
               </div>

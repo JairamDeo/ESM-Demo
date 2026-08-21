@@ -150,7 +150,9 @@ export const useCreateGrievance = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["grievances"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] }); 
-      qc.invalidateQueries({ queryKey: ["reports"] });  
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: queryKeys.userMe });
+      qc.invalidateQueries({ queryKey: ["veteran-lookup"] });  
 
 
       toast.success("Grievance submitted successfully!");
@@ -292,7 +294,8 @@ export const useStations = (params: StationParams = {}) =>
       const { data } = await api.get("/stations", { params: { limit: 500, ...params } });
       return data;
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   });
 
 export const useLookupVeteranByPhone = (phone: string, enabled = false) =>
@@ -380,7 +383,7 @@ export const useQRCodes = (params?: { status?: string; search?: string }) =>
 export const useGenerateQRCode = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { stationName: string; code: string; stationId?: string }) => {
+    mutationFn: async (body: { stationName: string; stationId?: string }) => {
       const { data } = await api.post("/qr-codes", body);
       return data.data;
     },
@@ -470,6 +473,7 @@ export const useCreateOfficer = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["officers"] });
+      qc.invalidateQueries({ queryKey: ["stations"] });
       toast.success("Officer added successfully!");
     },
     onError: (err: any) => {
@@ -487,6 +491,7 @@ export const useUpdateOfficer = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["officers"] });
+      qc.invalidateQueries({ queryKey: ["stations"] });
       toast.success("Officer updated");
     },
     onError: (err: any) => {
@@ -504,6 +509,7 @@ export const useToggleOfficerStatus = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["officers"] });
+      qc.invalidateQueries({ queryKey: ["stations"] });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || "Failed to toggle status");
@@ -520,6 +526,7 @@ export const useDeleteOfficer = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["officers"] });
+      qc.invalidateQueries({ queryKey: ["stations"] });
       toast.success("Officer deleted");
     },
     onError: (err: any) => {
@@ -536,8 +543,8 @@ export const useCaseTypes = (params?: { status?: string }) =>
       const { data } = await api.get("/case-types", { params });
       return data.data;
     },
-    staleTime: params?.status === "active" ? 30_000 : 300_000,
-    refetchOnWindowFocus: params?.status === "active",
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   export const useCreateCaseType = () => {
@@ -1088,6 +1095,7 @@ export const useUserMe = () =>
         phone?: string;
         rank?: string;
         serviceNumber?: string;
+        armyNumber?: string;
         email?: string;
         address?: string;
         stationHQ?: string;

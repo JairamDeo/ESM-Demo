@@ -32,8 +32,13 @@ export default memo(function CompleteProfile() {
       return;
     }
     try {
-      await updateProfile.mutateAsync(form);
-      updateUser({ name: form.name, email: form.email || undefined });
+      await updateProfile.mutateAsync({ ...form, armyNumber: form.serviceNumber });
+      updateUser({
+        name: form.name,
+        email: form.email || undefined,
+        rank: form.rank || undefined,
+        armyNumber: form.serviceNumber || undefined,
+      });
       toast.success("Profile saved! Welcome aboard.");
       navigate("/user");
     } catch {

@@ -5,10 +5,10 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { useChartTheme, getTooltipProps } from "@/hooks/useChartTheme";
 
 const STAT_CONFIG = [
-  { label: "Total Grievances", key: "total",     icon: FileText,      iconCls: "bg-primary/15 text-primary",      gradFrom: "from-primary/10",     border: "border-primary/20"     },
-  { label: "Pending Cases",    key: "pending",   icon: Clock,         iconCls: "bg-warning/15 text-warning",      gradFrom: "from-warning/10",     border: "border-warning/20"     },
-  { label: "Resolved",         key: "resolved",  icon: CheckCircle2,  iconCls: "bg-success/15 text-success",      gradFrom: "from-success/10",     border: "border-success/20"     },
-  { label: "Escalated",        key: "escalated", icon: AlertTriangle, iconCls: "bg-destructive/15 text-destructive", gradFrom: "from-destructive/10", border: "border-destructive/20" },
+  { label: "All grievances", key: "total",     icon: FileText,      iconCls: "bg-primary/15 text-primary",      gradFrom: "from-primary/12",     border: "border-primary/20",     accent: "bg-primary"     },
+  { label: "Pending",          key: "pending",   icon: Clock,         iconCls: "bg-warning/15 text-warning",      gradFrom: "from-warning/12",     border: "border-warning/20",     accent: "bg-warning"     },
+  { label: "Resolved",         key: "resolved",  icon: CheckCircle2,  iconCls: "bg-success/15 text-success",      gradFrom: "from-success/12",     border: "border-success/20",     accent: "bg-success"     },
+  { label: "Sent to higher HQ", key: "escalated", icon: AlertTriangle, iconCls: "bg-destructive/15 text-destructive", gradFrom: "from-destructive/12", border: "border-destructive/20", accent: "bg-destructive" },
 ];
 
 export function GrievanceStatsWidget({ chartType }: { chartType: string }) {
@@ -49,7 +49,7 @@ export function GrievanceStatsWidget({ chartType }: { chartType: string }) {
             <XAxis dataKey="name" stroke={theme.axis} fontSize={11} tickLine={false} axisLine={false} />
             <YAxis stroke={theme.axis} fontSize={11} tickLine={false} axisLine={false} />
             <Tooltip {...getTooltipProps(theme)} cursor={{ fill: "hsl(var(--muted) / 0.1)" }} />
-            <Bar dataKey="value" fill={theme.bar} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="value" fill={theme.bar} radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -62,21 +62,17 @@ export function GrievanceStatsWidget({ chartType }: { chartType: string }) {
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className={`relative overflow-hidden rounded-2xl border ${stat.border} bg-gradient-to-br ${stat.gradFrom} to-transparent flex items-center gap-3 px-4 py-3 hover:brightness-105 transition-all duration-200`}
+          className={`relative overflow-hidden rounded-2xl border ${stat.border} bg-gradient-to-br ${stat.gradFrom} to-card flex items-center gap-3.5 px-4 py-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md`}
         >
-          {/* Icon */}
-          <div className={`w-11 h-11 rounded-xl ${stat.iconCls} flex items-center justify-center shrink-0`}>
+          <span className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full ${stat.accent}`} />
+          <div className={`w-11 h-11 rounded-2xl ${stat.iconCls} flex items-center justify-center shrink-0 ring-1 ring-inset ring-white/10`}>
             <stat.icon className="w-5 h-5" />
           </div>
-
-          {/* Text */}
           <div className="min-w-0">
-            <p className="text-2xl font-bold text-foreground tabular-nums leading-none">{stat.value}</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-tight">{stat.label}</p>
+            <p className="text-[1.65rem] font-semibold text-foreground tabular-nums leading-none tracking-tight">{stat.value}</p>
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-tight font-medium">{stat.label}</p>
           </div>
-
-          {/* Decorative blob */}
-          <div className={`absolute -right-4 -top-4 w-20 h-20 rounded-full opacity-10 ${stat.iconCls}`} />
+          <div className={`absolute -right-5 -top-5 w-24 h-24 rounded-full opacity-[0.12] ${stat.iconCls}`} />
         </div>
       ))}
     </div>
