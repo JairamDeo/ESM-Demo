@@ -1,13 +1,23 @@
 import mongoose from "mongoose";
 
+const mongoOptions = {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+};
+
+/** Reuse one Mongo connection on Vercel (no process.exit). */
+export async function ensureMongoConnected(): Promise<void> {
+  if (mongoose.connection.readyState === 1) return;
+  const uri = process.env.MONGODB_URI as string;
+  if (!uri) throw new Error("MONGODB_URI is not set");
+  await mongoose.connect(uri, mongoOptions);
+}
+
 const connectDB = async (): Promise<void> => {
   const uri = process.env.MONGODB_URI as string;
 
   try {
-    const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-    });
+    const conn = await mongoose.connect(uri, mongoOptions);
 
     console.log(`✅  MongoDB connected: ${conn.connection.host}`);
 
