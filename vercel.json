@@ -2,7 +2,14 @@
   "installCommand": "npm install --prefix Frontend && npm install --prefix Backend",
   "buildCommand": "npm run build --prefix Frontend",
   "outputDirectory": "Frontend/dist",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "Backend/src/**",
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/:path*", "destination": "/api?__path=/api/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
