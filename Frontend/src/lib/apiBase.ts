@@ -5,6 +5,14 @@ const DEFAULT_API_BASE = "http://localhost:5000/api";
  * If the app is opened via LAN IP (http://192.168.x.x:5173), rewrites localhost in the
  * API URL to that same IP so requests hit the machine running the backend.
  */
+/** Veteran/admin site URL encoded into QR codes. LAN IP so phones on Wi‑Fi can open it. */
+export function getFrontendBaseUrl(): string {
+  const fromEnv = import.meta.env.VITE_FRONTEND_URL?.trim().replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
+  return "http://localhost:5174";
+}
+
 export function getApiBaseUrl(): string {
   const base = (import.meta.env.VITE_API_URL?.trim() || DEFAULT_API_BASE).replace(/\/$/, "");
 

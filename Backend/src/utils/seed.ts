@@ -264,8 +264,15 @@ const seed = async () => {
 
   const qrDocs = [];
   for (const q of qrCodesData) {
-    const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(q.station.name)}&code=${q.code}`;
-    // const qrData = `http://localhost:5173/grievance?station=${encodeURIComponent(q.station.name)}&code=${q.code}`;
+    const frontendBase = (
+      process.env.FRONTEND_URL ||
+      (process.env.CORS_ORIGIN || "")
+        .split(",")
+        .map((o) => o.trim())
+        .find((o) => o && !/localhost|127\.0\.0\.1/i.test(o)) ||
+      "http://localhost:5174"
+    ).replace(/\/$/, "");
+    const qrData = `${frontendBase}/grievance?station=${encodeURIComponent(q.station.name)}&code=${q.code}`;
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
     qrDocs.push({
       stationId: q.station._id,

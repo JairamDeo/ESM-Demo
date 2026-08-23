@@ -10,6 +10,7 @@ import {
   syncStationOnHQ,
   removeStationFromHQ,
 } from "../services/hqStationSync";
+import { buildGrievanceQrUrl, resolveQrFrontendBase } from "../utils/network";
 
 async function resolveStateByName(stateName: string) {
   return State.findOne({
@@ -371,7 +372,11 @@ export const generateQRForStation = async (req: Request, res: Response): Promise
     const prefix = station.city.toUpperCase().slice(0, 3);
     const existingCount = await QRCode.countDocuments({ stationId: station._id });
     const code = `${prefix}-QR-${String(existingCount + 1).padStart(3, "0")}`;
-    const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(station.name)}&code=${code}`;
+    const qrData = buildGrievanceQrUrl(
+      resolveQrFrontendBase(req, req.body?.frontendUrl),
+      station.name,
+      code
+    );
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
     await QRCode.updateMany({ stationId: station._id, status: "active" }, { status: "regenerated" });

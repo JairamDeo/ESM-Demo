@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import { getApiBaseUrl } from "@/lib/apiBase";
+import { getApiBaseUrl, getFrontendBaseUrl } from "@/lib/apiBase";
 import { queryKeys } from "@/lib/queryKeys";
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -384,7 +384,10 @@ export const useGenerateQRCode = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: { stationName: string; stationId?: string }) => {
-      const { data } = await api.post("/qr-codes", body);
+      const { data } = await api.post("/qr-codes", {
+        ...body,
+        frontendUrl: getFrontendBaseUrl(),
+      });
       return data.data;
     },
     onSuccess: () => {
@@ -402,7 +405,9 @@ export const useRegenerateQRCode = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await api.post(`/qr-codes/${id}/regenerate`);
+      const { data } = await api.post(`/qr-codes/${id}/regenerate`, {
+        frontendUrl: getFrontendBaseUrl(),
+      });
       return data.data;
     },
     onSuccess: () => {

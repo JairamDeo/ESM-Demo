@@ -3,6 +3,7 @@ import qrcode from "qrcode";
 import QRCodeModel from "../models/QRCode";
 import Station from "../models/Station";
 import { getGrievanceScopeFilter } from "../utils/scopeFilter";
+import { buildGrievanceQrUrl, resolveQrFrontendBase } from "../utils/network";
 
 function stationQrPrefix(stationName: string): string {
   return stationName.replace(" Station HQ", "").replace(" HQ", "").toUpperCase().slice(0, 3);
@@ -68,7 +69,7 @@ export const getQRCodeById = async (req: Request, res: Response): Promise<void> 
 // ─── GENERATE new QR code ────────────────────────────────────────────────────
 export const generateQRCode = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { stationId, stationName } = req.body;
+    const { stationId, stationName, frontendUrl } = req.body;
 
     if (!stationName) {
       res.status(400).json({ success: false, message: "stationName is required" });
@@ -77,7 +78,7 @@ export const generateQRCode = async (req: Request, res: Response): Promise<void>
 
     const codeUpper = await nextUniqueQrCode(stationName);
 
-    const qrData = `https://vitric-esm.in/grievance?station=${encodeURIComponent(stationName)}&code=${codeUpper}`;
+    const qrData = buildGrievanceQrUrl(resolveQrFrontendBase(req, frontendUrl), stationName, codeUpper);
 
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
@@ -152,10 +153,13 @@ export const regenerateQRCode = async (req: Request, res: Response): Promise<voi
     oldQR.status = "regenerated";
     await oldQR.save();
 
-    const newQrData = `${oldQR.qrData}&regen=${Date.now()}`;
-    const svgContent = await qrcode.toString(newQrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
-
     const newCode = await nextUniqueQrCode(oldQR.stationName);
+    const newQrData = buildGrievanceQrUrl(
+      resolveQrFrontendBase(req, req.body?.frontendUrl),
+      oldQR.stationName,
+      newCode
+    );
+    const svgContent = await qrcode.toString(newQrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
 
     const newQR = await QRCodeModel.create({
       stationId: oldQR.stationId, stationName: oldQR.stationName,

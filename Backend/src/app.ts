@@ -27,10 +27,16 @@ const app: Application = express();
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  ...new Set(
+    [
+      ...(process.env.CORS_ORIGIN || "http://localhost:5173").split(","),
+      ...(process.env.FRONTEND_URL || "").split(","),
+    ]
+      .map((o) => o.trim().replace(/\/$/, ""))
+      .filter(Boolean)
+  ),
+];
 app.use(
   cors({
     origin: (origin, callback) => {
