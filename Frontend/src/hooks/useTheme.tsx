@@ -3,20 +3,29 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
+function isAdminPath(): boolean {
+  if (typeof window === "undefined") return true;
+  const path = window.location.pathname;
+  return !path.startsWith("/user");
+}
+
 function getSystemTheme(): ResolvedTheme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function resolveTheme(preference: ThemePreference): ResolvedTheme {
-  return preference === "system" ? getSystemTheme() : preference;
+  if (preference !== "system") return preference;
+  // Admin login + panel stay light unless the officer picks dark.
+  if (isAdminPath()) return "light";
+  return getSystemTheme();
 }
 
 function readStoredPreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   const stored = localStorage.getItem("theme");
   if (stored === "light" || stored === "dark" || stored === "system") return stored;
-  return "system";
+  return "light";
 }
 
 type ThemeContextValue = {
@@ -27,8 +36,8 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: "system",
-  resolvedTheme: "dark",
+  theme: "light",
+  resolvedTheme: "light",
   setTheme: () => {},
   toggleTheme: () => {},
 });

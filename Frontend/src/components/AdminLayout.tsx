@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   {/* Logo */}
   <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
     <span className="text-primary-foreground font-bold text-sm">
-      V
+      E
     </span>
   </div>
 
@@ -120,7 +120,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   {(!collapsed || mobile) && (
     <div className="ml-3">
       <span className="font-bold text-foreground text-base tracking-tight">
-        Vitric ESM
+        ESM
       </span>
     </div>
   )}

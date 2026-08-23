@@ -49,8 +49,8 @@ const AdminLogin = memo(() => {
           <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-3">
             <Shield className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Vitric ESM</h1>
-          <p className="text-sm text-muted-foreground mt-1">Admin Portal — Nagpur Sub-Area</p>
+          <h1 className="text-2xl font-bold text-foreground">ESM</h1>
+          <p className="text-sm text-muted-foreground mt-1">Admin Portal</p>
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">

@@ -176,8 +176,13 @@ const OfficerModal = ({
     };
   }, [form.role, statesData, filteredHqs, stations]);
 
-  const assignValue = form[assignField] || "";
-  const assignName = form.assignName || "";
+  const assignValue = assignField ? String(form[assignField] || "") : "";
+  const optionsWithCurrent = useMemo(() => {
+    if (!assignValue || dropdownOptions.some((o: { _id?: string }) => String(o._id) === assignValue)) {
+      return dropdownOptions;
+    }
+    return [{ _id: assignValue, name: form.assignName || "Current assignment" }, ...dropdownOptions];
+  }, [assignValue, dropdownOptions, form.assignName]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -293,24 +298,24 @@ const OfficerModal = ({
             <label className="text-xs font-medium text-muted-foreground">{dropdownLabel}</label>
             <div className="relative mt-1">
               <select
-                value={assignName}
+                value={assignValue}
                 onChange={(e) => {
-                  const selected = dropdownOptions.find((o: Record<string, unknown> & { name?: string; _id?: string }) => o.name === e.target.value);
+                  const selected = optionsWithCurrent.find((o: Record<string, unknown> & { name?: string; _id?: string }) => String(o._id) === e.target.value);
                   setForm((p: Record<string, unknown> & { rank?: string; name?: string; role?: string; level?: string; stateId?: string; hqId?: string; stationId?: string; assignName?: string; filterStateId?: string; email?: string; canLogin?: boolean; username?: string; password?: string }) => ({
                     ...p,
-                    assignName: e.target.value,
-                    stateId: assignField === "stateId" ? (selected?._id || "") : p.stateId,
-                    hqId: assignField === "hqId" ? (selected?._id || "") : p.hqId,
-                    stationId: assignField === "stationId" ? (selected?._id || "") : p.stationId,
+                    assignName: selected?.name || "",
+                    stateId: assignField === "stateId" ? e.target.value : p.stateId,
+                    hqId: assignField === "hqId" ? e.target.value : p.hqId,
+                    stationId: assignField === "stationId" ? e.target.value : p.stationId,
                   }));
                 }}
                 className="w-full px-3 py-2 pr-10 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary appearance-none"
               >
                 <option value="">
-                  {dropdownOptions.length === 0 ? "No options available" : "Select…"}
+                  {optionsWithCurrent.length === 0 ? "No options available" : "Select…"}
                 </option>
-                {dropdownOptions.map((opt: Record<string, unknown> & { _id?: string; name?: string; sub?: string }) => (
-                  <option key={opt._id} value={opt.name}>
+                {optionsWithCurrent.map((opt: Record<string, unknown> & { _id?: string; name?: string; sub?: string }) => (
+                  <option key={opt._id} value={opt._id}>
                     {opt.sub ? `${opt.name} (${opt.sub})` : opt.name}
                   </option>
                 ))}
@@ -446,7 +451,7 @@ export default memo(function UsersOfficers() {
   const { data: summaryData, isLoading: summaryLoading } = useOfficers({});
   const { data: statesData = [] } = useStates();
   const { data: hqData = [] } = useHQs();
-  const { data: stationsRes } = useStations({ limit: 100 });
+  const { data: stationsRes } = useStations({ limit: 500 });
 
   const createOfficer = useCreateOfficer();
   const updateOfficer = useUpdateOfficer();
@@ -496,19 +501,45 @@ export default memo(function UsersOfficers() {
     });
   }, [defaultRole]);
 
-  const openEdit = useCallback((o: OfficerData & { station?: Record<string, unknown> & { _id?: string } | string }) => {
-    let assignName = o.stationName || "";
-    if (o.role === "Area Officer") assignName = o.stateName || "";
-    if (o.role === "Headquarter Officer") assignName = o.hqName || "";
+  const openEdit = useCallback((o: OfficerData & { station?: Record<string, unknown> & { _id?: string; name?: string } | string }) => {
+    const asId = (v: unknown): string => {
+      if (!v) return "";
+      if (typeof v === "object") return String((v as { _id?: unknown })._id || "");
+      return String(v);
+    };
+    const stateId = asId(o.stateId);
+    const hqId = asId(o.hqId);
+    const populatedStation = typeof o.station === "object" && o.station ? o.station : null;
+    const stationId = asId(populatedStation?._id || o.station || o.stationId);
+
+    let assignName = "";
+    if (o.role === "Area Officer") {
+      assignName =
+        o.stateName ||
+        (statesData as { _id?: string; name?: string }[]).find((s) => String(s._id) === stateId)?.name ||
+        "";
+    } else if (o.role === "Headquarter Officer") {
+      assignName =
+        o.hqName ||
+        (hqData as { _id?: string; name?: string }[]).find((h) => String(h._id) === hqId)?.name ||
+        "";
+    } else if (o.role === "Station HQ Officer") {
+      assignName =
+        o.stationName ||
+        populatedStation?.name ||
+        (stationsList as { _id?: string; name?: string }[]).find((s) => String(s._id) === stationId)?.name ||
+        "";
+    }
+
     setForm({
       rank: "",
       name: o.name,
       role: o.role as OfficerJobRole,
       level: (o.level || "") as "" | "L1" | "L2" | "L3",
-      stateId: o.stateId || "",
-      filterStateId: o.stateId || "",
-      hqId: o.hqId || "",
-      stationId: (typeof o.station === "object" ? o.station?._id : o.station) || "",
+      stateId,
+      filterStateId: stateId,
+      hqId,
+      stationId,
       assignName,
       email: o.email,
       canLogin: false,
@@ -516,7 +547,7 @@ export default memo(function UsersOfficers() {
       password: "",
     });
     setEditOfficer(o);
-  }, []);
+  }, [statesData, hqData, stationsList]);
 
   const buildPayload = useCallback(() => ({
     name: form.name.includes(form.rank) ? form.name.trim() : `${form.rank} ${form.name}`.trim(),
