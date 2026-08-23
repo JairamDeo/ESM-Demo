@@ -4,7 +4,7 @@ import {
   updateStation, deleteStation, generateQRForStation,
 } from "../controllers/stationController";
 import {
-  getQRCodes, getQRCodeById, generateQRCode, viewQRCode,
+  getQRCodes, getQRCodeById, generateQRCode, generateAllQRCodes, viewQRCode,
   downloadQRCode, regenerateQRCode, recordScan, toggleQRStatus,
 } from "../controllers/qrCodeController";
 import {
@@ -75,6 +75,7 @@ export const qrRouter = Router();
 
 qrRouter.get("/",                protect, adminOnly, getQRCodes);
 qrRouter.post("/",               protect, adminOnly, generateQRCode);
+qrRouter.post("/generate-all",   protect, adminOnly, generateAllQRCodes);
 qrRouter.get("/:id/view",        viewQRCode);
 qrRouter.get("/:id/download",    downloadQRCode);
 qrRouter.post("/:id/regenerate", protect, adminOnly, regenerateQRCode);

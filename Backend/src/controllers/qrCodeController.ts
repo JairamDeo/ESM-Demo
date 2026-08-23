@@ -46,8 +46,9 @@ export const getQRCodes = async (req: Request, res: Response): Promise<void> => 
     }
 
     const qrCodes = await QRCodeModel.find(query)
-      .populate("stationId", "name city state")
-      .sort({ createdAt: -1 });
+      .select("-svgContent")
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.status(200).json({ success: true, data: qrCodes });
   } catch (error: any) {
@@ -101,6 +102,66 @@ export const generateQRCode = async (req: Request, res: Response): Promise<void>
     });
 
     res.status(201).json({ success: true, message: "QR Code generated", data: qr });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/** Delete every QR, then create one unique QR per active station (env frontend URL). */
+export const generateAllQRCodes = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const frontendBase = resolveQrFrontendBase(req, req.body?.frontendUrl);
+    const stations = await Station.find({ isActive: { $ne: false } }).select("_id name").lean();
+
+    if (!stations.length) {
+      res.status(400).json({ success: false, message: "No stations found" });
+      return;
+    }
+
+    await QRCodeModel.deleteMany({});
+
+    const usedCodes = new Set<string>();
+    const generatedBy = (req as any).user?.id;
+    const docs: Array<{
+      stationId: unknown;
+      stationName: string;
+      code: string;
+      qrData: string;
+      generatedBy?: string;
+      status: string;
+    }> = [];
+
+    for (const station of stations) {
+      const prefix = stationQrPrefix(station.name);
+      let n = 1;
+      let code = `${prefix}-QR-${String(n).padStart(3, "0")}`;
+      while (usedCodes.has(code)) {
+        n += 1;
+        code = `${prefix}-QR-${String(n).padStart(3, "0")}`;
+      }
+      usedCodes.add(code);
+      docs.push({
+        stationId: station._id,
+        stationName: station.name,
+        code,
+        qrData: buildGrievanceQrUrl(frontendBase, station.name, code),
+        generatedBy,
+        status: "active",
+      });
+    }
+
+    const created = await QRCodeModel.insertMany(docs);
+    await Promise.all(
+      docs.map((doc) =>
+        Station.updateOne({ _id: doc.stationId }, { qrActive: true, qrCode: doc.code })
+      )
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `Generated ${created.length} QR codes`,
+      data: created,
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

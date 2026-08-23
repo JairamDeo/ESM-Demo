@@ -380,6 +380,28 @@ export const useQRCodes = (params?: { status?: string; search?: string }) =>
     staleTime: 60_000,
   });
 
+export const useGenerateAllQRCodes = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post(
+        "/qr-codes/generate-all",
+        { frontendUrl: getFrontendBaseUrl() },
+        { timeout: 60000 }
+      );
+      return data.data;
+    },
+    onSuccess: (rows: unknown[]) => {
+      qc.invalidateQueries({ queryKey: ["qr-codes"] });
+      qc.invalidateQueries({ queryKey: ["stations"] });
+      toast.success(`Generated ${Array.isArray(rows) ? rows.length : 0} QR codes`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || "Failed to generate QR codes");
+    },
+  });
+};
+
 export const useGenerateQRCode = () => {
   const qc = useQueryClient();
   return useMutation({

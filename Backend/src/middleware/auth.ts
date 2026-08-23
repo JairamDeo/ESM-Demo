@@ -33,9 +33,11 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
     let currentUser: any = null;
 
     if (decoded.role === "user") {
-      currentUser = await User.findById(decoded.id).select("-otp -otpExpiry");
+      currentUser = await User.findById(decoded.id).select("name phone stationHQ isActive").lean();
     } else {
-      currentUser = await Officer.findById(decoded.id);
+      currentUser = await Officer.findById(decoded.id)
+        .select("canLogin status name email role level stateId stateName hqId hqName station stationName")
+        .lean();
     }
 
     if (!currentUser) {

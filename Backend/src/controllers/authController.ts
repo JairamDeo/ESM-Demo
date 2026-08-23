@@ -63,8 +63,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    officer.lastLogin = new Date();
-    await officer.save({ validateBeforeSave: false });
+    void Officer.updateOne({ _id: officer._id }, { lastLogin: new Date() });
 
     const scopeLabel = loginScopeLabel({
       rbacRole: officer.rbacRole,

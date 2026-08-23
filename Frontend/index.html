@@ -1,9 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("esm-theme");
+          var dark = stored === "dark" || !stored || (stored === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (stored === "light") dark = false;
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.classList.toggle("light", !dark);
+        } catch (e) {}
+      })();
+    </script>
     <title>ESM</title>
     <meta name="description" content="" />
     <meta name="author" content="" />

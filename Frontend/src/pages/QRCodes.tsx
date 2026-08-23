@@ -2,7 +2,7 @@ import { usePermissions } from "@/stores/rbac";
 import { useState, memo, useCallback, useMemo, useEffect } from "react";
 import { QrCode, Download, Eye, RefreshCw, X, Plus, Search, ChevronDown } from "lucide-react";
 import QRCode from "react-qr-code";
-import { useQRCodes, useGenerateQRCode, useRegenerateQRCode, useToggleQRStatus, useStations, getQRDownloadUrl } from "@/hooks/useApi";
+import { useQRCodes, useGenerateQRCode, useGenerateAllQRCodes, useRegenerateQRCode, useToggleQRStatus, useStations, getQRDownloadUrl } from "@/hooks/useApi";
 import { toast } from "sonner";
 
 type QRCodeData = Record<string, unknown> & {
@@ -32,6 +32,7 @@ export default memo(function QRCodes() {
   const { data: qrCodes = [], isLoading } = useQRCodes({ search, status: filterStatus || undefined });
   const { data: stationsData } = useStations();
   const generate = useGenerateQRCode();
+  const generateAll = useGenerateAllQRCodes();
   const regenerate = useRegenerateQRCode();
   const toggle = useToggleQRStatus();
 
@@ -47,6 +48,14 @@ export default memo(function QRCodes() {
       setForm({ stationId: stations[0]._id, stationName: stations[0].name });
     }
   }, [open, stations, form.stationId]);
+
+  const handleGenerateAll = useCallback(async () => {
+    const ok = window.confirm(
+      "This removes every existing QR code and creates one unique QR for each station. Continue?"
+    );
+    if (!ok) return;
+    await generateAll.mutateAsync();
+  }, [generateAll]);
 
   const handleGenerate = useCallback(async () => {
     if (!form.stationName) return;
@@ -90,9 +99,23 @@ export default memo(function QRCodes() {
           <p className="text-muted-foreground text-sm mt-1">QR codes installed at all {qrCodes.length} Station HQs for digital grievance submission</p>
         </div>
         {canManageQRCodes && (
-          <button onClick={() => setOpen(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 self-start sm:self-auto">
-            <QrCode className="w-4 h-4" /> Generate New
-          </button>
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+            <button
+              onClick={handleGenerateAll}
+              disabled={generateAll.isPending}
+              className="px-4 py-2 text-sm bg-secondary text-foreground border border-border rounded-lg hover:bg-secondary/80 transition-colors flex items-center gap-2 disabled:opacity-60"
+            >
+              {generateAll.isPending ? (
+                <span className="w-4 h-4 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              Generate for all
+            </button>
+            <button onClick={() => setOpen(true)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2">
+              <QrCode className="w-4 h-4" /> Generate New
+            </button>
+          </div>
         )}
       </div>
 
