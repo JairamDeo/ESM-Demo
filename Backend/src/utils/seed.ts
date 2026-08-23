@@ -20,6 +20,7 @@ import State from "../models/State";
 import RolePermission from "../models/RolePermission";
 import { DEFAULT_ROLE_PERMISSIONS } from "../constants/permissions";
 import { rbacRoleFromJobRole } from "../constants/officerRoles";
+import { parseOriginList, pickQrFrontendUrl } from "./network";
 
 
 const seed = async () => {
@@ -264,14 +265,10 @@ const seed = async () => {
 
   const qrDocs = [];
   for (const q of qrCodesData) {
-    const frontendBase = (
-      process.env.FRONTEND_URL ||
-      (process.env.CORS_ORIGIN || "")
-        .split(",")
-        .map((o) => o.trim())
-        .find((o) => o && !/localhost|127\.0\.0\.1/i.test(o)) ||
-      "http://localhost:5174"
-    ).replace(/\/$/, "");
+    const frontendBase = pickQrFrontendUrl([
+      ...parseOriginList(process.env.FRONTEND_URL),
+      ...parseOriginList(process.env.CORS_ORIGIN),
+    ]);
     const qrData = `${frontendBase}/grievance?station=${encodeURIComponent(q.station.name)}&code=${q.code}`;
     const svgContent = await qrcode.toString(qrData, { type: "svg", errorCorrectionLevel: "H", margin: 2 });
     qrDocs.push({

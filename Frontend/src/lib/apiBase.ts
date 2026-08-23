@@ -5,12 +5,41 @@ const DEFAULT_API_BASE = "http://localhost:5000/api";
  * If the app is opened via LAN IP (http://192.168.x.x:5173), rewrites localhost in the
  * API URL to that same IP so requests hit the machine running the backend.
  */
-/** Veteran/admin site URL encoded into QR codes. LAN IP so phones on Wi‑Fi can open it. */
+function parseFrontendUrls(value?: string): string[] {
+  return [
+    ...new Set(
+      (value || "")
+        .split(",")
+        .map((u) => u.trim().replace(/\/$/, ""))
+        .filter((u) => u && u !== "*")
+    ),
+  ];
+}
+
+function isLoopbackUrl(url: string): boolean {
+  return /localhost|127\.0\.0\.1/i.test(url);
+}
+
+/**
+ * One URL encoded into station QR codes.
+ * VITE_FRONTEND_URL may be comma-separated (same as backend FRONTEND_URL).
+ * Uses the current tab if it is in that list and not localhost; otherwise a LAN URL
+ * so phones on Wi‑Fi can open the scan.
+ */
 export function getFrontendBaseUrl(): string {
-  const fromEnv = import.meta.env.VITE_FRONTEND_URL?.trim().replace(/\/$/, "");
-  if (fromEnv) return fromEnv;
-  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
-  return "http://localhost:5174";
+  const listed = parseFrontendUrls(import.meta.env.VITE_FRONTEND_URL);
+  const current =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin.replace(/\/$/, "")
+      : "";
+
+  if (current && listed.includes(current) && !isLoopbackUrl(current)) return current;
+
+  const lan = listed.find((u) => !isLoopbackUrl(u));
+  if (lan) return lan;
+
+  if (current && listed.includes(current)) return current;
+  return listed[0] || current || "http://localhost:5174";
 }
 
 export function getApiBaseUrl(): string {
