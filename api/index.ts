@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "http";
 import app from "../Backend/src/app";
 import { ensureMongoConnected } from "../Backend/src/config/database";
+import "../Backend/src/models/User";
 
 function headerValue(req: IncomingMessage, name: string): string {
   const raw = req.headers[name];

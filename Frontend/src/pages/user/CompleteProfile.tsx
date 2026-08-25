@@ -121,9 +121,10 @@ export default memo(function CompleteProfile() {
 
         {/* Submit */}
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={!form.name.trim() || updateProfile.isPending}
-          className="w-full mt-4 bg-[#826CF3] text-white font-bold py-3.5 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)] flex-shrink-0"
+          className="relative z-10 w-full mt-4 min-h-12 bg-[#826CF3] text-white font-bold py-3.5 rounded-xl text-sm transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(130,108,243,0.35)] flex-shrink-0"
         >
           {updateProfile.isPending ? (
             <>

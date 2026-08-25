@@ -7,6 +7,7 @@ import Station from "../models/Station";
 import Officer from "../models/Officer";
 import Notification from "../models/Notification";
 import Category from "../models/Category";
+import User from "../models/User";
 import { storeCategoryIcon, removeCategoryIcon } from "../services/storageService";
 
 
@@ -416,13 +417,12 @@ export const markNotificationRead = async (req: Request, res: Response): Promise
 
 export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
-    const User = (await import("../models/User")).default;
     const { name, rank, serviceNumber, armyNumber, email, address, stationHQ } = req.body;
 
     const user = await User.findByIdAndUpdate(
       (req as any).user.id,
       { name, rank, serviceNumber, armyNumber, email, address, stationHQ },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!user) { res.status(404).json({ success: false, message: "User not found" }); return; }
     res.status(200).json({ success: true, message: "Profile updated", data: user });
