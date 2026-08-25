@@ -100,6 +100,15 @@
     text-size-adjust: 100%;
   }
 
+  /* iOS Safari/Chrome zooms the page if a focused field is under 16px. Android does not. */
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
   html,
   body,
   #root {
@@ -235,6 +244,20 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Frosted glass tab bar — needs -webkit- prefix on iOS Chrome/Safari */
+.user-tab-glass {
+  background: hsl(var(--background) / 0.58);
+  border-top: 1px solid hsl(var(--border) / 0.45);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transform: translateZ(0);
+}
+.dark .user-tab-glass {
+  background: rgba(22, 24, 32, 0.52);
+  border-top-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.18);
+}
+
 /* Veteran tab transitions (mobile swipe / bottom nav) */
 @keyframes tab-enter-from-right {
   from {
@@ -264,10 +287,6 @@
 
 .tab-enter-right {
   animation: tab-enter-from-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-
-.user-tab-indicator {
-  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @layer utilities {

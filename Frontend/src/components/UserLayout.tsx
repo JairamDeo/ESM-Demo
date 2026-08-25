@@ -1,9 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { Sun, Moon, Home, FileText, Layers, User, Settings, X, ChevronDown } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { Sun, Moon, Home, FileText, Layers, User, Settings } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { Icon } from "@iconify/react";
-import { useCategories, useNotifications } from "@/hooks/useApi";
+import { useNotifications } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePushSync } from "@/hooks/usePushSync";
 import { useTranslation } from "react-i18next";
@@ -15,19 +15,6 @@ const MOCKUP_VIEWPORT_PAD_Y = 16;
 
 const TAB_PATHS = ["/user", "/user/complaints", "/user/services", "/user/profile"] as const;
 type NavDirection = "left" | "right" | null;
-
-const SERVICE_CATEGORY_ORDER = [
-  "Identity & Personal",
-  "Pension & Financial",
-  "Family Details",
-  "Requests & Tracking",
-] as const;
-
-function categorySortIndex(name: string) {
-  const norm = name.trim().toLowerCase();
-  const idx = SERVICE_CATEGORY_ORDER.findIndex((c) => c.toLowerCase() === norm);
-  return idx === -1 ? 999 : idx;
-}
 
 function normalizePath(pathname: string) {
   return pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
@@ -87,18 +74,14 @@ const BottomNavItem = ({
       active ? "text-primary" : "text-muted-foreground hover:text-foreground"
     }`}
   >
-    <div className="w-11 h-7 flex items-center justify-center rounded-full">
+    <div className="w-11 h-7 flex items-center justify-center">
       <IconComp
-        className={`w-[22px] h-[22px] transition-transform duration-300 ${
-          active ? "stroke-[2.5px] scale-105" : "stroke-[1.8px] scale-100"
+        className={`w-[22px] h-[22px] ${
+          active ? "stroke-[2.5px]" : "stroke-[1.8px]"
         }`}
       />
     </div>
-    <span
-      className={`text-[11px] font-medium leading-tight transition-all duration-300 ${
-        active ? "font-semibold scale-105" : "scale-100"
-      }`}
-    >
+    <span className={`text-[11px] leading-tight ${active ? "font-semibold" : "font-medium"}`}>
       {label}
     </span>
   </Link>
@@ -118,27 +101,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   const mainRef = useRef<HTMLElement>(null);
   const touchStartRef = useRef({ x: 0, y: 0, active: false });
   const [navDirection, setNavDirection] = useState<NavDirection>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [servicesExpanded, setServicesExpanded] = useState(false);
-  const { data: categories = [] } = useCategories({ status: "active" });
 
   const navItems = [
     { to: "/user", icon: Home, label: t("home") },
     { to: "/user/complaints", icon: FileText, label: t("complaints") },
-    { to: "/user/services", icon: Layers, label: t("services"), hasCategories: true },
+    { to: "/user/services", icon: Layers, label: t("services") },
     { to: "/user/profile", icon: User, label: t("profile") },
   ];
-
-  const menuCategories = useMemo(
-    () =>
-      [...categories]
-        .filter((c: { isActive?: boolean; name?: string }) => c.isActive !== false && c.name)
-        .sort(
-          (a: { name: string }, b: { name: string }) =>
-            categorySortIndex(a.name) - categorySortIndex(b.name)
-        ),
-    [categories]
-  );
 
   const tabIndex = getTabIndex(location.pathname);
   const isTabScreen = tabIndex >= 0;
@@ -158,20 +127,6 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         setNavDirection(null);
       }
       navigate(to);
-    },
-    [location.pathname, navigate]
-  );
-
-  const goToServicesCategory = useCallback(
-    (categoryName: string) => {
-      const currentIdx = getTabIndex(location.pathname);
-      const nextIdx = getTabIndex("/user/services");
-      if (currentIdx >= 0 && nextIdx >= 0 && currentIdx !== nextIdx) {
-        setNavDirection(nextIdx > currentIdx ? "left" : "right");
-      }
-      navigate("/user/services", { state: { openCategory: categoryName } });
-      setMenuOpen(false);
-      setServicesExpanded(false);
     },
     [location.pathname, navigate]
   );
@@ -247,33 +202,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
     };
   }, [isMockup]);
 
-  useEffect(() => {
-    setMenuOpen(false);
-    setServicesExpanded(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (!menuOpen) setServicesExpanded(false);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (menuOpen && location.pathname.startsWith("/user/services")) {
-      setServicesExpanded(true);
-    }
-  }, [menuOpen, location.pathname]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
-
   const shellClass = isMockup
     ? "relative flex flex-col font-['Montserrat',sans-serif] bg-background overflow-hidden h-[844px] w-[390px] shadow-[0_0_0_1px_rgba(15,23,42,0.06),0_20px_40px_rgba(15,23,42,0.12),0_8px_16px_rgba(15,23,42,0.06)] dark:shadow-none"
-    : "relative flex flex-col font-['Montserrat',sans-serif] w-full max-w-full min-h-dvh h-dvh max-h-dvh bg-background overflow-hidden";
+    : "relative flex flex-col font-['Montserrat',sans-serif] w-full max-w-full min-h-dvh h-dvh max-h-dvh bg-background";
 
   const contentAnimation =
     isTabScreen && navDirection === "left"
@@ -315,31 +246,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           }
           className={shellClass}
         >
-          {/* FIX: header always fixed at h-[56px], no wrapping */}
-          <header className="flex-shrink-0 z-50 bg-background/95 backdrop-blur-md border-b border-border h-[60px]">
+          <header className="flex-shrink-0 z-50 bg-background/95 backdrop-blur-md border-b border-border h-[56px]">
             <div className="flex items-center justify-between px-3 h-full gap-2">
-
-              {/* Left: hamburger + portal name */}
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen(true)}
-                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary/80 transition-colors"
-                  aria-label="Open menu"
-                >
-                  <img
-                    src="/icons/hamburger.svg"
-                    alt=""
-                    className="w-6 h-6 dark:invert"
-                  />
-                </button>
-                <Link to="/user" className="min-w-0 group">
-                  {/* FIX: single line, truncate if too long */}
-                  <p className="text-foreground text-[14px] font-semibold leading-tight tracking-[0.01em] truncate max-w-[140px] group-hover:text-primary transition-colors">
-                    {t("welcomeTo")}
-                  </p>
-                </Link>
-              </div>
+              <Link to="/user" className="min-w-0 flex-1 group">
+                <p className="text-foreground text-[13px] sm:text-[14px] font-semibold leading-none tracking-[0.01em] whitespace-nowrap group-hover:text-primary transition-colors">
+                  {t("welcomeTo")}
+                </p>
+              </Link>
 
               {/* Right: action icons */}
               <div className="flex items-center gap-1.5 shrink-0">
@@ -391,150 +304,21 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          {/* Slide-in menu */}
-          <div
-            className={`absolute inset-0 z-[60] transition-opacity duration-[400ms] ease-out ${
-              menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-            }`}
-            aria-hidden={!menuOpen}
-          >
-            <button
-              type="button"
-              className="absolute inset-0 bg-black/45"
-              aria-label="Close menu"
-              onClick={() => setMenuOpen(false)}
-            />
-            <aside
-              className={`absolute top-0 left-0 bottom-0 w-1/2 min-w-[200px] max-w-[280px] bg-background border-r border-border shadow-2xl flex flex-col transition-transform duration-[400ms] ease-out ${
-                menuOpen ? "translate-x-0" : "-translate-x-full"
-              }`}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Navigation menu"
-            >
-              <div className="flex items-start justify-between gap-2 px-5 pt-6 pb-4 border-b border-border">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("menu")}</p>
-                  <p className="text-sm font-semibold text-foreground mt-1">{t("grievancePortal")}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen(false)}
-                  className="shrink-0 w-9 h-9 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors"
-                  aria-label="Close menu"
-                >
-                  <X className="w-5 h-5 text-foreground" />
-                </button>
-              </div>
-              <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-                {navItems.map((item) => {
-                  const IconComp = item.icon;
-                  const active = isActive(item.to);
-                  const isServices = "hasCategories" in item && item.hasCategories;
-
-                  if (isServices) {
-                    return (
-                      <div key={item.to} className="space-y-0.5">
-                        <button
-                          type="button"
-                          onClick={() => setServicesExpanded((v) => !v)}
-                          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${
-                            active
-                              ? "bg-primary/12 text-primary font-semibold"
-                              : "text-foreground hover:bg-secondary/80"
-                          }`}
-                        >
-                          <IconComp
-                            className={`w-5 h-5 shrink-0 ${active ? "stroke-[2.5px]" : "stroke-[1.8px]"}`}
-                          />
-                          <span className="text-sm flex-1 text-left">{item.label}</span>
-                          <ChevronDown
-                            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
-                              servicesExpanded ? "rotate-180" : ""
-                            }`}
-                          />
-                        </button>
-                        <div
-                          className={`overflow-hidden transition-all duration-200 ease-out ${
-                            servicesExpanded ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
-                          }`}
-                        >
-                          <div className="pl-4 pr-2 pb-1 space-y-0.5">
-                            <Link
-                              to="/user/services"
-                              onClick={() => {
-                                handleTabPress("/user/services");
-                                setMenuOpen(false);
-                              }}
-                              className="block px-4 py-2.5 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors"
-                            >
-                              {t("allServicesMenu")}
-                            </Link>
-                            {menuCategories.map((cat: { _id: string; name: string }) => (
-                              <button
-                                key={cat._id}
-                                type="button"
-                                onClick={() => goToServicesCategory(cat.name)}
-                                className="w-full text-left px-4 py-2.5 text-xs text-foreground hover:text-primary hover:bg-primary/5 rounded-lg transition-colors truncate"
-                              >
-                                {cat.name}
-                              </button>
-                            ))}
-                            {menuCategories.length === 0 && (
-                              <p className="px-4 py-2 text-xs text-muted-foreground">{t("noCategories")}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={() => {
-                        handleTabPress(item.to);
-                        setMenuOpen(false);
-                      }}
-                      className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${
-                        active
-                          ? "bg-primary/12 text-primary font-semibold"
-                          : "text-foreground hover:bg-secondary/80"
-                      }`}
-                    >
-                      <IconComp
-                        className={`w-5 h-5 shrink-0 ${active ? "stroke-[2.5px]" : "stroke-[1.8px]"}`}
-                      />
-                      <span className="text-sm">{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            </aside>
-          </div>
-
           <main
             ref={mainRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden bg-background scrollbar-none touch-pan-y"
+            className="flex-1 overflow-y-auto overflow-x-hidden bg-background scrollbar-none touch-pan-y pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))]"
           >
             <div key={isTabScreen ? TAB_PATHS[tabIndex] : location.pathname} className={contentAnimation}>
               {children}
             </div>
           </main>
 
-          <nav className="flex-shrink-0 z-50 bg-background/95 backdrop-blur-md border-t border-border safe-area-bottom">
-            <div className="relative flex items-stretch px-2 min-h-[62px]">
-              {isTabScreen && (
-                <div
-                  aria-hidden
-                  className="user-tab-indicator absolute top-1.5 bottom-1.5 left-2 rounded-2xl bg-primary/12 pointer-events-none"
-                  style={{
-                    width: `calc((100% - 16px) / ${navItems.length})`,
-                    transform: `translateX(calc(${tabIndex} * 100%))`,
-                  }}
-                />
-              )}
+          <nav
+            className={`${
+              isMockup ? "absolute inset-x-0 bottom-0" : "fixed inset-x-0 bottom-0"
+            } z-50 user-tab-glass safe-area-bottom`}
+          >
+            <div className="flex items-stretch px-2 min-h-[62px]">
               {navItems.map((item) => (
                 <BottomNavItem
                   key={item.to}
