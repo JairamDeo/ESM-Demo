@@ -246,33 +246,32 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           }
           className={shellClass}
         >
-          <header className="flex-shrink-0 z-50 bg-background/95 backdrop-blur-md border-b border-border h-[56px]">
+          <header className="flex-shrink-0 z-50 bg-background/95 backdrop-blur-md border-b border-border h-[48px]">
             <div className="flex items-center justify-between px-3 h-full gap-2">
-              <Link to="/user" className="min-w-0 flex-1 overflow-hidden relative z-0 group">
-                <p className="text-foreground text-[13px] sm:text-[14px] font-semibold leading-none tracking-[0.01em] truncate group-hover:text-primary transition-colors">
+              <Link to="/user" className="min-w-0 flex-1 overflow-hidden group">
+                <p className="text-foreground text-[11px] min-[400px]:text-[12px] sm:text-[13px] font-semibold leading-none tracking-[0.01em] whitespace-nowrap group-hover:text-primary transition-colors">
                   {t("welcomeTo")}
                 </p>
               </Link>
 
-              {/* Right: action icons — z-20 so they stay tappable over overflowing title */}
-              <div className="flex items-center gap-1 shrink-0 relative z-20">
+              <div className="flex items-center gap-0.5 shrink-0">
                 <Link
                   to="/user/notifications"
-                  className="relative w-11 h-11 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
+                  className="relative w-9 h-9 flex items-center justify-center"
                   aria-label="Notifications"
                 >
-                  <Icon icon="mi:notification" className="w-5 h-5 text-foreground dark:text-[#E4E4E4]" />
+                  <Icon icon="mi:notification" className="w-5 h-5 text-foreground" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#D81B60]" />
+                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#D81B60]" />
                   )}
                 </Link>
 
                 <Link
                   to="/user/settings"
-                  className="w-11 h-11 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
+                  className="w-9 h-9 flex items-center justify-center"
                   aria-label="Settings"
                 >
-                  <Settings className="w-4 h-4 text-foreground" />
+                  <Settings className="w-[18px] h-[18px] text-foreground" />
                 </Link>
 
                 <button
@@ -282,7 +281,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                     i18n.changeLanguage(next);
                     localStorage.setItem("lang", next);
                   }}
-                  className="h-11 min-w-11 px-2 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors text-[11px] font-bold text-foreground tracking-wide select-none"
+                  className="h-9 px-1.5 flex items-center justify-center text-[11px] font-bold text-foreground tracking-wide select-none"
                   aria-label="Toggle language"
                 >
                   {i18n.language === "hi" ? "हिं" : "EN"}
@@ -291,7 +290,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  className="w-11 h-11 rounded-full bg-secondary dark:bg-[#1A1A1A] hover:bg-secondary/80 dark:hover:bg-[#252525] flex items-center justify-center transition-colors"
+                  className="w-9 h-9 flex items-center justify-center"
                   aria-label="Toggle theme"
                 >
                   {resolvedTheme === "dark" ? (

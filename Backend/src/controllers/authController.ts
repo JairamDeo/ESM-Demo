@@ -160,7 +160,7 @@ export const sendOTP = async (req: Request, res: Response): Promise<void> => {
     }
 
     const normalizedPhone = phone.toString().replace(/\D/g, "").slice(-10);
-    const existing = await User.findOne({ phone: normalizedPhone });
+    const existing = await User.findOne({ phone: normalizedPhone }).select("otpSentAt").lean();
 
     if (existing?.otpSentAt) {
       const elapsed = Date.now() - existing.otpSentAt.getTime();
@@ -186,13 +186,15 @@ export const sendOTP = async (req: Request, res: Response): Promise<void> => {
     await User.findOneAndUpdate(
       { phone: normalizedPhone },
       { phone: normalizedPhone, otp, otpExpiry, otpSentAt, isActive: true },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
 
     let smsSent = false;
     if (!bypass && smsEnabled) {
-      await sendLoginOtpSms(normalizedPhone, otp);
       smsSent = true;
+      void sendLoginOtpSms(normalizedPhone, otp).catch((err) => {
+        console.error("OTP SMS failed:", err?.message || err);
+      });
     } else if (!bypass) {
       console.log(`📱 OTP for ${normalizedPhone} (SMS disabled): ${otp}`);
     } else {
