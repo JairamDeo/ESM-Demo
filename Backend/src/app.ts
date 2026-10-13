@@ -3,7 +3,6 @@ import path from "path";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import rateLimit from "express-rate-limit";
 
 import authRoutes from "./routes/auth";
 import grievanceRoutes from "./routes/grievances";
@@ -51,27 +50,6 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
-// ─── Rate limiting ────────────────────────────────────────────────────────────
-// Off unless RATE_LIMIT_ENABLED=true (local testing hits 429s otherwise).
-const rateLimitEnabled = process.env.RATE_LIMIT_ENABLED === "true";
-if (rateLimitEnabled) {
-  const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000"),
-    max: parseInt(process.env.RATE_LIMIT_MAX || "100"),
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: "Too many requests. Please try again later." },
-  });
-  app.use("/api", limiter);
-
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 20,
-    message: { success: false, message: "Too many login attempts. Try again in 15 minutes." },
-  });
-  app.use("/api/auth", authLimiter);
-}
 
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));

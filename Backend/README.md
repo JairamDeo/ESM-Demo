@@ -167,7 +167,7 @@ Each case type can define:
 - **Push Notifications:** `web-push`
 - **i18n:** `@vitalets/google-translate-api`
 - **OTP Delivery:** MSG91 SMS in production, with a dev/testing bypass code (`1234`) when SMS is disabled
-- **Security:** Helmet, CORS, `express-rate-limit`
+- **Security:** Helmet, CORS
 - **Logging:** Morgan
 
 ### Frontend
